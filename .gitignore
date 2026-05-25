@@ -1,9 +1,10 @@
 backend/FraudGuard.Api/DataProtectionKeys/
 
-ml/dataset/
 ml/**/.ipynb_checkpoints/
 *.csv
 
-ml/dataset/
-ml/**/.ipynb_checkpoints/
-*.csv
+!ml/dataset/
+!ml/dataset/README.md
+!ml/dataset/fraud_sample.csv
+ml/dataset/fraud.csv
+ml/dataset/fraud.csv.csv
