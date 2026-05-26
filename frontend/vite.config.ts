@@ -10,6 +10,9 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 // @cloudflare/vite-plugin builds from this — wrangler.jsonc main alone is insufficient.
 export default defineConfig({
   tanstackStart: {
+    router: {
+      routeFileIgnorePattern: "AppRoutes\\.tsx$",
+    },
     server: { entry: "server" },
   },
 });

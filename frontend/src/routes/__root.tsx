@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
@@ -72,21 +72,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Aegis AI is an enterprise-grade fintech web application for real-time credit card fraud detection." },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Aegis AI is an enterprise-grade fintech web application for real-time credit card fraud detection." },
+      { title: "FraudGuard" },
+      { name: "description", content: "FraudGuard is a machine learning credit card fraud detection system for real-time transaction risk analysis." },
+      { name: "author", content: "FraudGuard" },
+      { property: "og:title", content: "FraudGuard" },
+      { property: "og:description", content: "Machine learning credit card fraud detection for real-time transaction risk analysis." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
-      { name: "twitter:description", content: "Aegis AI is an enterprise-grade fintech web application for real-time credit card fraud detection." },
+      { name: "twitter:title", content: "FraudGuard" },
+      { name: "twitter:description", content: "Machine learning credit card fraud detection for real-time transaction risk analysis." },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "icon",
+        type: "image/svg+xml",
+        href: "/favicon.svg",
       },
     ],
   }),

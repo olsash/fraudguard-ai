@@ -12,25 +12,23 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as AppRouteImport } from './routes/_app'
-import { Route as AdminRouteImport } from './routes/_admin'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppAppIndexRouteImport } from './routes/_app.app.index'
-import { Route as AdminAdminIndexRouteImport } from './routes/_admin.admin.index'
-import { Route as AppAppTransactionsRouteImport } from './routes/_app.app.transactions'
-import { Route as AppAppThesisRouteImport } from './routes/_app.app.thesis'
-import { Route as AppAppReportsRouteImport } from './routes/_app.app.reports'
-import { Route as AppAppProfileRouteImport } from './routes/_app.app.profile'
-import { Route as AppAppPredictRouteImport } from './routes/_app.app.predict'
-import { Route as AppAppPipelineRouteImport } from './routes/_app.app.pipeline'
-import { Route as AppAppModelsRouteImport } from './routes/_app.app.models'
-import { Route as AppAppAlertsRouteImport } from './routes/_app.app.alerts'
-import { Route as AdminAdminUsersRouteImport } from './routes/_admin.admin.users'
-import { Route as AdminAdminTransactionsRouteImport } from './routes/_admin.admin.transactions'
-import { Route as AdminAdminSettingsRouteImport } from './routes/_admin.admin.settings'
-import { Route as AdminAdminModelsRouteImport } from './routes/_admin.admin.models'
-import { Route as AdminAdminLogsRouteImport } from './routes/_admin.admin.logs'
-import { Route as AdminAdminAlertsRouteImport } from './routes/_admin.admin.alerts'
+import { Route as AppIndexRouteImport } from './routes/app/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AppTransactionsRouteImport } from './routes/app/transactions'
+import { Route as AppThesisRouteImport } from './routes/app/thesis'
+import { Route as AppReportsRouteImport } from './routes/app/reports'
+import { Route as AppProfileRouteImport } from './routes/app/profile'
+import { Route as AppPredictRouteImport } from './routes/app/predict'
+import { Route as AppPipelineRouteImport } from './routes/app/pipeline'
+import { Route as AppModelsRouteImport } from './routes/app/models'
+import { Route as AppAlertsRouteImport } from './routes/app/alerts'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminTransactionsRouteImport } from './routes/admin/transactions'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminModelsRouteImport } from './routes/admin/models'
+import { Route as AdminLogsRouteImport } from './routes/admin/logs'
+import { Route as AdminAlertsRouteImport } from './routes/admin/alerts'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
@@ -47,98 +45,90 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/_admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppAppIndexRoute = AppAppIndexRouteImport.update({
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/app/',
   path: '/app/',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminAdminIndexRoute = AdminAdminIndexRouteImport.update({
+const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppAppTransactionsRoute = AppAppTransactionsRouteImport.update({
+const AppTransactionsRoute = AppTransactionsRouteImport.update({
   id: '/app/transactions',
   path: '/app/transactions',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppAppThesisRoute = AppAppThesisRouteImport.update({
+const AppThesisRoute = AppThesisRouteImport.update({
   id: '/app/thesis',
   path: '/app/thesis',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppAppReportsRoute = AppAppReportsRouteImport.update({
+const AppReportsRoute = AppReportsRouteImport.update({
   id: '/app/reports',
   path: '/app/reports',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppAppProfileRoute = AppAppProfileRouteImport.update({
+const AppProfileRoute = AppProfileRouteImport.update({
   id: '/app/profile',
   path: '/app/profile',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppAppPredictRoute = AppAppPredictRouteImport.update({
+const AppPredictRoute = AppPredictRouteImport.update({
   id: '/app/predict',
   path: '/app/predict',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppAppPipelineRoute = AppAppPipelineRouteImport.update({
+const AppPipelineRoute = AppPipelineRouteImport.update({
   id: '/app/pipeline',
   path: '/app/pipeline',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppAppModelsRoute = AppAppModelsRouteImport.update({
+const AppModelsRoute = AppModelsRouteImport.update({
   id: '/app/models',
   path: '/app/models',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppAppAlertsRoute = AppAppAlertsRouteImport.update({
+const AppAlertsRoute = AppAlertsRouteImport.update({
   id: '/app/alerts',
   path: '/app/alerts',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminAdminUsersRoute = AdminAdminUsersRouteImport.update({
+const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminAdminTransactionsRoute = AdminAdminTransactionsRouteImport.update({
+const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
   id: '/admin/transactions',
   path: '/admin/transactions',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminAdminSettingsRoute = AdminAdminSettingsRouteImport.update({
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/admin/settings',
   path: '/admin/settings',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminAdminModelsRoute = AdminAdminModelsRouteImport.update({
+const AdminModelsRoute = AdminModelsRouteImport.update({
   id: '/admin/models',
   path: '/admin/models',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminAdminLogsRoute = AdminAdminLogsRouteImport.update({
+const AdminLogsRoute = AdminLogsRouteImport.update({
   id: '/admin/logs',
   path: '/admin/logs',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminAdminAlertsRoute = AdminAdminAlertsRouteImport.update({
+const AdminAlertsRoute = AdminAlertsRouteImport.update({
   id: '/admin/alerts',
   path: '/admin/alerts',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -146,69 +136,67 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/admin/alerts': typeof AdminAdminAlertsRoute
-  '/admin/logs': typeof AdminAdminLogsRoute
-  '/admin/models': typeof AdminAdminModelsRoute
-  '/admin/settings': typeof AdminAdminSettingsRoute
-  '/admin/transactions': typeof AdminAdminTransactionsRoute
-  '/admin/users': typeof AdminAdminUsersRoute
-  '/app/alerts': typeof AppAppAlertsRoute
-  '/app/models': typeof AppAppModelsRoute
-  '/app/pipeline': typeof AppAppPipelineRoute
-  '/app/predict': typeof AppAppPredictRoute
-  '/app/profile': typeof AppAppProfileRoute
-  '/app/reports': typeof AppAppReportsRoute
-  '/app/thesis': typeof AppAppThesisRoute
-  '/app/transactions': typeof AppAppTransactionsRoute
-  '/admin/': typeof AdminAdminIndexRoute
-  '/app/': typeof AppAppIndexRoute
+  '/admin/alerts': typeof AdminAlertsRoute
+  '/admin/logs': typeof AdminLogsRoute
+  '/admin/models': typeof AdminModelsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/transactions': typeof AdminTransactionsRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/app/alerts': typeof AppAlertsRoute
+  '/app/models': typeof AppModelsRoute
+  '/app/pipeline': typeof AppPipelineRoute
+  '/app/predict': typeof AppPredictRoute
+  '/app/profile': typeof AppProfileRoute
+  '/app/reports': typeof AppReportsRoute
+  '/app/thesis': typeof AppThesisRoute
+  '/app/transactions': typeof AppTransactionsRoute
+  '/admin/': typeof AdminIndexRoute
+  '/app/': typeof AppIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/admin/alerts': typeof AdminAdminAlertsRoute
-  '/admin/logs': typeof AdminAdminLogsRoute
-  '/admin/models': typeof AdminAdminModelsRoute
-  '/admin/settings': typeof AdminAdminSettingsRoute
-  '/admin/transactions': typeof AdminAdminTransactionsRoute
-  '/admin/users': typeof AdminAdminUsersRoute
-  '/app/alerts': typeof AppAppAlertsRoute
-  '/app/models': typeof AppAppModelsRoute
-  '/app/pipeline': typeof AppAppPipelineRoute
-  '/app/predict': typeof AppAppPredictRoute
-  '/app/profile': typeof AppAppProfileRoute
-  '/app/reports': typeof AppAppReportsRoute
-  '/app/thesis': typeof AppAppThesisRoute
-  '/app/transactions': typeof AppAppTransactionsRoute
-  '/admin': typeof AdminAdminIndexRoute
-  '/app': typeof AppAppIndexRoute
+  '/admin/alerts': typeof AdminAlertsRoute
+  '/admin/logs': typeof AdminLogsRoute
+  '/admin/models': typeof AdminModelsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/transactions': typeof AdminTransactionsRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/app/alerts': typeof AppAlertsRoute
+  '/app/models': typeof AppModelsRoute
+  '/app/pipeline': typeof AppPipelineRoute
+  '/app/predict': typeof AppPredictRoute
+  '/app/profile': typeof AppProfileRoute
+  '/app/reports': typeof AppReportsRoute
+  '/app/thesis': typeof AppThesisRoute
+  '/app/transactions': typeof AppTransactionsRoute
+  '/admin': typeof AdminIndexRoute
+  '/app': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/_admin': typeof AdminRouteWithChildren
-  '/_app': typeof AppRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/_admin/admin/alerts': typeof AdminAdminAlertsRoute
-  '/_admin/admin/logs': typeof AdminAdminLogsRoute
-  '/_admin/admin/models': typeof AdminAdminModelsRoute
-  '/_admin/admin/settings': typeof AdminAdminSettingsRoute
-  '/_admin/admin/transactions': typeof AdminAdminTransactionsRoute
-  '/_admin/admin/users': typeof AdminAdminUsersRoute
-  '/_app/app/alerts': typeof AppAppAlertsRoute
-  '/_app/app/models': typeof AppAppModelsRoute
-  '/_app/app/pipeline': typeof AppAppPipelineRoute
-  '/_app/app/predict': typeof AppAppPredictRoute
-  '/_app/app/profile': typeof AppAppProfileRoute
-  '/_app/app/reports': typeof AppAppReportsRoute
-  '/_app/app/thesis': typeof AppAppThesisRoute
-  '/_app/app/transactions': typeof AppAppTransactionsRoute
-  '/_admin/admin/': typeof AdminAdminIndexRoute
-  '/_app/app/': typeof AppAppIndexRoute
+  '/admin/alerts': typeof AdminAlertsRoute
+  '/admin/logs': typeof AdminLogsRoute
+  '/admin/models': typeof AdminModelsRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/transactions': typeof AdminTransactionsRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/app/alerts': typeof AppAlertsRoute
+  '/app/models': typeof AppModelsRoute
+  '/app/pipeline': typeof AppPipelineRoute
+  '/app/predict': typeof AppPredictRoute
+  '/app/profile': typeof AppProfileRoute
+  '/app/reports': typeof AppReportsRoute
+  '/app/thesis': typeof AppThesisRoute
+  '/app/transactions': typeof AppTransactionsRoute
+  '/admin/': typeof AdminIndexRoute
+  '/app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -258,36 +246,48 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/_admin'
-    | '/_app'
     | '/forgot-password'
     | '/login'
     | '/register'
-    | '/_admin/admin/alerts'
-    | '/_admin/admin/logs'
-    | '/_admin/admin/models'
-    | '/_admin/admin/settings'
-    | '/_admin/admin/transactions'
-    | '/_admin/admin/users'
-    | '/_app/app/alerts'
-    | '/_app/app/models'
-    | '/_app/app/pipeline'
-    | '/_app/app/predict'
-    | '/_app/app/profile'
-    | '/_app/app/reports'
-    | '/_app/app/thesis'
-    | '/_app/app/transactions'
-    | '/_admin/admin/'
-    | '/_app/app/'
+    | '/admin/alerts'
+    | '/admin/logs'
+    | '/admin/models'
+    | '/admin/settings'
+    | '/admin/transactions'
+    | '/admin/users'
+    | '/app/alerts'
+    | '/app/models'
+    | '/app/pipeline'
+    | '/app/predict'
+    | '/app/profile'
+    | '/app/reports'
+    | '/app/thesis'
+    | '/app/transactions'
+    | '/admin/'
+    | '/app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRouteWithChildren
-  AppRoute: typeof AppRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  AdminAlertsRoute: typeof AdminAlertsRoute
+  AdminLogsRoute: typeof AdminLogsRoute
+  AdminModelsRoute: typeof AdminModelsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminTransactionsRoute: typeof AdminTransactionsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AppAlertsRoute: typeof AppAlertsRoute
+  AppModelsRoute: typeof AppModelsRoute
+  AppPipelineRoute: typeof AppPipelineRoute
+  AppPredictRoute: typeof AppPredictRoute
+  AppProfileRoute: typeof AppProfileRoute
+  AppReportsRoute: typeof AppReportsRoute
+  AppThesisRoute: typeof AppThesisRoute
+  AppTransactionsRoute: typeof AppTransactionsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+  AppIndexRoute: typeof AppIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -313,20 +313,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app': {
-      id: '/_app'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_admin': {
-      id: '/_admin'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -334,177 +320,153 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/app/': {
-      id: '/_app/app/'
+    '/app/': {
+      id: '/app/'
       path: '/app'
       fullPath: '/app/'
-      preLoaderRoute: typeof AppAppIndexRouteImport
-      parentRoute: typeof AppRoute
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_admin/admin/': {
-      id: '/_admin/admin/'
+    '/admin/': {
+      id: '/admin/'
       path: '/admin'
       fullPath: '/admin/'
-      preLoaderRoute: typeof AdminAdminIndexRouteImport
-      parentRoute: typeof AdminRoute
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/app/transactions': {
-      id: '/_app/app/transactions'
+    '/app/transactions': {
+      id: '/app/transactions'
       path: '/app/transactions'
       fullPath: '/app/transactions'
-      preLoaderRoute: typeof AppAppTransactionsRouteImport
-      parentRoute: typeof AppRoute
+      preLoaderRoute: typeof AppTransactionsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/app/thesis': {
-      id: '/_app/app/thesis'
+    '/app/thesis': {
+      id: '/app/thesis'
       path: '/app/thesis'
       fullPath: '/app/thesis'
-      preLoaderRoute: typeof AppAppThesisRouteImport
-      parentRoute: typeof AppRoute
+      preLoaderRoute: typeof AppThesisRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/app/reports': {
-      id: '/_app/app/reports'
+    '/app/reports': {
+      id: '/app/reports'
       path: '/app/reports'
       fullPath: '/app/reports'
-      preLoaderRoute: typeof AppAppReportsRouteImport
-      parentRoute: typeof AppRoute
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/app/profile': {
-      id: '/_app/app/profile'
+    '/app/profile': {
+      id: '/app/profile'
       path: '/app/profile'
       fullPath: '/app/profile'
-      preLoaderRoute: typeof AppAppProfileRouteImport
-      parentRoute: typeof AppRoute
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/app/predict': {
-      id: '/_app/app/predict'
+    '/app/predict': {
+      id: '/app/predict'
       path: '/app/predict'
       fullPath: '/app/predict'
-      preLoaderRoute: typeof AppAppPredictRouteImport
-      parentRoute: typeof AppRoute
+      preLoaderRoute: typeof AppPredictRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/app/pipeline': {
-      id: '/_app/app/pipeline'
+    '/app/pipeline': {
+      id: '/app/pipeline'
       path: '/app/pipeline'
       fullPath: '/app/pipeline'
-      preLoaderRoute: typeof AppAppPipelineRouteImport
-      parentRoute: typeof AppRoute
+      preLoaderRoute: typeof AppPipelineRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/app/models': {
-      id: '/_app/app/models'
+    '/app/models': {
+      id: '/app/models'
       path: '/app/models'
       fullPath: '/app/models'
-      preLoaderRoute: typeof AppAppModelsRouteImport
-      parentRoute: typeof AppRoute
+      preLoaderRoute: typeof AppModelsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/app/alerts': {
-      id: '/_app/app/alerts'
+    '/app/alerts': {
+      id: '/app/alerts'
       path: '/app/alerts'
       fullPath: '/app/alerts'
-      preLoaderRoute: typeof AppAppAlertsRouteImport
-      parentRoute: typeof AppRoute
+      preLoaderRoute: typeof AppAlertsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_admin/admin/users': {
-      id: '/_admin/admin/users'
+    '/admin/users': {
+      id: '/admin/users'
       path: '/admin/users'
       fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminAdminUsersRouteImport
-      parentRoute: typeof AdminRoute
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_admin/admin/transactions': {
-      id: '/_admin/admin/transactions'
+    '/admin/transactions': {
+      id: '/admin/transactions'
       path: '/admin/transactions'
       fullPath: '/admin/transactions'
-      preLoaderRoute: typeof AdminAdminTransactionsRouteImport
-      parentRoute: typeof AdminRoute
+      preLoaderRoute: typeof AdminTransactionsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_admin/admin/settings': {
-      id: '/_admin/admin/settings'
+    '/admin/settings': {
+      id: '/admin/settings'
       path: '/admin/settings'
       fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminAdminSettingsRouteImport
-      parentRoute: typeof AdminRoute
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_admin/admin/models': {
-      id: '/_admin/admin/models'
+    '/admin/models': {
+      id: '/admin/models'
       path: '/admin/models'
       fullPath: '/admin/models'
-      preLoaderRoute: typeof AdminAdminModelsRouteImport
-      parentRoute: typeof AdminRoute
+      preLoaderRoute: typeof AdminModelsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_admin/admin/logs': {
-      id: '/_admin/admin/logs'
+    '/admin/logs': {
+      id: '/admin/logs'
       path: '/admin/logs'
       fullPath: '/admin/logs'
-      preLoaderRoute: typeof AdminAdminLogsRouteImport
-      parentRoute: typeof AdminRoute
+      preLoaderRoute: typeof AdminLogsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_admin/admin/alerts': {
-      id: '/_admin/admin/alerts'
+    '/admin/alerts': {
+      id: '/admin/alerts'
       path: '/admin/alerts'
       fullPath: '/admin/alerts'
-      preLoaderRoute: typeof AdminAdminAlertsRouteImport
-      parentRoute: typeof AdminRoute
+      preLoaderRoute: typeof AdminAlertsRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface AdminRouteChildren {
-  AdminAdminAlertsRoute: typeof AdminAdminAlertsRoute
-  AdminAdminLogsRoute: typeof AdminAdminLogsRoute
-  AdminAdminModelsRoute: typeof AdminAdminModelsRoute
-  AdminAdminSettingsRoute: typeof AdminAdminSettingsRoute
-  AdminAdminTransactionsRoute: typeof AdminAdminTransactionsRoute
-  AdminAdminUsersRoute: typeof AdminAdminUsersRoute
-  AdminAdminIndexRoute: typeof AdminAdminIndexRoute
-}
-
-const AdminRouteChildren: AdminRouteChildren = {
-  AdminAdminAlertsRoute: AdminAdminAlertsRoute,
-  AdminAdminLogsRoute: AdminAdminLogsRoute,
-  AdminAdminModelsRoute: AdminAdminModelsRoute,
-  AdminAdminSettingsRoute: AdminAdminSettingsRoute,
-  AdminAdminTransactionsRoute: AdminAdminTransactionsRoute,
-  AdminAdminUsersRoute: AdminAdminUsersRoute,
-  AdminAdminIndexRoute: AdminAdminIndexRoute,
-}
-
-const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
-
-interface AppRouteChildren {
-  AppAppAlertsRoute: typeof AppAppAlertsRoute
-  AppAppModelsRoute: typeof AppAppModelsRoute
-  AppAppPipelineRoute: typeof AppAppPipelineRoute
-  AppAppPredictRoute: typeof AppAppPredictRoute
-  AppAppProfileRoute: typeof AppAppProfileRoute
-  AppAppReportsRoute: typeof AppAppReportsRoute
-  AppAppThesisRoute: typeof AppAppThesisRoute
-  AppAppTransactionsRoute: typeof AppAppTransactionsRoute
-  AppAppIndexRoute: typeof AppAppIndexRoute
-}
-
-const AppRouteChildren: AppRouteChildren = {
-  AppAppAlertsRoute: AppAppAlertsRoute,
-  AppAppModelsRoute: AppAppModelsRoute,
-  AppAppPipelineRoute: AppAppPipelineRoute,
-  AppAppPredictRoute: AppAppPredictRoute,
-  AppAppProfileRoute: AppAppProfileRoute,
-  AppAppReportsRoute: AppAppReportsRoute,
-  AppAppThesisRoute: AppAppThesisRoute,
-  AppAppTransactionsRoute: AppAppTransactionsRoute,
-  AppAppIndexRoute: AppAppIndexRoute,
-}
-
-const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRouteWithChildren,
-  AppRoute: AppRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  AdminAlertsRoute: AdminAlertsRoute,
+  AdminLogsRoute: AdminLogsRoute,
+  AdminModelsRoute: AdminModelsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminTransactionsRoute: AdminTransactionsRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AppAlertsRoute: AppAlertsRoute,
+  AppModelsRoute: AppModelsRoute,
+  AppPipelineRoute: AppPipelineRoute,
+  AppPredictRoute: AppPredictRoute,
+  AppProfileRoute: AppProfileRoute,
+  AppReportsRoute: AppReportsRoute,
+  AppThesisRoute: AppThesisRoute,
+  AppTransactionsRoute: AppTransactionsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+  AppIndexRoute: AppIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

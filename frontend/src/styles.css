@@ -1,4 +1,4 @@
-@import "tailwindcss" source(none);
+﻿@import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
 
@@ -95,7 +95,7 @@
 :root {
   --radius: 0.75rem;
 
-  /* Dark fintech / cyber theme — used as default */
+  /* Dark fintech / cyber theme - used as default */
   --background: oklch(0.16 0.025 260);
   --foreground: oklch(0.97 0.01 240);
   --card: oklch(0.21 0.03 260);
@@ -139,7 +139,7 @@
   --sidebar-ring: oklch(0.78 0.18 200);
 }
 
-.dark { /* same — app is dark-first */ }
+.dark { /* same - app is dark-first */ }
 
 @layer base {
   * { border-color: var(--color-border); }
