@@ -1,6 +1,10 @@
-fastapi
-uvicorn
 pandas
+numpy
 scikit-learn
 joblib
+fastapi
+uvicorn
 pydantic
+matplotlib
+jupyter
+ipykernel
