@@ -1,10 +1,56 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+.venv/
+venv/
+env/
+ENV/
+ml/.venv/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Jupyter generated files
+.ipynb_checkpoints/
+ml/**/.ipynb_checkpoints/
+
+# Node/Vite generated files
+node_modules/
+dist/
+build/
+coverage/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# .NET generated files
+[Bb]in/
+[Oo]bj/
 backend/FraudGuard.Api/DataProtectionKeys/
 
-ml/**/.ipynb_checkpoints/
-*.csv
+# Local datasets and generated ML artifacts
+ml/dataset/*.csv
+!ml/dataset/fraud_sample.csv
+ml/models/*.pkl
+ml/models/*.joblib
 
+# Keep dataset documentation trackable
 !ml/dataset/
 !ml/dataset/README.md
-!ml/dataset/fraud_sample.csv
-ml/dataset/fraud.csv
-ml/dataset/fraud.csv.csv
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
