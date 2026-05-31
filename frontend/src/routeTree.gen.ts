@@ -26,6 +26,7 @@ import { Route as AppAlertsRouteImport } from './routes/app/alerts'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminTransactionsRouteImport } from './routes/admin/transactions'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminProfileRouteImport } from './routes/admin/profile'
 import { Route as AdminModelsRouteImport } from './routes/admin/models'
 import { Route as AdminLogsRouteImport } from './routes/admin/logs'
 import { Route as AdminAlertsRouteImport } from './routes/admin/alerts'
@@ -115,6 +116,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/admin/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminProfileRoute = AdminProfileRouteImport.update({
+  id: '/admin/profile',
+  path: '/admin/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminModelsRoute = AdminModelsRouteImport.update({
   id: '/admin/models',
   path: '/admin/models',
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/models': typeof AdminModelsRoute
+  '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/models': typeof AdminModelsRoute
+  '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/models': typeof AdminModelsRoute
+  '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -208,6 +217,7 @@ export interface FileRouteTypes {
     | '/admin/alerts'
     | '/admin/logs'
     | '/admin/models'
+    | '/admin/profile'
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
@@ -230,6 +240,7 @@ export interface FileRouteTypes {
     | '/admin/alerts'
     | '/admin/logs'
     | '/admin/models'
+    | '/admin/profile'
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
@@ -252,6 +263,7 @@ export interface FileRouteTypes {
     | '/admin/alerts'
     | '/admin/logs'
     | '/admin/models'
+    | '/admin/profile'
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
@@ -275,6 +287,7 @@ export interface RootRouteChildren {
   AdminAlertsRoute: typeof AdminAlertsRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminModelsRoute: typeof AdminModelsRoute
+  AdminProfileRoute: typeof AdminProfileRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -411,6 +424,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/profile': {
+      id: '/admin/profile'
+      path: '/admin/profile'
+      fullPath: '/admin/profile'
+      preLoaderRoute: typeof AdminProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/models': {
       id: '/admin/models'
       path: '/admin/models'
@@ -443,6 +463,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAlertsRoute: AdminAlertsRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminModelsRoute: AdminModelsRoute,
+  AdminProfileRoute: AdminProfileRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
   AdminUsersRoute: AdminUsersRoute,
