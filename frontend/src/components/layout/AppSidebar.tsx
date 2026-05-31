@@ -27,6 +27,7 @@ const adminNav = [
   { to: "/admin/models", label: "Models", icon: Brain },
   { to: "/admin/logs", label: "Logs", icon: Activity },
   { to: "/admin/settings", label: "Settings", icon: Settings },
+  { to: "/admin/profile", label: "Profile", icon: UserCircle },
 ];
 
 export function AppSidebar({ variant = "user" }: { variant?: "user" | "admin" }) {
@@ -38,7 +39,7 @@ export function AppSidebar({ variant = "user" }: { variant?: "user" | "admin" })
     setCurrentUser(authService.getCurrentUser());
   }, []);
 
-  const profileTo = variant === "admin" ? "/admin" : "/app/profile";
+  const profileTo = variant === "admin" ? "/admin/profile" : "/app/profile";
   const displayName = currentUser?.name ?? (variant === "admin" ? "Admin User" : "Sara Amrani");
   const initials = currentUser?.initials ?? (variant === "admin" ? "AU" : "SA");
   const roleLabel = currentUser?.role === "admin" ? "Administrator" : "User";

@@ -1,5 +1,5 @@
 ﻿export const apiConfig = {
-  baseUrl: import.meta.env.VITE_API_BASE_URL ?? "https://localhost:5001/api",
+  baseUrl: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000/api",
   predictionApiUrl:
-    import.meta.env.VITE_ML_PREDICTION_API_URL ?? "https://localhost:5001/api/predictions",
+    import.meta.env.VITE_ML_PREDICTION_API_URL ?? "http://localhost:5000/api/predictions",
 };

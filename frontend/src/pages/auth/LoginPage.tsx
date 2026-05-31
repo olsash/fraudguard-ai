@@ -7,19 +7,23 @@ import { authService } from "@/services/authService";
 export default function Login() {
   const navigate = useNavigate();
   const [show, setShow] = useState(false);
-  const [email, setEmail] = useState("demo@fraudguard.ai");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("admin@credit.com");
+  const [password, setPassword] = useState("admin123");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setIsSubmitting(true);
 
     try {
-      const result = authService.signIn(email, password);
+      const result = await authService.signIn(email, password);
       void navigate({ to: result.redirectTo, replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -55,12 +59,12 @@ export default function Login() {
         </div>
         <div className="glass rounded-lg p-3 text-xs text-muted-foreground">
           <p className="font-medium text-foreground">Demo credentials</p>
-          <p>User: demo@fraudguard.ai / password</p>
-          <p>Admin: admin@fraudguard.ai / admin123</p>
+          <p>User: user@credit.com / user123</p>
+          <p>Admin: admin@credit.com / admin123</p>
         </div>
         {error && <p className="text-xs text-destructive">{error}</p>}
-        <button type="submit" className="block w-full text-center bg-gradient-primary text-primary-foreground rounded-lg py-3 font-medium ring-glow">
-          Sign in
+        <button type="submit" disabled={isSubmitting} className="block w-full text-center bg-gradient-primary text-primary-foreground rounded-lg py-3 font-medium ring-glow disabled:opacity-60">
+          {isSubmitting ? "Signing in..." : "Sign in"}
         </button>
         <Divider/>
         <div className="grid grid-cols-2 gap-2">
