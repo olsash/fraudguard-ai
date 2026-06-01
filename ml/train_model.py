@@ -9,7 +9,6 @@ from sklearn.model_selection import train_test_split
 
 ROOT = Path(__file__).resolve().parent
 DATASET_PATH = ROOT / "dataset" / "fraud.csv"
-FALLBACK_DATASET_PATH = ROOT / "dataset" / "fraud.csv.csv"
 MODEL_DIR = ROOT / "models"
 FEATURES = [
     "type",
@@ -25,11 +24,14 @@ NON_FRAUD_TO_FRAUD_RATIO = 20
 
 
 def load_dataset() -> pd.DataFrame:
-    dataset_path = DATASET_PATH if DATASET_PATH.exists() else FALLBACK_DATASET_PATH
-    if not dataset_path.exists():
-        raise FileNotFoundError(f"Dataset not found at {DATASET_PATH}")
+    if not DATASET_PATH.exists():
+        raise FileNotFoundError(
+            "Dataset not found. Place the full fraud dataset at "
+            f"{DATASET_PATH} before running training. The file is intentionally "
+            "not committed because of its size."
+        )
 
-    data = pd.read_csv(dataset_path)
+    data = pd.read_csv(DATASET_PATH)
     required_columns = FEATURES + [TARGET]
     missing_columns = [column for column in required_columns if column not in data.columns]
     if missing_columns:
