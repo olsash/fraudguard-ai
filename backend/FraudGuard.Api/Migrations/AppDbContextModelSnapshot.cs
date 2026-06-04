@@ -22,6 +22,68 @@ namespace FraudGuard.Api.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("FraudGuard.Api.Models.Prediction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Explanation")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsFraud")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("NewBalanceDestination")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("NewBalanceOrigin")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("OldBalanceDestination")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("OldBalanceOrigin")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("RiskLevel")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("RiskScore")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SuggestedAction")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Predictions");
+                });
+
             modelBuilder.Entity("FraudGuard.Api.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -46,6 +108,12 @@ namespace FraudGuard.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -81,6 +149,7 @@ namespace FraudGuard.Api.Migrations
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "user@credit.com",
                             FullName = "Credit User",
+                            IsActive = true,
                             PasswordHash = "$2a$11$753ccYgfz2QJHlSCTMG2a.Swts8DhWf9WAQJQtEz3HN3AUsIHMIXO",
                             Role = "User"
                         },
@@ -90,9 +159,21 @@ namespace FraudGuard.Api.Migrations
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "admin@credit.com",
                             FullName = "Credit Admin",
+                            IsActive = true,
                             PasswordHash = "$2a$11$hMS2w0HZwNwlHWet4HN1Ce.tzShAq1G7pJ30aYBQawVUxjn3a.IJC",
                             Role = "Admin"
                         });
+                });
+
+            modelBuilder.Entity("FraudGuard.Api.Models.Prediction", b =>
+                {
+                    b.HasOne("FraudGuard.Api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }

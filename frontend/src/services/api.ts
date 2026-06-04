@@ -28,8 +28,9 @@ async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T
     let message = `API request failed: ${response.status}`;
 
     try {
-      const body = (await response.json()) as { message?: string };
-      message = body.message ?? message;
+      const body = (await response.json()) as { message?: string; errors?: Record<string, string[]> };
+      const validationMessages = body.errors ? Object.values(body.errors).flat() : [];
+      message = body.message ?? validationMessages[0] ?? message;
     } catch {
       // Empty error bodies, such as default 401 responses, use the status fallback.
     }

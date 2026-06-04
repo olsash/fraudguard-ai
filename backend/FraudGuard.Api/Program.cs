@@ -20,6 +20,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddHttpClient<PythonPredictionService>(client =>
+{
+    var baseUrl = builder.Configuration["PythonPredictionService:BaseUrl"] ?? "http://localhost:8000";
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var jwtSecret = jwtSettings["Secret"] ?? throw new InvalidOperationException("JWT secret is missing.");
