@@ -8,6 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 
+import { Toaster } from "@/components/common/ui/sonner";
 import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
@@ -120,6 +121,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <Toaster richColors position="top-right" />
     </QueryClientProvider>
   );
 }

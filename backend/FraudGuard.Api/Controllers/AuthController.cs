@@ -60,6 +60,15 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid email or password." });
         }
 
+        if (!user.IsActive)
+        {
+            return Unauthorized(new { message = "This account is inactive." });
+        }
+
+        user.LastLoginAt = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync();
+
         return Ok(CreateAuthResponse(user));
     }
 

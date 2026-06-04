@@ -1,24 +1,24 @@
-﻿export type PredictionRisk = "Low" | "Medium" | "High" | "Critical";
+export type TransactionType = "CASH_IN" | "CASH_OUT" | "DEBIT" | "PAYMENT" | "TRANSFER";
+export type PredictionRisk = "Low" | "Medium" | "High" | "Critical";
 
 export interface PredictionInput {
-  amount: string;
-  merchant: string;
-  category: string;
-  country: string;
-  device: string;
-  txType: string;
-  method: string;
-  time: string;
-  ipRisk: string;
-  freq: string;
-  pattern: string;
+  transactionType: TransactionType;
+  amount: number;
+  oldBalanceOrigin: number;
+  newBalanceOrigin: number;
+  oldBalanceDestination: number;
+  newBalanceDestination: number;
 }
 
-export interface PredictionResult {
-  proba: number;
-  risk: PredictionRisk;
-  fraud: boolean;
+export interface PredictionResult extends PredictionInput {
+  id: number;
+  userId: number;
+  fraudProbability: number;
+  riskScore: number;
+  riskLevel: PredictionRisk;
+  isFraud: boolean;
   confidence: number;
   reasons: string[];
-  action: string;
+  suggestedAction: string;
+  createdAt: string;
 }
