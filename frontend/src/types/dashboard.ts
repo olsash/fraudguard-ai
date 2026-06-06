@@ -28,7 +28,10 @@ export interface PredictionChartPoint {
 export interface DashboardSummary {
   totalUsers?: number | null;
   totalPredictions: number;
+  totalTransactions: number;
+  pendingTransactions: number;
   safeTransactions: number;
+  reviewTransactions: number;
   fraudTransactions: number;
   averageRiskScore: number;
   highestRiskScore: number;

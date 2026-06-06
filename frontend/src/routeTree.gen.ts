@@ -19,6 +19,7 @@ import { Route as AppTransactionsRouteImport } from './routes/app/transactions'
 import { Route as AppThesisRouteImport } from './routes/app/thesis'
 import { Route as AppReportsRouteImport } from './routes/app/reports'
 import { Route as AppProfileRouteImport } from './routes/app/profile'
+import { Route as AppPredictFraudRouteImport } from './routes/app/predict-fraud'
 import { Route as AppPredictRouteImport } from './routes/app/predict'
 import { Route as AppPipelineRouteImport } from './routes/app/pipeline'
 import { Route as AppModelsRouteImport } from './routes/app/models'
@@ -27,6 +28,7 @@ import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminTransactionsRouteImport } from './routes/admin/transactions'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminProfileRouteImport } from './routes/admin/profile'
+import { Route as AdminPredictionsRouteImport } from './routes/admin/predictions'
 import { Route as AdminModelsRouteImport } from './routes/admin/models'
 import { Route as AdminLogsRouteImport } from './routes/admin/logs'
 import { Route as AdminAlertsRouteImport } from './routes/admin/alerts'
@@ -81,6 +83,11 @@ const AppProfileRoute = AppProfileRouteImport.update({
   path: '/app/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppPredictFraudRoute = AppPredictFraudRouteImport.update({
+  id: '/app/predict-fraud',
+  path: '/app/predict-fraud',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppPredictRoute = AppPredictRouteImport.update({
   id: '/app/predict',
   path: '/app/predict',
@@ -121,6 +128,11 @@ const AdminProfileRoute = AdminProfileRouteImport.update({
   path: '/admin/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminPredictionsRoute = AdminPredictionsRouteImport.update({
+  id: '/admin/predictions',
+  path: '/admin/predictions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminModelsRoute = AdminModelsRouteImport.update({
   id: '/admin/models',
   path: '/admin/models',
@@ -145,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/models': typeof AdminModelsRoute
+  '/admin/predictions': typeof AdminPredictionsRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
@@ -153,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/app/models': typeof AppModelsRoute
   '/app/pipeline': typeof AppPipelineRoute
   '/app/predict': typeof AppPredictRoute
+  '/app/predict-fraud': typeof AppPredictFraudRoute
   '/app/profile': typeof AppProfileRoute
   '/app/reports': typeof AppReportsRoute
   '/app/thesis': typeof AppThesisRoute
@@ -168,6 +182,7 @@ export interface FileRoutesByTo {
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/models': typeof AdminModelsRoute
+  '/admin/predictions': typeof AdminPredictionsRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
@@ -176,6 +191,7 @@ export interface FileRoutesByTo {
   '/app/models': typeof AppModelsRoute
   '/app/pipeline': typeof AppPipelineRoute
   '/app/predict': typeof AppPredictRoute
+  '/app/predict-fraud': typeof AppPredictFraudRoute
   '/app/profile': typeof AppProfileRoute
   '/app/reports': typeof AppReportsRoute
   '/app/thesis': typeof AppThesisRoute
@@ -192,6 +208,7 @@ export interface FileRoutesById {
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/models': typeof AdminModelsRoute
+  '/admin/predictions': typeof AdminPredictionsRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
@@ -200,6 +217,7 @@ export interface FileRoutesById {
   '/app/models': typeof AppModelsRoute
   '/app/pipeline': typeof AppPipelineRoute
   '/app/predict': typeof AppPredictRoute
+  '/app/predict-fraud': typeof AppPredictFraudRoute
   '/app/profile': typeof AppProfileRoute
   '/app/reports': typeof AppReportsRoute
   '/app/thesis': typeof AppThesisRoute
@@ -217,6 +235,7 @@ export interface FileRouteTypes {
     | '/admin/alerts'
     | '/admin/logs'
     | '/admin/models'
+    | '/admin/predictions'
     | '/admin/profile'
     | '/admin/settings'
     | '/admin/transactions'
@@ -225,6 +244,7 @@ export interface FileRouteTypes {
     | '/app/models'
     | '/app/pipeline'
     | '/app/predict'
+    | '/app/predict-fraud'
     | '/app/profile'
     | '/app/reports'
     | '/app/thesis'
@@ -240,6 +260,7 @@ export interface FileRouteTypes {
     | '/admin/alerts'
     | '/admin/logs'
     | '/admin/models'
+    | '/admin/predictions'
     | '/admin/profile'
     | '/admin/settings'
     | '/admin/transactions'
@@ -248,6 +269,7 @@ export interface FileRouteTypes {
     | '/app/models'
     | '/app/pipeline'
     | '/app/predict'
+    | '/app/predict-fraud'
     | '/app/profile'
     | '/app/reports'
     | '/app/thesis'
@@ -263,6 +285,7 @@ export interface FileRouteTypes {
     | '/admin/alerts'
     | '/admin/logs'
     | '/admin/models'
+    | '/admin/predictions'
     | '/admin/profile'
     | '/admin/settings'
     | '/admin/transactions'
@@ -271,6 +294,7 @@ export interface FileRouteTypes {
     | '/app/models'
     | '/app/pipeline'
     | '/app/predict'
+    | '/app/predict-fraud'
     | '/app/profile'
     | '/app/reports'
     | '/app/thesis'
@@ -287,6 +311,7 @@ export interface RootRouteChildren {
   AdminAlertsRoute: typeof AdminAlertsRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminModelsRoute: typeof AdminModelsRoute
+  AdminPredictionsRoute: typeof AdminPredictionsRoute
   AdminProfileRoute: typeof AdminProfileRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
@@ -295,6 +320,7 @@ export interface RootRouteChildren {
   AppModelsRoute: typeof AppModelsRoute
   AppPipelineRoute: typeof AppPipelineRoute
   AppPredictRoute: typeof AppPredictRoute
+  AppPredictFraudRoute: typeof AppPredictFraudRoute
   AppProfileRoute: typeof AppProfileRoute
   AppReportsRoute: typeof AppReportsRoute
   AppThesisRoute: typeof AppThesisRoute
@@ -375,6 +401,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/predict-fraud': {
+      id: '/app/predict-fraud'
+      path: '/app/predict-fraud'
+      fullPath: '/app/predict-fraud'
+      preLoaderRoute: typeof AppPredictFraudRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/predict': {
       id: '/app/predict'
       path: '/app/predict'
@@ -431,6 +464,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/predictions': {
+      id: '/admin/predictions'
+      path: '/admin/predictions'
+      fullPath: '/admin/predictions'
+      preLoaderRoute: typeof AdminPredictionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/models': {
       id: '/admin/models'
       path: '/admin/models'
@@ -463,6 +503,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAlertsRoute: AdminAlertsRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminModelsRoute: AdminModelsRoute,
+  AdminPredictionsRoute: AdminPredictionsRoute,
   AdminProfileRoute: AdminProfileRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
@@ -471,6 +512,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppModelsRoute: AppModelsRoute,
   AppPipelineRoute: AppPipelineRoute,
   AppPredictRoute: AppPredictRoute,
+  AppPredictFraudRoute: AppPredictFraudRoute,
   AppProfileRoute: AppProfileRoute,
   AppReportsRoute: AppReportsRoute,
   AppThesisRoute: AppThesisRoute,

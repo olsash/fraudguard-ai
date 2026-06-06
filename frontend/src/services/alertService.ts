@@ -1,6 +1,6 @@
-﻿import { alerts } from "@/data/mockData";
+import { apiGet } from "@/services/api";
+import type { FraudAlertRecord } from "@/types/alertApi";
 
 export const alertService = {
-  getAlerts: () => alerts,
-  getAlertById: (id: string) => alerts.find((alert) => alert.id === id),
+  getAlerts: () => apiGet<FraudAlertRecord[]>("/alerts"),
 };

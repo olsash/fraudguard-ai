@@ -90,7 +90,9 @@ function AdminDashboardContent({ summary }: { summary: DashboardSummary }) {
     <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Total users" value={(summary.totalUsers ?? 0).toLocaleString()} icon={Users} />
-        <StatCard label="Total predictions" value={summary.totalPredictions.toLocaleString()} icon={Receipt} tone="violet" />
+        <StatCard label="Total transactions" value={summary.totalTransactions.toLocaleString()} icon={Receipt} tone="violet" />
+        <StatCard label="Pending analysis" value={summary.pendingTransactions.toLocaleString()} icon={Loader2} tone="primary" />
+        <StatCard label="Review" value={summary.reviewTransactions.toLocaleString()} icon={Gauge} tone="warning" />
         <StatCard label="Fraud transactions" value={summary.fraudTransactions.toLocaleString()} icon={AlertTriangle} tone="destructive" />
         <StatCard label="High risk cases" value={(summary.highRiskCases ?? 0).toLocaleString()} icon={ShieldAlert} tone="warning" />
         <StatCard label="Critical cases" value={(summary.criticalRiskCases ?? 0).toLocaleString()} icon={ShieldAlert} tone="destructive" />
@@ -129,8 +131,8 @@ function AdminDashboardContent({ summary }: { summary: DashboardSummary }) {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
-        <Card title="Risk distribution" sub="All stored predictions" className="h-80">
-          <RiskDistribution data={summary.riskDistribution} total={summary.totalPredictions} />
+        <Card title="Risk distribution" sub="All stored transactions" className="h-80">
+          <RiskDistribution data={summary.riskDistribution} total={summary.totalTransactions} />
         </Card>
 
         <Card title="Safe vs fraud" sub="Last 7 days" className="h-80">
