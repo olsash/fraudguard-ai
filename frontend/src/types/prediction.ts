@@ -13,6 +13,10 @@ export interface PredictionInput {
 export interface PredictionResult extends PredictionInput {
   id: number;
   userId: number;
+  transactionId?: number | null;
+  transactionMerchant?: string | null;
+  transactionCountry?: string | null;
+  transactionStatus?: string | null;
   fraudProbability: number;
   riskScore: number;
   riskLevel: PredictionRisk;
@@ -20,5 +24,16 @@ export interface PredictionResult extends PredictionInput {
   confidence: number;
   reasons: string[];
   suggestedAction: string;
+  createdAt: string;
+}
+
+export interface TransactionPredictionResult {
+  transactionId: number;
+  predictionId: number;
+  riskScore: number;
+  riskLevel: "Low" | "Medium" | "High";
+  status: "safe" | "review" | "fraud";
+  confidence: number;
+  explanation: string[];
   createdAt: string;
 }

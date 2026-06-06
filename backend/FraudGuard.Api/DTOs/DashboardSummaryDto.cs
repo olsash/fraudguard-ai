@@ -6,7 +6,13 @@ public class DashboardSummaryDto
 
     public int TotalPredictions { get; set; }
 
+    public int TotalTransactions { get; set; }
+
+    public int PendingTransactions { get; set; }
+
     public int SafeTransactions { get; set; }
+
+    public int ReviewTransactions { get; set; }
 
     public int FraudTransactions { get; set; }
 

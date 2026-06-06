@@ -9,8 +9,8 @@ import { authService, type AuthUser } from "@/services/authService";
 
 const userNav = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/app/predict", label: "Predict Fraud", icon: Radar },
   { to: "/app/transactions", label: "Transactions", icon: Receipt },
+  { to: "/app/predict", label: "Predict Fraud", icon: Radar },
   { to: "/app/alerts", label: "Alerts", icon: Bell },
   { to: "/app/models", label: "Models", icon: Brain },
   { to: "/app/pipeline", label: "ML Pipeline", icon: Workflow },
@@ -23,6 +23,7 @@ const adminNav = [
   { to: "/admin", label: "Admin Dashboard", icon: LayoutDashboard },
   { to: "/admin/users", label: "Users", icon: Users },
   { to: "/admin/transactions", label: "Transactions", icon: Receipt },
+  { to: "/admin/predictions", label: "Predictions", icon: Radar },
   { to: "/admin/alerts", label: "Alerts", icon: ShieldAlert },
   { to: "/admin/models", label: "Models", icon: Brain },
   { to: "/admin/logs", label: "Logs", icon: Activity },

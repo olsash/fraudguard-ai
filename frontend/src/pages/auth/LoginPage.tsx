@@ -52,8 +52,7 @@ export default function Login() {
               </button>
             }
           />
-          <div className="flex justify-between mt-2 text-xs">
-            <label className="flex items-center gap-2 text-muted-foreground"><input type="checkbox" className="accent-primary"/> Remember me</label>
+          <div className="flex justify-end mt-2 text-xs">
             <Link to="/forgot-password" className="text-primary hover:underline">Forgot password?</Link>
           </div>
         </div>

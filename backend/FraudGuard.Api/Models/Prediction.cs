@@ -8,6 +8,8 @@ public class Prediction
 
     public int UserId { get; set; }
 
+    public int? TransactionId { get; set; }
+
     [MaxLength(30)]
     public string TransactionType { get; set; } = string.Empty;
 
@@ -28,6 +30,8 @@ public class Prediction
 
     public bool IsFraud { get; set; }
 
+    public double Confidence { get; set; }
+
     public string Explanation { get; set; } = string.Empty;
 
     public string SuggestedAction { get; set; } = string.Empty;
@@ -35,4 +39,6 @@ public class Prediction
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public User? User { get; set; }
+
+    public Transaction? Transaction { get; set; }
 }

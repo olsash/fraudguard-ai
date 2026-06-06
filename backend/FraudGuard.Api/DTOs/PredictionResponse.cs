@@ -6,6 +6,14 @@ public class PredictionResponse
 
     public int UserId { get; set; }
 
+    public int? TransactionId { get; set; }
+
+    public string? TransactionMerchant { get; set; }
+
+    public string? TransactionCountry { get; set; }
+
+    public string? TransactionStatus { get; set; }
+
     public string TransactionType { get; set; } = string.Empty;
 
     public decimal Amount { get; set; }
@@ -31,6 +39,25 @@ public class PredictionResponse
     public string[] Reasons { get; set; } = [];
 
     public string SuggestedAction { get; set; } = string.Empty;
+
+    public DateTime CreatedAt { get; set; }
+}
+
+public class TransactionPredictionResponse
+{
+    public int TransactionId { get; set; }
+
+    public int PredictionId { get; set; }
+
+    public int RiskScore { get; set; }
+
+    public string RiskLevel { get; set; } = string.Empty;
+
+    public string Status { get; set; } = string.Empty;
+
+    public double Confidence { get; set; }
+
+    public string[] Explanation { get; set; } = [];
 
     public DateTime CreatedAt { get; set; }
 }
