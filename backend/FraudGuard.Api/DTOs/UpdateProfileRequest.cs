@@ -10,10 +10,4 @@ public class UpdateProfileRequest
 
     [MaxLength(50)]
     public string? PhoneNumber { get; set; }
-
-    [MaxLength(300)]
-    public string? Address { get; set; }
-
-    [MaxLength(1000)]
-    public string? ProfileImageUrl { get; set; }
 }

@@ -13,6 +13,9 @@ public class RegisterRequest
     [MaxLength(255)]
     public string Email { get; set; } = string.Empty;
 
+    [MaxLength(50)]
+    public string? PhoneNumber { get; set; }
+
     [Required]
     [MinLength(6)]
     public string Password { get; set; } = string.Empty;

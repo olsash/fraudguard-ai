@@ -16,6 +16,9 @@ export interface PredictionResult extends PredictionInput {
   transactionId?: number | null;
   transactionMerchant?: string | null;
   transactionCountry?: string | null;
+  transactionCategory?: string | null;
+  transactionCurrency?: string | null;
+  transactionCreatedAt?: string | null;
   transactionStatus?: string | null;
   fraudProbability: number;
   riskScore: number;

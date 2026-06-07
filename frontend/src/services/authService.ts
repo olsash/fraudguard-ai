@@ -25,6 +25,7 @@ interface AuthResponse {
 const AUTH_TOKEN_KEY = "fraudguard_token";
 const AUTH_USER_KEY = "fraudguard_user";
 const AUTH_ROLE_KEY = "fraudguard.auth.role";
+export const AUTH_USER_CHANGED_EVENT = "fraudguard:user-changed";
 
 function canUseStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -68,6 +69,7 @@ function storeSession(token: string, user: AuthUser) {
   window.localStorage.setItem(AUTH_TOKEN_KEY, token);
   window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
   window.localStorage.setItem(AUTH_ROLE_KEY, user.role);
+  window.dispatchEvent(new CustomEvent(AUTH_USER_CHANGED_EVENT, { detail: user }));
 }
 
 export const authService = {
@@ -116,13 +118,13 @@ export const authService = {
     return { user, redirectTo };
   },
 
-  register: async (fullName: string, email: string, password: string) => {
+  register: async (fullName: string, email: string, phoneNumber: string, password: string) => {
     const response = await fetch(`${apiConfig.baseUrl}/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ fullName, email, password }),
+      body: JSON.stringify({ fullName, email, phoneNumber: phoneNumber.trim() || null, password }),
     });
 
     const data = await parseAuthResponse(response);
@@ -157,6 +159,7 @@ export const authService = {
     if (canUseStorage()) {
       window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
       window.localStorage.setItem(AUTH_ROLE_KEY, user.role);
+      window.dispatchEvent(new CustomEvent(AUTH_USER_CHANGED_EVENT, { detail: user }));
     }
 
     return user;
@@ -168,6 +171,7 @@ export const authService = {
     if (canUseStorage()) {
       window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
       window.localStorage.setItem(AUTH_ROLE_KEY, user.role);
+      window.dispatchEvent(new CustomEvent(AUTH_USER_CHANGED_EVENT, { detail: user }));
     }
 
     return user;
@@ -178,5 +182,6 @@ export const authService = {
     window.localStorage.removeItem(AUTH_TOKEN_KEY);
     window.localStorage.removeItem(AUTH_USER_KEY);
     window.localStorage.removeItem(AUTH_ROLE_KEY);
+    window.dispatchEvent(new CustomEvent(AUTH_USER_CHANGED_EVENT, { detail: null }));
   },
 };
