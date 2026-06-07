@@ -12,6 +12,12 @@ public class PredictionResponse
 
     public string? TransactionCountry { get; set; }
 
+    public string? TransactionCategory { get; set; }
+
+    public string? TransactionCurrency { get; set; }
+
+    public DateTime? TransactionCreatedAt { get; set; }
+
     public string? TransactionStatus { get; set; }
 
     public string TransactionType { get; set; } = string.Empty;

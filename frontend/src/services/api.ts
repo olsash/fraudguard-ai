@@ -64,3 +64,9 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
 }
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  return apiRequest<T>(path, {
+    method: "DELETE",
+  });
+}

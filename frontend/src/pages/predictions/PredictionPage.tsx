@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Sparkles,
   WalletCards,
+  X,
   Zap,
 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
@@ -39,6 +40,7 @@ export default function Predict() {
   const [history, setHistory] = useState<PredictionResult[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<PredictionResult | null>(null);
   const [form, setForm] = useState<PredictionForm>(initialForm);
   const [error, setError] = useState<string | null>(null);
 
@@ -213,9 +215,19 @@ export default function Predict() {
 
         <section className="lg:col-span-2 space-y-4">
           <ResultPanel loading={loading} result={result} />
-          <HistoryPanel loading={historyLoading} history={history} onSelectTransaction={(id) => setSelectedTransaction(transactions.find((item) => item.id === id) ?? selectedTransaction)} />
+          <HistoryPanel
+            loading={historyLoading}
+            history={history}
+            onSelect={(item) => {
+              setSelectedHistoryItem(item);
+              if (item.transactionId) {
+                setSelectedTransaction(transactions.find((transaction) => transaction.id === item.transactionId) ?? selectedTransaction);
+              }
+            }}
+          />
         </section>
       </main>
+      {selectedHistoryItem && <PredictionDetailsModal prediction={selectedHistoryItem} onClose={() => setSelectedHistoryItem(null)} />}
     </>
   );
 }
@@ -325,7 +337,7 @@ function ResultPanel({ loading, result }: { loading: boolean; result: Prediction
         <div>
           <ShieldCheck className="h-10 w-10 mx-auto text-primary" />
           <p className="mt-3 font-display font-semibold">Ready to analyze</p>
-          <p className="text-xs text-muted-foreground">Select a transaction and run analysis</p>
+          <p className="text-xs text-muted-foreground">Select a transaction to view prediction analysis.</p>
         </div>
       </div>
     );
@@ -510,7 +522,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   return <div className="glass rounded-lg p-2"><p className="text-[10px] text-muted-foreground">{label}</p><p className="font-semibold mt-0.5">{value}</p></div>;
 }
 
-function HistoryPanel({ loading, history, onSelectTransaction }: { loading: boolean; history: PredictionResult[]; onSelectTransaction: (id: number) => void }) {
+function HistoryPanel({ loading, history, onSelect }: { loading: boolean; history: PredictionResult[]; onSelect: (item: PredictionResult) => void }) {
   const transactionHistory = history.filter((item) => item.transactionId != null);
 
   return (
@@ -527,18 +539,18 @@ function HistoryPanel({ loading, history, onSelectTransaction }: { loading: bool
         ) : transactionHistory.length === 0 ? (
           <p className="text-sm text-muted-foreground">No transaction analyses yet.</p>
         ) : (
-          transactionHistory.slice(0, 8).map((item) => <HistoryItem key={item.id} item={item} onSelectTransaction={onSelectTransaction} />)
+          transactionHistory.slice(0, 8).map((item) => <HistoryItem key={item.id} item={item} onSelect={onSelect} />)
         )}
       </div>
     </div>
   );
 }
 
-function HistoryItem({ item, onSelectTransaction }: { item: PredictionResult; onSelectTransaction: (id: number) => void }) {
+function HistoryItem({ item, onSelect }: { item: PredictionResult; onSelect: (item: PredictionResult) => void }) {
   const transactionId = item.transactionId ?? 0;
 
   return (
-    <button onClick={() => transactionId && onSelectTransaction(transactionId)} className="w-full text-left rounded-lg border border-border/50 bg-background/30 p-3 hover:bg-secondary/30">
+    <button onClick={() => onSelect(item)} className="w-full text-left rounded-lg border border-border/50 bg-background/30 p-3 hover:bg-secondary/30">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold">{item.transactionMerchant ?? `Transaction #${transactionId}`}</p>
@@ -554,6 +566,144 @@ function HistoryItem({ item, onSelectTransaction }: { item: PredictionResult; on
       </div>
     </button>
   );
+}
+
+function PredictionDetailsModal({ prediction, onClose }: { prediction: PredictionResult; onClose: () => void }) {
+  const status = getPredictionStatus(prediction);
+  const tone = getStatusTone(status);
+  const factorGroups = groupAnalysisFactors(prediction.reasons, status);
+  const alertGenerated = status === "review" || status === "fraud";
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-background/80 p-4 backdrop-blur-sm">
+      <div role="dialog" aria-modal="true" className="glass mx-auto my-6 w-full max-w-4xl rounded-2xl ring-1 ring-border">
+        <div className="flex items-center justify-between border-b border-border p-5">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Prediction details</p>
+            <h2 className="font-display text-xl font-semibold">{prediction.transactionMerchant ?? `Transaction #${prediction.transactionId}`}</h2>
+          </div>
+          <button type="button" onClick={onClose} title="Close details" className="h-9 w-9 grid place-items-center rounded-lg glass hover:ring-1 hover:ring-primary/40">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-5 p-5">
+          <DetailSection title="Transaction Information">
+            <DetailGrid items={[
+              ["Transaction ID", prediction.transactionId ? `TX-${prediction.transactionId}` : "Manual prediction"],
+              ["Merchant", prediction.transactionMerchant ?? "Not available"],
+              ["Country", prediction.transactionCountry ?? "Not available"],
+              ["Category", prediction.transactionCategory ?? "Not available"],
+              ["Amount", formatCurrency(prediction.amount, prediction.transactionCurrency ?? "USD")],
+              ["Currency", prediction.transactionCurrency ?? "USD"],
+              ["Transaction Type", prediction.transactionType],
+              ["Date", formatDateTime(prediction.transactionCreatedAt ?? prediction.createdAt)],
+            ]} />
+          </DetailSection>
+
+          <DetailSection title="Prediction Result">
+            <div className={`rounded-xl border p-4 ${tone.ring}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-2xl font-display font-semibold ${tone.text}`}>{prediction.riskScore}/100</p>
+                  <p className="text-xs text-muted-foreground">{prediction.riskLevel} risk · {formatStatus(status)}</p>
+                </div>
+                {status === "fraud" ? <AlertTriangle className="h-8 w-8 text-destructive" /> : <ShieldCheck className={`h-8 w-8 ${tone.text}`} />}
+              </div>
+              <div className="mt-4 h-3 overflow-hidden rounded-full bg-secondary">
+                <div
+                  className={`h-full rounded-full ${status === "fraud" ? "bg-destructive" : status === "review" ? "bg-warning" : "bg-success"}`}
+                  style={{ width: `${Math.max(3, prediction.riskScore)}%` }}
+                />
+              </div>
+            </div>
+          </DetailSection>
+
+          <DetailSection title="Why This Prediction?">
+            <div className="space-y-4">
+              {factorGroups.map((group) => (
+                <div key={group.title}>
+                  <p className={`mb-2 text-xs font-semibold uppercase tracking-widest ${group.color}`}>{group.title}</p>
+                  <ul className="space-y-2 text-sm">
+                    {group.items.map((item) => (
+                      <li key={`${group.title}-${item}`} className="flex gap-2">
+                        <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${group.dot}`} />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </DetailSection>
+
+          <div className="space-y-5">
+            <DetailSection title="Model Decision Summary">
+              <p className="text-sm leading-6 text-muted-foreground">{buildDecisionSummary(prediction, status)}</p>
+              <p className={`mt-3 rounded-lg p-3 text-sm ${tone.action}`}>
+                <strong>Recommended action:</strong> {prediction.suggestedAction}
+              </p>
+            </DetailSection>
+
+            <DetailSection title="Timeline">
+              <TimelineItem label="Prediction Created" value={formatDateTime(prediction.createdAt)} complete />
+              <TimelineItem label="Prediction Evaluated" value={`Risk score ${prediction.riskScore}/100 assigned`} complete />
+              <TimelineItem
+                label="Alert Generated"
+                value={alertGenerated ? "Risk result created an alert for review." : "No alert required for this result."}
+                complete={alertGenerated}
+              />
+            </DetailSection>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-xl border border-border/50 bg-background/25 p-4">
+      <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function DetailGrid({ items }: { items: [string, string][] }) {
+  return (
+    <div className="grid sm:grid-cols-2 gap-3">
+      {items.map(([label, value]) => (
+        <div key={label} className="rounded-lg bg-background/30 p-3">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+          <p className="mt-1 break-words text-sm font-medium">{value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TimelineItem({ label, value, complete }: { label: string; value: string; complete: boolean }) {
+  return (
+    <div className="flex gap-3 pb-4 last:pb-0">
+      <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ring-4 ${complete ? "bg-success ring-success/15" : "bg-muted-foreground ring-secondary"}`} />
+      <div><p className="text-sm font-medium">{label}</p><p className="text-xs text-muted-foreground">{value}</p></div>
+    </div>
+  );
+}
+
+function buildDecisionSummary(prediction: PredictionResult, status: AnalysisStatus) {
+  const classification = status === "fraud" ? "HIGH RISK" : status === "review" ? "MEDIUM RISK" : "LOW RISK";
+  const threshold = status === "fraud"
+    ? "exceeded the fraud threshold"
+    : status === "review"
+      ? "exceeded the review threshold"
+      : "remained below the review threshold";
+  return `Transaction was classified as ${classification} based on the evaluated transaction factors. The final score reached ${prediction.riskScore}/100 and ${threshold}.`;
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
 function formatCurrency(value: number, currency = "USD") {

@@ -21,9 +21,9 @@ public class ProfileController : ControllerBase
     }
 
     [HttpGet("me")]
-    public async Task<ActionResult<ProfileResponse>> Me()
+    public async Task<ActionResult<ProfileResponse>> Me(CancellationToken cancellationToken)
     {
-        var user = await GetCurrentUserAsync();
+        var user = await GetCurrentUserAsync(cancellationToken);
 
         if (user is null)
         {
@@ -34,27 +34,31 @@ public class ProfileController : ControllerBase
     }
 
     [HttpPut("me")]
-    public async Task<ActionResult<ProfileResponse>> UpdateMe(UpdateProfileRequest request)
+    public async Task<ActionResult<ProfileResponse>> UpdateMe(UpdateProfileRequest request, CancellationToken cancellationToken)
     {
-        var user = await GetCurrentUserAsync();
+        var user = await GetCurrentUserAsync(cancellationToken);
 
         if (user is null)
         {
             return Unauthorized(new { message = "Invalid token." });
         }
 
-        user.FullName = request.FullName.Trim();
+        var fullName = request.FullName.Trim();
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            return BadRequest(new { message = "Full name is required." });
+        }
+
+        user.FullName = fullName;
         user.PhoneNumber = NormalizeOptional(request.PhoneNumber);
-        user.Address = NormalizeOptional(request.Address);
-        user.ProfileImageUrl = NormalizeOptional(request.ProfileImageUrl);
         user.UpdatedAt = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
         return Ok(ToResponse(user));
     }
 
-    private async Task<User?> GetCurrentUserAsync()
+    private async Task<User?> GetCurrentUserAsync(CancellationToken cancellationToken)
     {
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
@@ -64,7 +68,7 @@ public class ProfileController : ControllerBase
             return null;
         }
 
-        return await _dbContext.Users.FindAsync(userId);
+        return await _dbContext.Users.FindAsync([userId], cancellationToken);
     }
 
     private static string? NormalizeOptional(string? value)
@@ -81,10 +85,10 @@ public class ProfileController : ControllerBase
             Email = user.Email,
             Role = user.Role,
             PhoneNumber = user.PhoneNumber,
-            Address = user.Address,
-            ProfileImageUrl = user.ProfileImageUrl,
+            IsActive = user.IsActive,
             CreatedAt = user.CreatedAt,
-            UpdatedAt = user.UpdatedAt
+            UpdatedAt = user.UpdatedAt,
+            LastLoginAt = user.LastLoginAt
         };
     }
 }

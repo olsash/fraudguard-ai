@@ -12,11 +12,11 @@ public class ProfileResponse
 
     public string? PhoneNumber { get; set; }
 
-    public string? Address { get; set; }
-
-    public string? ProfileImageUrl { get; set; }
+    public bool IsActive { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
+
+    public DateTime? LastLoginAt { get; set; }
 }

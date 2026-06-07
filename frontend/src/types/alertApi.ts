@@ -1,3 +1,6 @@
+export type AlertSeverity = "critical" | "high" | "medium" | "low";
+export type AlertStatus = "open" | "investigating" | "resolved";
+
 export interface FraudAlertRecord {
   id: number;
   userId: number;
@@ -5,8 +8,8 @@ export interface FraudAlertRecord {
   transactionId: number;
   predictionId?: number | null;
   title: string;
-  severity: "critical" | "high" | "medium" | "low";
-  status: "open" | "investigating" | "resolved";
+  severity: AlertSeverity;
+  status: AlertStatus;
   riskScore: number;
   merchant: string;
   amount: number;

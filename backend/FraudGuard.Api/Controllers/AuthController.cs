@@ -38,6 +38,7 @@ public class AuthController : ControllerBase
         {
             FullName = request.FullName.Trim(),
             Email = email,
+            PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Role = "User",
             CreatedAt = DateTime.UtcNow
@@ -86,9 +87,9 @@ public class AuthController : ControllerBase
 
         var user = await _dbContext.Users.FindAsync(userId);
 
-        if (user is null)
+        if (user is null || !user.IsActive)
         {
-            return NotFound(new { message = "User not found." });
+            return Unauthorized(new { message = "This account is inactive." });
         }
 
         return Ok(ToDto(user));

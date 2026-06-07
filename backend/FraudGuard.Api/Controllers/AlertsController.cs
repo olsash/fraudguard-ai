@@ -48,12 +48,94 @@ public class AlertsController : ControllerBase
         return Ok(alerts.Select(ToDto));
     }
 
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<FraudAlertDto>> GetAlert(int id, CancellationToken cancellationToken)
+    {
+        var alert = await FindAccessibleAlertAsync(id, cancellationToken);
+        if (alert is null)
+        {
+            return NotFound(new { message = "Alert not found." });
+        }
+
+        return Ok(ToDto(alert));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("{id:int}/status")]
+    public async Task<ActionResult<FraudAlertDto>> UpdateStatus(
+        int id,
+        UpdateFraudAlertStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        var status = request.Status.Trim().ToLowerInvariant();
+        if (status is not ("open" or "investigating" or "resolved"))
+        {
+            return BadRequest(new { message = "Status must be open, investigating, or resolved." });
+        }
+
+        var alert = await FindAccessibleAlertAsync(id, cancellationToken, tracked: true);
+        if (alert is null)
+        {
+            return NotFound(new { message = "Alert not found." });
+        }
+
+        alert.Status = status;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(ToDto(alert));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpDelete("{id:int}")]
+    public async Task<ActionResult> DeleteAlert(int id, CancellationToken cancellationToken)
+    {
+        var alert = await _dbContext.FraudAlerts.FindAsync([id], cancellationToken);
+        if (alert is null)
+        {
+            return NotFound(new { message = "Alert not found." });
+        }
+
+        _dbContext.FraudAlerts.Remove(alert);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(new { message = "Alert deleted successfully." });
+    }
+
     private int? GetCurrentUserId()
     {
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
 
         return int.TryParse(userIdValue, out var userId) ? userId : null;
+    }
+
+    private async Task<FraudAlert?> FindAccessibleAlertAsync(
+        int id,
+        CancellationToken cancellationToken,
+        bool tracked = false)
+    {
+        var userId = GetCurrentUserId();
+        if (userId is null)
+        {
+            return null;
+        }
+
+        var query = _dbContext.FraudAlerts
+            .Include(alert => alert.Transaction)
+            .Include(alert => alert.User)
+            .AsQueryable();
+
+        if (!tracked)
+        {
+            query = query.AsNoTracking();
+        }
+
+        if (!User.IsInRole("Admin"))
+        {
+            query = query.Where(alert => alert.UserId == userId.Value);
+        }
+
+        return await query.FirstOrDefaultAsync(alert => alert.Id == id, cancellationToken);
     }
 
     private static FraudAlertDto ToDto(FraudAlert alert)

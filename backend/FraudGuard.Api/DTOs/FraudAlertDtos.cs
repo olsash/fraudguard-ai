@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace FraudGuard.Api.DTOs;
 
 public class FraudAlertDto
@@ -29,4 +31,10 @@ public class FraudAlertDto
     public string Country { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
+}
+
+public class UpdateFraudAlertStatusRequest
+{
+    [Required]
+    public string Status { get; set; } = string.Empty;
 }

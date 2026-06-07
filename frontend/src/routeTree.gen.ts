@@ -17,6 +17,7 @@ import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AppTransactionsRouteImport } from './routes/app/transactions'
 import { Route as AppThesisRouteImport } from './routes/app/thesis'
+import { Route as AppSettingsRouteImport } from './routes/app/settings'
 import { Route as AppReportsRouteImport } from './routes/app/reports'
 import { Route as AppProfileRouteImport } from './routes/app/profile'
 import { Route as AppPredictFraudRouteImport } from './routes/app/predict-fraud'
@@ -71,6 +72,11 @@ const AppTransactionsRoute = AppTransactionsRouteImport.update({
 const AppThesisRoute = AppThesisRouteImport.update({
   id: '/app/thesis',
   path: '/app/thesis',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/app/settings',
+  path: '/app/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppReportsRoute = AppReportsRouteImport.update({
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/app/predict-fraud': typeof AppPredictFraudRoute
   '/app/profile': typeof AppProfileRoute
   '/app/reports': typeof AppReportsRoute
+  '/app/settings': typeof AppSettingsRoute
   '/app/thesis': typeof AppThesisRoute
   '/app/transactions': typeof AppTransactionsRoute
   '/admin/': typeof AdminIndexRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/app/predict-fraud': typeof AppPredictFraudRoute
   '/app/profile': typeof AppProfileRoute
   '/app/reports': typeof AppReportsRoute
+  '/app/settings': typeof AppSettingsRoute
   '/app/thesis': typeof AppThesisRoute
   '/app/transactions': typeof AppTransactionsRoute
   '/admin': typeof AdminIndexRoute
@@ -220,6 +228,7 @@ export interface FileRoutesById {
   '/app/predict-fraud': typeof AppPredictFraudRoute
   '/app/profile': typeof AppProfileRoute
   '/app/reports': typeof AppReportsRoute
+  '/app/settings': typeof AppSettingsRoute
   '/app/thesis': typeof AppThesisRoute
   '/app/transactions': typeof AppTransactionsRoute
   '/admin/': typeof AdminIndexRoute
@@ -247,6 +256,7 @@ export interface FileRouteTypes {
     | '/app/predict-fraud'
     | '/app/profile'
     | '/app/reports'
+    | '/app/settings'
     | '/app/thesis'
     | '/app/transactions'
     | '/admin/'
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/app/predict-fraud'
     | '/app/profile'
     | '/app/reports'
+    | '/app/settings'
     | '/app/thesis'
     | '/app/transactions'
     | '/admin'
@@ -297,6 +308,7 @@ export interface FileRouteTypes {
     | '/app/predict-fraud'
     | '/app/profile'
     | '/app/reports'
+    | '/app/settings'
     | '/app/thesis'
     | '/app/transactions'
     | '/admin/'
@@ -323,6 +335,7 @@ export interface RootRouteChildren {
   AppPredictFraudRoute: typeof AppPredictFraudRoute
   AppProfileRoute: typeof AppProfileRoute
   AppReportsRoute: typeof AppReportsRoute
+  AppSettingsRoute: typeof AppSettingsRoute
   AppThesisRoute: typeof AppThesisRoute
   AppTransactionsRoute: typeof AppTransactionsRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -385,6 +398,13 @@ declare module '@tanstack/react-router' {
       path: '/app/thesis'
       fullPath: '/app/thesis'
       preLoaderRoute: typeof AppThesisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/app/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/reports': {
@@ -515,6 +535,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppPredictFraudRoute: AppPredictFraudRoute,
   AppProfileRoute: AppProfileRoute,
   AppReportsRoute: AppReportsRoute,
+  AppSettingsRoute: AppSettingsRoute,
   AppThesisRoute: AppThesisRoute,
   AppTransactionsRoute: AppTransactionsRoute,
   AdminIndexRoute: AdminIndexRoute,

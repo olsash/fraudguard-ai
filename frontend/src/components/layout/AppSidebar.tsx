@@ -1,22 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard, Radar, Receipt, Bell, Brain, Workflow,
-  FileBarChart, Users, Settings, ShieldAlert, Activity, GraduationCap, LogOut, UserCircle,
+  LayoutDashboard, Radar, Receipt, Bell,
+  Users, Settings, ShieldAlert, Activity, LogOut, UserCircle,
 } from "lucide-react";
 import { Brand } from "@/components/common/Brand";
-import { authService, type AuthUser } from "@/services/authService";
+import { AUTH_USER_CHANGED_EVENT, authService, type AuthUser } from "@/services/authService";
 
 const userNav = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
   { to: "/app/transactions", label: "Transactions", icon: Receipt },
-  { to: "/app/predict", label: "Predict Fraud", icon: Radar },
+  { to: "/app/predict", label: "Predictions", icon: Radar },
   { to: "/app/alerts", label: "Alerts", icon: Bell },
-  { to: "/app/models", label: "Models", icon: Brain },
-  { to: "/app/pipeline", label: "ML Pipeline", icon: Workflow },
-  { to: "/app/reports", label: "Reports", icon: FileBarChart },
-  { to: "/app/thesis", label: "Research", icon: GraduationCap },
   { to: "/app/profile", label: "Profile", icon: UserCircle },
+  { to: "/app/settings", label: "Settings", icon: Settings },
 ];
 
 const adminNav = [
@@ -25,10 +22,9 @@ const adminNav = [
   { to: "/admin/transactions", label: "Transactions", icon: Receipt },
   { to: "/admin/predictions", label: "Predictions", icon: Radar },
   { to: "/admin/alerts", label: "Alerts", icon: ShieldAlert },
-  { to: "/admin/models", label: "Models", icon: Brain },
   { to: "/admin/logs", label: "Logs", icon: Activity },
-  { to: "/admin/settings", label: "Settings", icon: Settings },
   { to: "/admin/profile", label: "Profile", icon: UserCircle },
+  { to: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export function AppSidebar({ variant = "user" }: { variant?: "user" | "admin" }) {
@@ -37,7 +33,10 @@ export function AppSidebar({ variant = "user" }: { variant?: "user" | "admin" })
   const nav = variant === "admin" ? adminNav : userNav;
 
   useEffect(() => {
-    setCurrentUser(authService.getCurrentUser());
+    const refreshUser = () => setCurrentUser(authService.getCurrentUser());
+    refreshUser();
+    window.addEventListener(AUTH_USER_CHANGED_EVENT, refreshUser);
+    return () => window.removeEventListener(AUTH_USER_CHANGED_EVENT, refreshUser);
   }, []);
 
   const profileTo = variant === "admin" ? "/admin/profile" : "/app/profile";
