@@ -6,5 +6,6 @@ fastapi
 uvicorn
 pydantic
 matplotlib
+shap
 jupyter
 ipykernel
