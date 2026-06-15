@@ -42,6 +42,8 @@ ml/dataset/*.csv
 !ml/dataset/fraud_sample.csv
 ml/models/*.pkl
 ml/models/*.joblib
+ml/models/*.json
+ml/models/notebook_experiments/
 
 # Keep dataset documentation trackable
 !ml/dataset/

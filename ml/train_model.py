@@ -1,7 +1,10 @@
 from pathlib import Path
+import hashlib
+import json
 
 import joblib
 import pandas as pd
+import sklearn
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import train_test_split
@@ -19,8 +22,29 @@ FEATURES = [
     "newbalanceDest",
 ]
 TARGET = "isFraud"
+RANDOM_SEED = 42
 MAX_NON_FRAUD_ROWS = 250_000
 NON_FRAUD_TO_FRAUD_RATIO = 20
+
+
+def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(chunk_size), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def dataset_metadata() -> dict:
+    stat = DATASET_PATH.stat()
+    return {
+        "path": str(DATASET_PATH),
+        "file_name": DATASET_PATH.name,
+        "file_size_bytes": stat.st_size,
+        "last_modified_utc": pd.Timestamp(stat.st_mtime, unit="s", tz="UTC").isoformat(),
+        "sha256": sha256_file(DATASET_PATH),
+        "random_seed": RANDOM_SEED,
+    }
 
 
 def load_dataset() -> pd.DataFrame:
@@ -47,8 +71,8 @@ def main() -> None:
     non_fraud_rows = min(len(non_fraud), max(MAX_NON_FRAUD_ROWS, len(fraud) * NON_FRAUD_TO_FRAUD_RATIO))
 
     if len(fraud) > 0 and len(non_fraud) > non_fraud_rows:
-        non_fraud = non_fraud.sample(n=non_fraud_rows, random_state=42)
-        data = pd.concat([fraud, non_fraud], ignore_index=True).sample(frac=1, random_state=42)
+        non_fraud = non_fraud.sample(n=non_fraud_rows, random_state=RANDOM_SEED)
+        data = pd.concat([fraud, non_fraud], ignore_index=True).sample(frac=1, random_state=RANDOM_SEED)
 
     x = pd.get_dummies(data[FEATURES], columns=["type"])
     y = data[TARGET].astype(int)
@@ -57,7 +81,7 @@ def main() -> None:
         x,
         y,
         test_size=0.2,
-        random_state=42,
+        random_state=RANDOM_SEED,
         stratify=y if y.nunique() > 1 else None,
     )
 
@@ -65,7 +89,7 @@ def main() -> None:
         n_estimators=80,
         max_depth=10,
         class_weight="balanced",
-        random_state=42,
+        random_state=RANDOM_SEED,
         n_jobs=-1,
     )
     model.fit(x_train, y_train)
@@ -73,15 +97,37 @@ def main() -> None:
     predictions = model.predict(x_test)
     probabilities = model.predict_proba(x_test)[:, 1]
 
-    print(f"accuracy: {accuracy_score(y_test, predictions):.4f}")
-    print(f"precision: {precision_score(y_test, predictions, zero_division=0):.4f}")
-    print(f"recall: {recall_score(y_test, predictions, zero_division=0):.4f}")
-    print(f"f1: {f1_score(y_test, predictions, zero_division=0):.4f}")
-    print(f"roc_auc: {roc_auc_score(y_test, probabilities):.4f}")
+    metrics = {
+        "accuracy": float(accuracy_score(y_test, predictions)),
+        "precision": float(precision_score(y_test, predictions, zero_division=0)),
+        "recall": float(recall_score(y_test, predictions, zero_division=0)),
+        "f1": float(f1_score(y_test, predictions, zero_division=0)),
+        "roc_auc": float(roc_auc_score(y_test, probabilities)),
+    }
+
+    for metric_name, metric_value in metrics.items():
+        print(f"{metric_name}: {metric_value:.4f}")
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, MODEL_DIR / "fraud_model.pkl")
     joblib.dump(list(x.columns), MODEL_DIR / "columns.pkl")
+
+    metadata = {
+        "random_seed": RANDOM_SEED,
+        "dataset": dataset_metadata(),
+        "sklearn_version": sklearn.__version__,
+        "features": FEATURES,
+        "encoded_columns": list(x.columns),
+        "target": TARGET,
+        "model": {
+            "type": "RandomForestClassifier",
+            "parameters": model.get_params(),
+        },
+        "metrics": metrics,
+    }
+
+    with (MODEL_DIR / "training_metadata.json").open("w", encoding="utf-8") as metadata_file:
+        json.dump(metadata, metadata_file, indent=2)
 
 
 if __name__ == "__main__":
