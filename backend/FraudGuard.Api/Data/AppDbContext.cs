@@ -17,6 +17,8 @@ public class AppDbContext : DbContext
 
     public DbSet<FraudAlert> FraudAlerts => Set<FraudAlert>();
 
+    public DbSet<SystemLog> SystemLogs => Set<SystemLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -128,6 +130,23 @@ public class AppDbContext : DbContext
             entity.HasIndex(alert => alert.TransactionId);
             entity.HasIndex(alert => alert.Status);
             entity.HasIndex(alert => new { alert.TransactionId, alert.Status });
+        });
+
+        modelBuilder.Entity<SystemLog>(entity =>
+        {
+            entity.HasKey(log => log.Id);
+            entity.Property(log => log.Level).IsRequired().HasMaxLength(20);
+            entity.Property(log => log.Source).IsRequired().HasMaxLength(30);
+            entity.Property(log => log.Message).IsRequired().HasMaxLength(500);
+            entity.Property(log => log.UserName).HasMaxLength(150);
+            entity.Property(log => log.Method).HasMaxLength(20);
+            entity.Property(log => log.Path).HasMaxLength(300);
+            entity.Property(log => log.IpAddress).HasMaxLength(80);
+            entity.Property(log => log.CreatedAt).IsRequired();
+            entity.HasIndex(log => log.CreatedAt);
+            entity.HasIndex(log => log.Level);
+            entity.HasIndex(log => log.Source);
+            entity.HasIndex(log => log.UserId);
         });
 
         modelBuilder.Entity<Transaction>().HasData(

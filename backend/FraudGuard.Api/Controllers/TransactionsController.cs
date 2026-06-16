@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.DTOs;
 using FraudGuard.Api.Models;
+using FraudGuard.Api.Services;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,10 +20,12 @@ public class TransactionsController : ControllerBase
     private static readonly string[] FinalStatuses = ["safe", "review", "fraud"];
 
     private readonly AppDbContext _dbContext;
+    private readonly ISystemLogService _systemLogService;
 
-    public TransactionsController(AppDbContext dbContext)
+    public TransactionsController(AppDbContext dbContext, ISystemLogService systemLogService)
     {
         _dbContext = dbContext;
+        _systemLogService = systemLogService;
     }
 
     [HttpGet]
@@ -101,6 +104,7 @@ public class TransactionsController : ControllerBase
 
         _dbContext.Transactions.Add(transaction);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _systemLogService.LogAsync("Success", "transaction", $"Transaction TX-{transaction.Id} created for {transaction.Merchant}.", transaction.UserId, null, cancellationToken);
 
         var created = await _dbContext.Transactions
             .AsNoTracking()
@@ -131,6 +135,7 @@ public class TransactionsController : ControllerBase
 
         transaction.Status = status;
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _systemLogService.LogAsync("Success", "admin", $"Transaction TX-{transaction.Id} status updated to {status}.", transaction.UserId, transaction.User?.FullName, cancellationToken);
 
         return Ok(ToResponse(transaction));
     }

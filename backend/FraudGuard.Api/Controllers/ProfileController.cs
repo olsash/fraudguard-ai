@@ -3,6 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.DTOs;
 using FraudGuard.Api.Models;
+using FraudGuard.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,10 +15,12 @@ namespace FraudGuard.Api.Controllers;
 public class ProfileController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
+    private readonly ISystemLogService _systemLogService;
 
-    public ProfileController(AppDbContext dbContext)
+    public ProfileController(AppDbContext dbContext, ISystemLogService systemLogService)
     {
         _dbContext = dbContext;
+        _systemLogService = systemLogService;
     }
 
     [HttpGet("me")]
@@ -54,6 +57,7 @@ public class ProfileController : ControllerBase
         user.UpdatedAt = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _systemLogService.LogAsync("Success", "profile", "Profile updated.", user, cancellationToken);
 
         return Ok(ToResponse(user));
     }

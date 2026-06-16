@@ -1,88 +1,68 @@
-import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/common/StatCard";
-import { predictionService } from "@/services/predictionService";
-import { transactionService } from "@/services/transactionService";
-import type { Transaction, TransactionFilters, TransactionStatus, TransactionSummary } from "@/types/transaction";
-import { AlertTriangle, ChevronRight, Loader2, Receipt, Search, ShieldCheck, ShieldQuestion, Wallet, X, Gauge, Sparkles } from "lucide-react";
+import { Topbar } from "@/components/layout/Topbar";
+import { adminTransactionService } from "@/services/adminTransactionService";
+import type { AdminFilters, AdminTransaction, AdminTransactionDetail } from "@/types/admin";
+import type { TransactionStatus } from "@/types/transaction";
+import { AlertTriangle, ChevronRight, Gauge, Loader2, Receipt, Search, ShieldCheck, ShieldQuestion, Sparkles, Wallet, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { RiskBar, StatusBadge, Td, Th } from "@/pages/transactions/TransactionsPage";
 import { toast } from "sonner";
 
-export default function AdminTx() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [summary, setSummary] = useState<TransactionSummary | null>(null);
-  const [filters, setFilters] = useState<TransactionFilters>({ status: "all" });
+const emptyFilters: AdminFilters = { status: "all", riskLevel: "all" };
+
+export default function AdminTransactionsPage() {
+  const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
+  const [filters, setFilters] = useState<AdminFilters>(emptyFilters);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Transaction | null>(null);
-  const [updating, setUpdating] = useState(false);
-  const [predictingId, setPredictingId] = useState<number | null>(null);
-  const [riskFilter, setRiskFilter] = useState<"all" | "low" | "medium" | "high">("all");
+  const [selected, setSelected] = useState<AdminTransactionDetail | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [analyzingId, setAnalyzingId] = useState<number | null>(null);
 
-  const visibleTransactions = useMemo(() => {
-    return transactions.filter((transaction) => {
-      if (transaction.riskScore == null) return riskFilter === "all";
-      if (riskFilter === "low") return transaction.riskScore < 40;
-      if (riskFilter === "medium") return transaction.riskScore >= 40 && transaction.riskScore < 70;
-      if (riskFilter === "high") return transaction.riskScore >= 70;
-      return true;
-    });
-  }, [transactions, riskFilter]);
+  const summary = useMemo(() => buildSummary(transactions), [transactions]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void loadTransactions(), 250);
     return () => window.clearTimeout(timeout);
-  }, [filters.search, filters.status, filters.fromDate, filters.toDate]);
+  }, [filters.search, filters.status, filters.riskLevel, filters.fromDate, filters.toDate]);
 
   async function loadTransactions() {
     setLoading(true);
     setError(null);
 
     try {
-      const [rows, totals] = await Promise.all([
-        transactionService.getTransactions(filters),
-        transactionService.getTransactionSummary(filters),
-      ]);
-      setTransactions(rows);
-      setSummary(totals);
+      setTransactions(await adminTransactionService.getTransactions(filters));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load transactions. Check that the backend API is running.");
+      setError(err instanceof Error ? err.message : "Unable to load admin transactions.");
     } finally {
       setLoading(false);
     }
   }
 
-  async function updateStatus(status: TransactionStatus) {
-    if (!selected) return;
-    setUpdating(true);
-
+  async function openDetails(id: number) {
+    setDetailsLoading(true);
     try {
-      const updated = await transactionService.updateTransactionStatus(selected.id, status);
-      setSelected(updated);
-      setTransactions((current) => current.map((item) => item.id === updated.id ? updated : item));
-      setSummary(await transactionService.getTransactionSummary(filters));
+      setSelected(await adminTransactionService.getTransactionById(id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update transaction status.");
+      toast.error(err instanceof Error ? err.message : "Unable to load transaction details.");
     } finally {
-      setUpdating(false);
+      setDetailsLoading(false);
     }
   }
 
-  async function predictTransaction(transactionId: number) {
-    setPredictingId(transactionId);
+  async function analyzeTransaction(id: number) {
+    setAnalyzingId(id);
     setError(null);
 
     try {
-      await predictionService.predictTransaction(transactionId);
-      toast.success("Prediction saved successfully");
-      await loadTransactions();
-      if (selected?.id === transactionId) {
-        setSelected(await transactionService.getTransactionById(transactionId));
-      }
+      const result = await adminTransactionService.analyzeTransaction(id);
+      setTransactions((current) => current.map((item) => item.id === id ? result.transaction : item));
+      setSelected((current) => current?.id === id ? result.transaction : current);
+      toast.success(result.alertCreated ? "Analysis complete. Fraud alert created." : "Analysis complete.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unable to run prediction.");
+      toast.error(err instanceof Error ? err.message : "Unable to run analysis.");
     } finally {
-      setPredictingId(null);
+      setAnalyzingId(null);
     }
   }
 
@@ -91,16 +71,16 @@ export default function AdminTx() {
       <Topbar title="Transactions" subtitle="All transactions across the platform" />
       <main className="flex-1 p-4 md:p-8 space-y-4">
         <section className="grid grid-cols-2 lg:grid-cols-7 gap-4">
-          <StatCard label="Total Transactions" value={(summary?.totalTransactions ?? 0).toLocaleString()} icon={Receipt} />
-          <StatCard label="Pending" value={(summary?.pendingCount ?? 0).toLocaleString()} icon={Loader2} tone="primary" />
-          <StatCard label="Safe" value={(summary?.safeCount ?? 0).toLocaleString()} icon={ShieldCheck} tone="success" />
-          <StatCard label="Review" value={(summary?.reviewCount ?? 0).toLocaleString()} icon={ShieldQuestion} tone="warning" />
-          <StatCard label="Fraud" value={(summary?.fraudCount ?? 0).toLocaleString()} icon={AlertTriangle} tone="destructive" />
-          <StatCard label="Total Amount" value={formatCurrency(summary?.totalAmount ?? 0)} icon={Wallet} tone="violet" />
-          <StatCard label="Average Risk" value={`${summary?.averageRisk ?? 0}/100`} icon={Gauge} tone="primary" />
+          <StatCard label="Total Transactions" value={summary.total.toLocaleString()} icon={Receipt} />
+          <StatCard label="Pending" value={summary.pending.toLocaleString()} icon={Loader2} tone="primary" />
+          <StatCard label="Safe" value={summary.safe.toLocaleString()} icon={ShieldCheck} tone="success" />
+          <StatCard label="Review" value={summary.review.toLocaleString()} icon={ShieldQuestion} tone="warning" />
+          <StatCard label="Fraud" value={summary.fraud.toLocaleString()} icon={AlertTriangle} tone="destructive" />
+          <StatCard label="Total Amount" value={formatCurrency(summary.totalAmount)} icon={Wallet} tone="violet" />
+          <StatCard label="Average Risk" value={`${summary.averageRisk}/100`} icon={Gauge} tone="primary" />
         </section>
 
-        <Toolbar filters={filters} riskFilter={riskFilter} onRiskChange={setRiskFilter} onChange={setFilters} />
+        <Toolbar filters={filters} onChange={setFilters} />
 
         {loading && <StatePanel title="Loading transactions" message="Fetching platform transactions from FraudGuard API." />}
         {!loading && error && <StatePanel title="Transactions unavailable" message={error} destructive />}
@@ -109,18 +89,18 @@ export default function AdminTx() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[1080px]">
                 <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr><Th>ID</Th><Th>Merchant</Th><Th>User</Th><Th>Country</Th><Th>Amount</Th><Th>Risk</Th><Th>Status</Th><Th>Time</Th><Th /></tr>
+                  <tr><Th>ID</Th><Th>Merchant</Th><Th>User</Th><Th>Country</Th><Th>Amount</Th><Th>Risk</Th><Th>Status</Th><Th>Time</Th><Th>Actions</Th></tr>
                 </thead>
                 <tbody>
-                  {visibleTransactions.length === 0 ? (
+                  {transactions.length === 0 ? (
                     <tr className="border-t border-border">
                       <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">No transactions found</td>
                     </tr>
-                  ) : visibleTransactions.map((transaction) => (
-                    <tr key={transaction.id} onClick={() => setSelected(transaction)} className="border-t border-border hover:bg-secondary/40 cursor-pointer">
+                  ) : transactions.map((transaction) => (
+                    <tr key={transaction.id} onClick={() => void openDetails(transaction.id)} className="border-t border-border hover:bg-secondary/40 cursor-pointer">
                       <Td><span className="font-mono text-xs">TX-{transaction.id}</span></Td>
                       <Td>{transaction.merchant}</Td>
-                      <Td>{transaction.userName ?? `User ${transaction.userId}`}</Td>
+                      <Td>{transaction.userName}</Td>
                       <Td>{transaction.country}</Td>
                       <Td className="font-mono font-semibold">{formatCurrency(transaction.amount, transaction.currency)}</Td>
                       <Td><RiskBar value={transaction.riskScore} /></Td>
@@ -131,12 +111,12 @@ export default function AdminTx() {
                           <button
                             onClick={(event) => {
                               event.stopPropagation();
-                              void predictTransaction(transaction.id);
+                              void analyzeTransaction(transaction.id);
                             }}
-                            disabled={predictingId === transaction.id}
+                            disabled={analyzingId === transaction.id}
                             className="rounded px-2 py-1 text-xs glass hover:ring-1 hover:ring-primary/40 disabled:opacity-60"
                           >
-                            {predictingId === transaction.id ? "Scoring..." : transaction.latestPredictionId ? "Re-analyze" : "Run Analysis"}
+                            {analyzingId === transaction.id ? "Scoring..." : transaction.predictionId ? "Re-analyze" : "Run Analysis"}
                           </button>
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </div>
@@ -149,21 +129,20 @@ export default function AdminTx() {
           </div>
         )}
       </main>
+      {detailsLoading && !selected && <DetailsLoading />}
       {selected && (
         <AdminTransactionModal
           transaction={selected}
-          updating={updating}
-          predicting={predictingId === selected.id}
+          analyzing={analyzingId === selected.id}
           onClose={() => setSelected(null)}
-          onStatusChange={(status) => void updateStatus(status)}
-          onPredict={() => void predictTransaction(selected.id)}
+          onAnalyze={() => void analyzeTransaction(selected.id)}
         />
       )}
     </>
   );
 }
 
-function Toolbar({ filters, riskFilter, onRiskChange, onChange }: { filters: TransactionFilters; riskFilter: "all" | "low" | "medium" | "high"; onRiskChange: (value: "all" | "low" | "medium" | "high") => void; onChange: (filters: TransactionFilters) => void }) {
+function Toolbar({ filters, onChange }: { filters: AdminFilters; onChange: (filters: AdminFilters) => void }) {
   return (
     <div className="glass rounded-2xl p-4 flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-2 glass rounded-lg px-3 py-2 flex-1 min-w-[240px]">
@@ -171,8 +150,8 @@ function Toolbar({ filters, riskFilter, onRiskChange, onChange }: { filters: Tra
         <input value={filters.search ?? ""} onChange={(e) => onChange({ ...filters, search: e.target.value })} placeholder="Search merchant, user, country..." className="flex-1 bg-transparent text-sm outline-none" />
       </div>
       <div className="flex items-center gap-1">
-        {["all", "pending", "safe", "review", "fraud"].map((status) => (
-          <button key={status} onClick={() => onChange({ ...filters, status: status as TransactionFilters["status"] })}
+        {(["all", "pending", "safe", "review", "fraud"] as Array<"all" | TransactionStatus>).map((status) => (
+          <button key={status} onClick={() => onChange({ ...filters, status })}
             className={`text-xs px-3 py-1.5 rounded-lg capitalize ${filters.status === status ? "bg-primary text-primary-foreground" : "glass hover:ring-1 hover:ring-primary/40"}`}>
             {status}
           </button>
@@ -180,7 +159,7 @@ function Toolbar({ filters, riskFilter, onRiskChange, onChange }: { filters: Tra
       </div>
       <input type="date" value={filters.fromDate ?? ""} onChange={(e) => onChange({ ...filters, fromDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
       <input type="date" value={filters.toDate ?? ""} onChange={(e) => onChange({ ...filters, toDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
-      <select value={riskFilter} onChange={(event) => onRiskChange(event.target.value as "all" | "low" | "medium" | "high")} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+      <select value={filters.riskLevel ?? "all"} onChange={(event) => onChange({ ...filters, riskLevel: event.target.value as AdminFilters["riskLevel"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
         <option value="all">All risk</option>
         <option value="low">Low risk</option>
         <option value="medium">Medium risk</option>
@@ -190,10 +169,10 @@ function Toolbar({ filters, riskFilter, onRiskChange, onChange }: { filters: Tra
   );
 }
 
-function AdminTransactionModal({ transaction, updating, predicting, onClose, onStatusChange, onPredict }: { transaction: Transaction; updating: boolean; predicting: boolean; onClose: () => void; onStatusChange: (status: TransactionStatus) => void; onPredict: () => void }) {
+function AdminTransactionModal({ transaction, analyzing, onClose, onAnalyze }: { transaction: AdminTransactionDetail; analyzing: boolean; onClose: () => void; onAnalyze: () => void }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
-      <div onClick={(event) => event.stopPropagation()} className="glass-strong rounded-2xl max-w-lg w-full p-6">
+      <div onClick={(event) => event.stopPropagation()} className="glass-strong rounded-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
         <div className="mb-5 flex items-center justify-between">
           <div>
             <p className="text-xs text-muted-foreground">Transaction TX-{transaction.id}</p>
@@ -201,51 +180,66 @@ function AdminTransactionModal({ transaction, updating, predicting, onClose, onS
           </div>
           <button onClick={onClose} className="h-8 w-8 grid place-items-center rounded-lg hover:bg-secondary"><X className="h-4 w-4" /></button>
         </div>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <Metric label="User" value={transaction.userName ?? `User ${transaction.userId}`} />
-          <Metric label="Status" value={<StatusBadge s={transaction.status} />} />
-          <Metric label="Category" value={transaction.category} />
-          <Metric label="Country" value={transaction.country} />
-          <Metric label="Amount" value={formatCurrency(transaction.amount, transaction.currency)} />
-          <Metric label="Risk" value={transaction.riskScore == null ? "Pending" : `${transaction.riskScore}/100`} />
-          <Metric label="Type" value={transaction.transactionType} />
-          <Metric label="Created" value={formatDateTime(transaction.createdAt)} />
-        </div>
-        {transaction.description && <div className="mt-4 glass rounded-lg p-3 text-sm text-muted-foreground">{transaction.description}</div>}
-        <div className="mt-4 glass rounded-lg p-3">
-          <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-            <Sparkles className="h-3.5 w-3.5 text-primary" /> Analysis Result
-          </div>
-          <div className="mb-3 grid grid-cols-2 gap-2 text-sm">
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <Panel title="Transaction Information">
+            <Metric label="Merchant" value={transaction.merchant} />
+            <Metric label="Country" value={transaction.country} />
+            <Metric label="Category" value={transaction.category} />
+            <Metric label="Amount" value={formatCurrency(transaction.amount, transaction.currency)} />
+            <Metric label="Currency" value={transaction.currency} />
+            <Metric label="Type" value={transaction.transactionType} />
+            <Metric label="Created" value={formatDateTime(transaction.createdAt)} />
+          </Panel>
+          <Panel title="User Information">
+            <Metric label="User ID" value={transaction.userId} />
+            <Metric label="Name" value={transaction.userName} />
+            <Metric label="Email" value={transaction.userEmail ?? "Not available"} />
             <Metric label="Status" value={<StatusBadge s={transaction.status} />} />
-            <Metric label="Confidence" value={transaction.latestPredictionConfidence == null ? "Pending" : `${Math.round(transaction.latestPredictionConfidence * 100)}%`} />
+          </Panel>
+          <Panel title="Prediction Result">
+            {transaction.prediction ? (
+              <>
+                <Metric label="Prediction ID" value={`PR-${transaction.prediction.id}`} />
+                <Metric label="Risk Score" value={`${transaction.prediction.riskScore}/100`} />
+                <Metric label="Risk Level" value={transaction.prediction.riskLevel} />
+                <Metric label="Confidence" value={`${Math.round(transaction.prediction.confidence * 100)}%`} />
+                <Metric label="Suggested Action" value={transaction.prediction.suggestedAction} />
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">No prediction has been run for this transaction yet.</p>
+            )}
+          </Panel>
+          <Panel title="Linked Alert">
+            {transaction.alert ? (
+              <>
+                <Metric label="Alert ID" value={`AL-${transaction.alert.id}`} />
+                <Metric label="Severity" value={transaction.alert.severity} />
+                <Metric label="Status" value={transaction.alert.status} />
+                <Metric label="Created" value={formatDateTime(transaction.alert.createdAt)} />
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">No alert generated for this transaction.</p>
+            )}
+          </Panel>
+        </div>
+
+        <div className="mt-4 glass rounded-lg p-4">
+          <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+            <Sparkles className="h-3.5 w-3.5 text-primary" /> Risk Factors
           </div>
-          {transaction.latestPredictionExplanation && transaction.latestPredictionExplanation.length > 0 ? (
+          {transaction.prediction?.factors?.length ? (
             <ul className="space-y-1 text-sm text-muted-foreground">
-              {transaction.latestPredictionExplanation.map((reason) => <li key={reason}>- {formatExplanationFactor(reason)}</li>)}
+              {transaction.prediction.factors.map((reason) => <li key={reason}>- {formatExplanationFactor(reason)}</li>)}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">No prediction has been run for this transaction yet.</p>
+            <p className="text-sm text-muted-foreground">Run analysis to generate risk factors.</p>
           )}
         </div>
-        <div className="mt-6">
-          <p className="mb-2 text-xs uppercase tracking-widest text-muted-foreground">Update status</p>
-          <div className="flex flex-wrap gap-2">
-            {(["safe", "review", "fraud"] as TransactionStatus[]).map((status) => (
-              <button
-                key={status}
-                disabled={updating}
-                onClick={() => onStatusChange(status)}
-                className={`rounded-lg px-4 py-2 text-sm capitalize disabled:opacity-60 ${transaction.status === status ? "bg-primary text-primary-foreground" : "glass hover:ring-1 hover:ring-primary/40"}`}
-              >
-                {status}
-              </button>
-            ))}
-          </div>
-        </div>
+
         <div className="mt-5 flex justify-end">
-          <button onClick={onPredict} disabled={predicting} className="bg-gradient-primary text-primary-foreground rounded-lg px-4 py-2 text-sm disabled:opacity-60">
-            {predicting ? "Scoring..." : transaction.latestPredictionId ? "Re-analyze" : "Run Analysis"}
+          <button onClick={onAnalyze} disabled={analyzing} className="bg-gradient-primary text-primary-foreground rounded-lg px-4 py-2 text-sm disabled:opacity-60">
+            {analyzing ? "Scoring..." : transaction.predictionId ? "Re-analyze" : "Run Analysis"}
           </button>
         </div>
       </div>
@@ -253,8 +247,25 @@ function AdminTransactionModal({ transaction, updating, predicting, onClose, onS
   );
 }
 
+function buildSummary(transactions: AdminTransaction[]) {
+  const analyzed = transactions.filter((transaction) => transaction.riskScore != null);
+  return {
+    total: transactions.length,
+    pending: transactions.filter((transaction) => transaction.status === "pending").length,
+    safe: transactions.filter((transaction) => transaction.status === "safe").length,
+    review: transactions.filter((transaction) => transaction.status === "review").length,
+    fraud: transactions.filter((transaction) => transaction.status === "fraud").length,
+    totalAmount: transactions.reduce((sum, transaction) => sum + transaction.amount, 0),
+    averageRisk: analyzed.length ? Math.round(analyzed.reduce((sum, transaction) => sum + (transaction.riskScore ?? 0), 0) / analyzed.length) : 0,
+  };
+}
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section className="glass rounded-lg p-4 space-y-2"><h3 className="text-sm font-semibold">{title}</h3>{children}</section>;
+}
+
 function Metric({ label, value }: { label: string; value: React.ReactNode }) {
-  return <div className="glass rounded-lg p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="font-medium mt-0.5">{value}</p></div>;
+  return <div className="text-sm"><p className="text-xs text-muted-foreground">{label}</p><p className="font-medium break-words">{value}</p></div>;
 }
 
 function StatePanel({ title, message, destructive }: { title: string; message: string; destructive?: boolean }) {
@@ -267,6 +278,10 @@ function StatePanel({ title, message, destructive }: { title: string; message: s
   );
 }
 
+function DetailsLoading() {
+  return <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4"><div className="glass rounded-2xl p-6 text-sm text-muted-foreground"><Loader2 className="mr-2 inline h-4 w-4 animate-spin text-primary" /> Loading details...</div></div>;
+}
+
 function formatCurrency(value: number, currency = "USD") {
   return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 2 }).format(value ?? 0);
 }
@@ -277,5 +292,5 @@ function formatExplanationFactor(reason: string) {
 }
 
 function formatDateTime(value: string) {
-  return value ? new Date(value).toLocaleString() : "";
+  return value ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "";
 }

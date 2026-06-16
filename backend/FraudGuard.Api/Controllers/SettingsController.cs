@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.DTOs;
+using FraudGuard.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,10 +15,12 @@ namespace FraudGuard.Api.Controllers;
 public class SettingsController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
+    private readonly ISystemLogService _systemLogService;
 
-    public SettingsController(AppDbContext dbContext)
+    public SettingsController(AppDbContext dbContext, ISystemLogService systemLogService)
     {
         _dbContext = dbContext;
+        _systemLogService = systemLogService;
     }
 
     [HttpPut("change-password")]
@@ -42,6 +45,7 @@ public class SettingsController : ControllerBase
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
         user.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _systemLogService.LogAsync("Success", "settings", "Password changed.", user, cancellationToken);
 
         return Ok(new { message = "Password changed successfully." });
     }
@@ -63,6 +67,7 @@ public class SettingsController : ControllerBase
         user.IsActive = false;
         user.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _systemLogService.LogAsync("Warning", "settings", "Account deleted/deactivated by user.", user, cancellationToken);
 
         return Ok(new { message = "Account deleted successfully." });
     }

@@ -16,11 +16,13 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
     private readonly IJwtTokenService _jwtTokenService;
+    private readonly ISystemLogService _systemLogService;
 
-    public AuthController(AppDbContext dbContext, IJwtTokenService jwtTokenService)
+    public AuthController(AppDbContext dbContext, IJwtTokenService jwtTokenService, ISystemLogService systemLogService)
     {
         _dbContext = dbContext;
         _jwtTokenService = jwtTokenService;
+        _systemLogService = systemLogService;
     }
 
     [HttpPost("register")]
@@ -46,6 +48,7 @@ public class AuthController : ControllerBase
 
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
+        await _systemLogService.LogAsync("Success", "auth", $"User registered: {user.Email}.", user);
 
         return Ok(CreateAuthResponse(user));
     }
@@ -58,17 +61,20 @@ public class AuthController : ControllerBase
 
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
+            await _systemLogService.LogAsync("Warning", "auth", $"Failed login attempt for {email}.");
             return Unauthorized(new { message = "Invalid email or password." });
         }
 
         if (!user.IsActive)
         {
+            await _systemLogService.LogAsync("Warning", "auth", $"Inactive account login attempt for {user.Email}.", user);
             return Unauthorized(new { message = "This account is inactive." });
         }
 
         user.LastLoginAt = DateTime.UtcNow;
         user.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
+        await _systemLogService.LogAsync("Success", "auth", $"User login success: {user.Email}.", user);
 
         return Ok(CreateAuthResponse(user));
     }

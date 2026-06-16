@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.DTOs;
 using FraudGuard.Api.Models;
+using FraudGuard.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,10 +16,12 @@ namespace FraudGuard.Api.Controllers;
 public class AdminUsersController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
+    private readonly ISystemLogService _systemLogService;
 
-    public AdminUsersController(AppDbContext dbContext)
+    public AdminUsersController(AppDbContext dbContext, ISystemLogService systemLogService)
     {
         _dbContext = dbContext;
+        _systemLogService = systemLogService;
     }
 
     [HttpGet]
@@ -99,6 +102,7 @@ public class AdminUsersController : ControllerBase
 
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _systemLogService.LogAsync("Success", "admin", $"Admin created user {user.Email}.", user, cancellationToken);
 
         return CreatedAtAction(nameof(GetUser), new { id = user.Id }, ToDto(user, new Dictionary<int, UserPredictionStats>()));
     }
@@ -141,6 +145,8 @@ public class AdminUsersController : ControllerBase
         user.UpdatedAt = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        var level = user.IsActive ? "Success" : "Warning";
+        await _systemLogService.LogAsync(level, "admin", $"Admin updated user {user.Email}; status is {(user.IsActive ? "Active" : "Inactive")}.", user, cancellationToken);
 
         var stats = await LoadUserStats(cancellationToken);
         return Ok(ToDto(user, stats));
@@ -163,6 +169,7 @@ public class AdminUsersController : ControllerBase
 
         _dbContext.Users.Remove(user);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _systemLogService.LogAsync("Warning", "admin", $"Admin deleted user {user.Email}.", id, user.FullName, cancellationToken);
 
         return NoContent();
     }

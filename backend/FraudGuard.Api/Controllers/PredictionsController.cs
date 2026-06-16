@@ -18,11 +18,13 @@ public class PredictionsController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
     private readonly PythonPredictionService _predictionService;
+    private readonly ISystemLogService _systemLogService;
 
-    public PredictionsController(AppDbContext dbContext, PythonPredictionService predictionService)
+    public PredictionsController(AppDbContext dbContext, PythonPredictionService predictionService, ISystemLogService systemLogService)
     {
         _dbContext = dbContext;
         _predictionService = predictionService;
+        _systemLogService = systemLogService;
     }
 
     [HttpPost]
@@ -70,6 +72,7 @@ public class PredictionsController : ControllerBase
 
         _dbContext.Predictions.Add(prediction);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _systemLogService.LogAsync("Success", "prediction", $"Prediction PR-{prediction.Id} created with risk score {prediction.RiskScore}/100.", prediction.UserId, null, cancellationToken);
 
         return Ok(ToResponse(prediction, result.FraudProbability, result.Confidence, result.Reasons));
     }
@@ -121,6 +124,7 @@ public class PredictionsController : ControllerBase
         _dbContext.Predictions.Add(prediction);
         await _dbContext.SaveChangesAsync(cancellationToken);
         await UpsertAlertAsync(transaction, prediction, cancellationToken);
+        await _systemLogService.LogAsync("Success", "prediction", $"Transaction TX-{transaction.Id} analyzed as {transaction.Status} with risk score {prediction.RiskScore}/100.", transaction.UserId, null, cancellationToken);
 
         return Ok(new TransactionPredictionResponse
         {
@@ -398,6 +402,7 @@ public class PredictionsController : ControllerBase
                 RiskScore = prediction.RiskScore,
                 CreatedAt = DateTime.UtcNow
             });
+            await _systemLogService.LogAsync("Warning", "alert", $"Alert generated for transaction TX-{transaction.Id}.", transaction.UserId, null, cancellationToken);
         }
         else
         {
@@ -405,6 +410,7 @@ public class PredictionsController : ControllerBase
             alert.Title = transaction.Status == "fraud" ? "High Risk Transaction Detected" : "Transaction Requires Review";
             alert.Severity = transaction.Status == "fraud" ? "high" : "medium";
             alert.RiskScore = prediction.RiskScore;
+            await _systemLogService.LogAsync("Info", "alert", $"Alert updated for transaction TX-{transaction.Id}.", transaction.UserId, null, cancellationToken);
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);

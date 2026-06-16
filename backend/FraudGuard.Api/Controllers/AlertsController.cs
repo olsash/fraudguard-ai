@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.DTOs;
 using FraudGuard.Api.Models;
+using FraudGuard.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,10 +16,12 @@ namespace FraudGuard.Api.Controllers;
 public class AlertsController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
+    private readonly ISystemLogService _systemLogService;
 
-    public AlertsController(AppDbContext dbContext)
+    public AlertsController(AppDbContext dbContext, ISystemLogService systemLogService)
     {
         _dbContext = dbContext;
+        _systemLogService = systemLogService;
     }
 
     [HttpGet]
@@ -81,6 +84,7 @@ public class AlertsController : ControllerBase
 
         alert.Status = status;
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _systemLogService.LogAsync("Success", "alert", $"Alert AL-{alert.Id} status updated to {status}.", alert.UserId, alert.User?.FullName, cancellationToken);
 
         return Ok(ToDto(alert));
     }
@@ -97,6 +101,7 @@ public class AlertsController : ControllerBase
 
         _dbContext.FraudAlerts.Remove(alert);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _systemLogService.LogAsync("Warning", "alert", $"Alert AL-{id} deleted.", alert.UserId, null, cancellationToken);
 
         return Ok(new { message = "Alert deleted successfully." });
     }
