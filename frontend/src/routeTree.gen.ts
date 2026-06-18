@@ -31,6 +31,7 @@ import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminProfileRouteImport } from './routes/admin/profile'
 import { Route as AdminPredictionsRouteImport } from './routes/admin/predictions'
 import { Route as AdminModelsRouteImport } from './routes/admin/models'
+import { Route as AdminModelComparisonRouteImport } from './routes/admin/model-comparison'
 import { Route as AdminLogsRouteImport } from './routes/admin/logs'
 import { Route as AdminAlertsRouteImport } from './routes/admin/alerts'
 
@@ -144,6 +145,11 @@ const AdminModelsRoute = AdminModelsRouteImport.update({
   path: '/admin/models',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminModelComparisonRoute = AdminModelComparisonRouteImport.update({
+  id: '/admin/model-comparison',
+  path: '/admin/model-comparison',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminLogsRoute = AdminLogsRouteImport.update({
   id: '/admin/logs',
   path: '/admin/logs',
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
+  '/admin/model-comparison': typeof AdminModelComparisonRoute
   '/admin/models': typeof AdminModelsRoute
   '/admin/predictions': typeof AdminPredictionsRoute
   '/admin/profile': typeof AdminProfileRoute
@@ -188,6 +195,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
+  '/admin/model-comparison': typeof AdminModelComparisonRoute
   '/admin/models': typeof AdminModelsRoute
   '/admin/predictions': typeof AdminPredictionsRoute
   '/admin/profile': typeof AdminProfileRoute
@@ -215,6 +223,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
+  '/admin/model-comparison': typeof AdminModelComparisonRoute
   '/admin/models': typeof AdminModelsRoute
   '/admin/predictions': typeof AdminPredictionsRoute
   '/admin/profile': typeof AdminProfileRoute
@@ -243,6 +252,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/admin/alerts'
     | '/admin/logs'
+    | '/admin/model-comparison'
     | '/admin/models'
     | '/admin/predictions'
     | '/admin/profile'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/admin/alerts'
     | '/admin/logs'
+    | '/admin/model-comparison'
     | '/admin/models'
     | '/admin/predictions'
     | '/admin/profile'
@@ -295,6 +306,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/admin/alerts'
     | '/admin/logs'
+    | '/admin/model-comparison'
     | '/admin/models'
     | '/admin/predictions'
     | '/admin/profile'
@@ -322,6 +334,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   AdminAlertsRoute: typeof AdminAlertsRoute
   AdminLogsRoute: typeof AdminLogsRoute
+  AdminModelComparisonRoute: typeof AdminModelComparisonRoute
   AdminModelsRoute: typeof AdminModelsRoute
   AdminPredictionsRoute: typeof AdminPredictionsRoute
   AdminProfileRoute: typeof AdminProfileRoute
@@ -498,6 +511,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/model-comparison': {
+      id: '/admin/model-comparison'
+      path: '/admin/model-comparison'
+      fullPath: '/admin/model-comparison'
+      preLoaderRoute: typeof AdminModelComparisonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/logs': {
       id: '/admin/logs'
       path: '/admin/logs'
@@ -522,6 +542,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   AdminAlertsRoute: AdminAlertsRoute,
   AdminLogsRoute: AdminLogsRoute,
+  AdminModelComparisonRoute: AdminModelComparisonRoute,
   AdminModelsRoute: AdminModelsRoute,
   AdminPredictionsRoute: AdminPredictionsRoute,
   AdminProfileRoute: AdminProfileRoute,
