@@ -21,7 +21,7 @@ const adminNav = [
   { to: "/admin/users", label: "Users", icon: Users },
   { to: "/admin/transactions", label: "Transactions", icon: Receipt },
   { to: "/admin/predictions", label: "Predictions", icon: Radar },
-  { to: "/admin/model-comparison", label: "ML Comparison", icon: BarChart3 },
+  { to: "/admin/model-comparison", label: "Model Comparison", icon: BarChart3 },
   { to: "/admin/alerts", label: "Alerts", icon: ShieldAlert },
   { to: "/admin/logs", label: "Logs", icon: Activity },
   { to: "/admin/profile", label: "Profile", icon: UserCircle },
