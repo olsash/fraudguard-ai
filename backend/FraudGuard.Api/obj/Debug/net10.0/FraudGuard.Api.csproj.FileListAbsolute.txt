@@ -294,3 +294,9 @@ C:\Users\olsas\Downloads\fraudguard-ai\backend\FraudGuard.Api\tmp-verify-build\r
 C:\Users\olsas\Downloads\fraudguard-ai\backend\FraudGuard.Api\tmp-verify-build\runtimes\win-arm64\native\Microsoft.Data.SqlClient.SNI.dll
 C:\Users\olsas\Downloads\fraudguard-ai\backend\FraudGuard.Api\tmp-verify-build\runtimes\win-x64\native\Microsoft.Data.SqlClient.SNI.dll
 C:\Users\olsas\Downloads\fraudguard-ai\backend\FraudGuard.Api\tmp-verify-build\runtimes\win-x86\native\Microsoft.Data.SqlClient.SNI.dll
+C:\Users\olsas\Downloads\fraudguard-ai\.build\FraudGuard.Api\appsettings.json
+C:\Users\olsas\Downloads\fraudguard-ai\.build\FraudGuard.Api\FraudGuard.Api.staticwebassets.endpoints.json
+C:\Users\olsas\Downloads\fraudguard-ai\.build\FraudGuard.Api\FraudGuard.Api.deps.json
+C:\Users\olsas\Downloads\fraudguard-ai\.build\FraudGuard.Api\FraudGuard.Api.runtimeconfig.json
+C:\Users\olsas\Downloads\fraudguard-ai\.build\FraudGuard.Api\FraudGuard.Api.dll
+C:\Users\olsas\Downloads\fraudguard-ai\.build\FraudGuard.Api\FraudGuard.Api.pdb
