@@ -1,13 +1,14 @@
 import { Topbar } from "@/components/layout/Topbar";
 import { adminModelComparisonService } from "@/services/adminModelComparisonService";
 import type { ModelComparisonItem, ModelComparisonResults } from "@/types/modelComparison";
-import { Award, BarChart3, Database, Loader2, Target, Trophy } from "lucide-react";
+import { Award, BarChart3, Database, Eye, Loader2, Target, Trophy, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 export default function AdminModelComparisonPage() {
   const [results, setResults] = useState<ModelComparisonResults | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<ModelComparisonItem | null>(null);
 
   const bestModel = useMemo(
     () => results?.models.find((model) => isBestModel(model, results.bestModelName)),
@@ -75,6 +76,7 @@ export default function AdminModelComparisonPage() {
                       <Th>F1 Score</Th>
                       <Th>ROC AUC</Th>
                       <Th>Status</Th>
+                      <Th />
                     </tr>
                   </thead>
                   <tbody>
@@ -97,6 +99,14 @@ export default function AdminModelComparisonPage() {
                           <Td>{formatScore(model.f1Score)}</Td>
                           <Td>{model.rocAuc == null ? "-" : formatScore(model.rocAuc)}</Td>
                           <Td>{best ? <BestBadge /> : <StatusBadge status={model.status} />}</Td>
+                          <Td>
+                            <button
+                              onClick={() => setSelectedModel(model)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-xs text-foreground hover:ring-1 hover:ring-primary/40"
+                            >
+                              <Eye className="h-3.5 w-3.5" /> View Details
+                            </button>
+                          </Td>
                         </tr>
                       );
                     })}
@@ -129,6 +139,7 @@ export default function AdminModelComparisonPage() {
           </>
         )}
       </main>
+      {selectedModel && <ModelDetailsModal model={selectedModel} onClose={() => setSelectedModel(null)} />}
     </>
   );
 }
@@ -180,6 +191,71 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ModelDetailsModal({ model, onClose }: { model: ModelComparisonItem; onClose: () => void }) {
+  const testedRows = buildHyperparameterRows(model, "tested");
+  const selectedRows = buildHyperparameterRows(model, "selected");
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
+      <div onClick={(event) => event.stopPropagation()} className="glass-strong rounded-2xl max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Classifier details</p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <h2 className="font-display text-xl font-semibold">{model.modelName}</h2>
+              {model.status.toLowerCase() === "best model" && <BestBadge />}
+            </div>
+            <p className="mt-1 font-mono text-xs text-muted-foreground">{model.modelType}</p>
+          </div>
+          <button onClick={onClose} className="h-8 w-8 grid place-items-center rounded-lg hover:bg-secondary">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <DetailPanel title="Tested hyperparameters">
+            <HyperparameterList rows={testedRows} />
+          </DetailPanel>
+          <DetailPanel title="Final selected hyperparameters">
+            <HyperparameterList rows={selectedRows} />
+          </DetailPanel>
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <DetailPanel title="Model description">
+            <p className="text-sm text-muted-foreground leading-6">{model.shortDescription || "Not documented"}</p>
+          </DetailPanel>
+          <DetailPanel title="Result explanation">
+            <p className="text-sm text-muted-foreground leading-6">{buildResultExplanation(model)}</p>
+          </DetailPanel>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailPanel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="glass rounded-lg p-4">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
+function HyperparameterList({ rows }: { rows: Array<{ label: string; value: string }> }) {
+  return (
+    <div className="space-y-2">
+      {rows.map((row) => (
+        <div key={row.label} className="grid grid-cols-[minmax(120px,0.8fr)_minmax(0,1.2fr)] gap-3 rounded-md bg-secondary/40 p-2 text-sm">
+          <p className="text-xs uppercase text-muted-foreground">{row.label}</p>
+          <p className="font-mono text-xs break-words">{row.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Th({ children }: { children: React.ReactNode }) {
   return <th className="text-left font-medium px-4 py-3">{children}</th>;
 }
@@ -194,4 +270,88 @@ function formatScore(value: number) {
 
 function isBestModel(model: ModelComparisonItem, bestModelName: string) {
   return model.status.toLowerCase() === "best model" || model.modelName.toLowerCase() === bestModelName.toLowerCase();
+}
+
+function buildHyperparameterRows(model: ModelComparisonItem, group: "tested" | "selected") {
+  const params = model.hyperparameters?.[group] ?? {};
+  const keys = preferredHyperparameterKeys(model);
+  const documentedKeys = Object.keys(params);
+  const orderedKeys = [...keys, ...documentedKeys.filter((key) => !keys.includes(key))];
+
+  return orderedKeys.map((key) => ({
+    label: formatHyperparameterLabel(key),
+    value: formatHyperparameterValue(params[key]),
+  }));
+}
+
+function preferredHyperparameterKeys(model: ModelComparisonItem) {
+  const name = model.modelName.toLowerCase();
+  const type = model.modelType.toLowerCase();
+
+  if (name.includes("logistic") || type.includes("logistic")) {
+    return ["C", "solver"];
+  }
+
+  if (name.includes("knn") || type.includes("kneighbors")) {
+    return ["n_neighbors", "weights", "metric"];
+  }
+
+  if (name.includes("decision tree") || type.includes("decisiontree")) {
+    return ["max_depth", "criterion", "min_samples_split"];
+  }
+
+  if (name.includes("random forest") || type.includes("randomforest")) {
+    return ["n_estimators", "max_depth", "criterion", "min_samples_split"];
+  }
+
+  if (name.includes("neural") || type.includes("mlp")) {
+    return ["hidden_layer_sizes", "activation", "solver", "learning_rate_init"];
+  }
+
+  return [];
+}
+
+function formatHyperparameterLabel(key: string) {
+  const labels: Record<string, string> = {
+    C: "C",
+    n_neighbors: "n_neighbors",
+    hidden_layer_sizes: "hidden_layer_sizes",
+    learning_rate_init: "learning_rate_init",
+    max_iter: "max_iter",
+    random_state: "random_state",
+    class_weight: "class_weight",
+    min_samples_split: "min_samples_split",
+    n_estimators: "n_estimators",
+    max_depth: "max_depth",
+  };
+
+  return labels[key] ?? key;
+}
+
+function formatHyperparameterValue(value: unknown): string {
+  if (value === undefined) {
+    return "Not documented";
+  }
+
+  if (value === null) {
+    return "None";
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => Array.isArray(item) ? `[${item.map(formatHyperparameterValue).join(", ")}]` : formatHyperparameterValue(item)).join(", ");
+  }
+
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+
+  return String(value);
+}
+
+function buildResultExplanation(model: ModelComparisonItem) {
+  const status = model.status.toLowerCase() === "best model"
+    ? "This model was selected as the best model in the exported comparison."
+    : "This model was evaluated in the exported comparison but was not selected as the best model.";
+
+  return `${status} Recorded test metrics: accuracy ${formatScore(model.accuracy)}, precision ${formatScore(model.precision)}, recall ${formatScore(model.recall)}, F1 score ${formatScore(model.f1Score)}, and ROC AUC ${model.rocAuc == null ? "Not documented" : formatScore(model.rocAuc)}.`;
 }
