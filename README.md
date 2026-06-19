@@ -42,6 +42,8 @@ fraudguard-ai/
 |   |   `-- fraud_model.pkl       # Trained model artifact
 |   |-- notebooks/
 |   |   `-- fraud_detection_ml_experiments.ipynb
+|   |-- results/
+|   |   `-- model_comparison_results.json
 |   |-- requirements.txt
 |   `-- train_model.py            # Reproducible training script
 |-- .gitignore
@@ -188,6 +190,36 @@ ml/dataset/fraud.csv
 ```
 
 Do not commit the full dataset. It is intentionally ignored by Git.
+
+### Model Comparison Results
+
+FraudGuard AI evaluates multiple classifiers for fraud detection before selecting the model used by the application. The tested classifiers include:
+
+- Logistic Regression
+- KNN
+- Decision Tree
+- Random Forest
+- Neural Network
+
+The full technical experiments are available in:
+
+```text
+ml/notebooks/fraud_detection_ml_experiments.ipynb
+```
+
+The final comparison results displayed in the web application are stored in:
+
+```text
+ml/results/model_comparison_results.json
+```
+
+The Admin Model Comparison page displays these exported results inside the web application. It is informational only: admins can review metrics and hyperparameters, but the page does not retrain models or switch the production model from the UI.
+
+The best model is selected from the notebook results using evaluation metrics such as F1 Score, Recall, Precision, Accuracy, and Confusion Matrix. To view the page in the app, sign in as an admin and open:
+
+```text
+Admin Dashboard -> Model Comparison
+```
 
 ### 5. Start the ML Prediction API
 
