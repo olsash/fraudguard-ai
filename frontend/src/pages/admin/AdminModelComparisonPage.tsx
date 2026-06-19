@@ -3,6 +3,7 @@ import { adminModelComparisonService } from "@/services/adminModelComparisonServ
 import type { ModelComparisonItem, ModelComparisonResults } from "@/types/modelComparison";
 import { Award, BarChart3, Database, Eye, Loader2, Target, Trophy, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export default function AdminModelComparisonPage() {
   const [results, setResults] = useState<ModelComparisonResults | null>(null);
@@ -14,6 +15,7 @@ export default function AdminModelComparisonPage() {
     () => results?.models.find((model) => isBestModel(model, results.bestModelName)),
     [results],
   );
+  const chartData = useMemo(() => results ? toChartData(results) : [], [results]);
 
   useEffect(() => {
     void loadResults();
@@ -57,6 +59,42 @@ export default function AdminModelComparisonPage() {
               <SummaryCard label="Target variable" value={results.targetVariable} icon={Target} />
               <SummaryCard label="Best model used for prediction" value={results.bestModelName} icon={Trophy} tone="best" />
             </section>
+
+            {results.models.length === 0 ? (
+              <StatePanel title="No chart data available" message="No evaluated models were returned for charting." />
+            ) : (
+              <section className="grid gap-4 xl:grid-cols-2">
+                <ChartCard title="F1 Score by model" subtitle="Best model highlighted">
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={chartData} margin={{ top: 12, right: 16, bottom: 18, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                      <XAxis dataKey="shortName" tick={{ fontSize: 11 }} interval={0} />
+                      <YAxis tickFormatter={(value) => `${value}%`} width={42} tick={{ fontSize: 11 }} domain={[0, 100]} />
+                      <Tooltip content={<ScoreTooltip />} />
+                      <Bar dataKey="f1Score" name="F1 Score" radius={[6, 6, 0, 0]}>
+                        {chartData.map((item) => <Cell key={item.modelName} fill={item.best ? "oklch(0.72 0.18 155)" : "oklch(0.65 0.22 285)"} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartCard>
+
+                <ChartCard title="Core metrics by model" subtitle="Accuracy, precision, recall, and F1 score">
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={chartData} margin={{ top: 12, right: 16, bottom: 18, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                      <XAxis dataKey="shortName" tick={{ fontSize: 11 }} interval={0} />
+                      <YAxis tickFormatter={(value) => `${value}%`} width={42} tick={{ fontSize: 11 }} domain={[0, 100]} />
+                      <Tooltip content={<ScoreTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="accuracy" name="Accuracy" fill="oklch(0.65 0.22 285)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="precision" name="Precision" fill="oklch(0.78 0.18 200)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="recall" name="Recall" fill="oklch(0.8 0.17 75)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="f1Score" name="F1 Score" fill="oklch(0.72 0.18 155)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartCard>
+              </section>
+            )}
 
             <section className="glass rounded-2xl overflow-hidden">
               <div className="px-5 py-3 border-b border-border flex items-center gap-2">
@@ -155,6 +193,44 @@ function SummaryCard({ label, value, icon: Icon, tone }: { label: string; value:
           <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
           <p className="mt-1 font-display font-semibold break-words">{value}</p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ChartCard({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <section className="glass rounded-2xl p-5">
+      <div className="mb-4 flex items-center gap-2">
+        <BarChart3 className="h-4 w-4 text-primary" />
+        <div>
+          <h2 className="text-sm font-display font-semibold">{title}</h2>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        </div>
+      </div>
+      <div className="h-[260px]">{children}</div>
+    </section>
+  );
+}
+
+function ScoreTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name?: string; value?: number; color?: string }>; label?: string }) {
+  if (!active || !payload?.length) {
+    return null;
+  }
+
+  return (
+    <div className="glass-strong rounded-lg border border-border p-3 text-xs shadow-xl">
+      <p className="mb-2 font-semibold">{label}</p>
+      <div className="space-y-1">
+        {payload.map((item) => (
+          <div key={item.name} className="flex items-center justify-between gap-4">
+            <span className="inline-flex items-center gap-2 text-muted-foreground">
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+              {item.name}
+            </span>
+            <span className="font-mono font-semibold">{formatPercentValue(item.value)}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -268,6 +344,10 @@ function formatScore(value: number) {
   return `${(value * 100).toFixed(2)}%`;
 }
 
+function formatPercentValue(value?: number) {
+  return typeof value === "number" ? `${value.toFixed(2)}%` : "-";
+}
+
 function isBestModel(model: ModelComparisonItem, bestModelName: string) {
   return model.status.toLowerCase() === "best model" || model.modelName.toLowerCase() === bestModelName.toLowerCase();
 }
@@ -354,4 +434,28 @@ function buildResultExplanation(model: ModelComparisonItem) {
     : "This model was evaluated in the exported comparison but was not selected as the best model.";
 
   return `${status} Recorded test metrics: accuracy ${formatScore(model.accuracy)}, precision ${formatScore(model.precision)}, recall ${formatScore(model.recall)}, F1 score ${formatScore(model.f1Score)}, and ROC AUC ${model.rocAuc == null ? "Not documented" : formatScore(model.rocAuc)}.`;
+}
+
+function toChartData(results: ModelComparisonResults) {
+  return results.models.map((model) => ({
+    modelName: model.modelName,
+    shortName: shortModelName(model.modelName),
+    accuracy: toPercent(model.accuracy),
+    precision: toPercent(model.precision),
+    recall: toPercent(model.recall),
+    f1Score: toPercent(model.f1Score),
+    best: isBestModel(model, results.bestModelName),
+  }));
+}
+
+function toPercent(value: number) {
+  return Number((value * 100).toFixed(2));
+}
+
+function shortModelName(modelName: string) {
+  return modelName
+    .replace("Logistic Regression", "Logistic")
+    .replace("Decision Tree", "Tree")
+    .replace("Random Forest", "Forest")
+    .replace("Neural Network", "Neural");
 }
