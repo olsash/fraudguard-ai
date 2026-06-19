@@ -77,17 +77,20 @@ public class AdminModelComparisonController : ControllerBase
 
     private string? ResolveResultsPath()
     {
-        var candidatePaths = new[]
-        {
-            Path.Combine(_environment.ContentRootPath, "..", "..", ResultsRelativePath),
-            Path.Combine(_environment.ContentRootPath, ResultsRelativePath),
-            Path.Combine(Directory.GetCurrentDirectory(), "..", "..", ResultsRelativePath),
-            Path.Combine(Directory.GetCurrentDirectory(), ResultsRelativePath)
-        };
-
-        return candidatePaths
-            .Select(Path.GetFullPath)
+        return new[] { _environment.ContentRootPath, Directory.GetCurrentDirectory() }
+            .SelectMany(GetCandidatePaths)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault(System.IO.File.Exists);
+    }
+
+    private static IEnumerable<string> GetCandidatePaths(string startPath)
+    {
+        var directory = new DirectoryInfo(startPath);
+
+        while (directory is not null)
+        {
+            yield return Path.Combine(directory.FullName, ResultsRelativePath);
+            directory = directory.Parent;
+        }
     }
 }

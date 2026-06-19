@@ -118,7 +118,11 @@ export default function AdminModelComparisonPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {results.models.map((model) => {
+                    {results.models.length === 0 ? (
+                      <tr className="border-t border-border">
+                        <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">No model comparison results found.</td>
+                      </tr>
+                    ) : results.models.map((model) => {
                       const best = isBestModel(model, results.bestModelName);
 
                       return (
