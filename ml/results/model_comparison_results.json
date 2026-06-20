@@ -9,7 +9,7 @@
     "sampleSize": 50000,
     "randomSeed": 42,
     "selectionMetric": "F1-score",
-    "notes": "Metrics and confusion matrix values were exported from real model predictions."
+    "notes": "Metrics, confusion matrix values, and average precision values were exported from real model predictions."
   },
   "models": [
     {
@@ -45,7 +45,8 @@
           "class_weight": "balanced",
           "max_iter": 1000
         }
-      }
+      },
+      "averagePrecision": 0.7258720932426341
     },
     {
       "modelName": "KNN",
@@ -79,7 +80,8 @@
           "n_neighbors": 3,
           "weights": "distance"
         }
-      }
+      },
+      "averagePrecision": 0.6956380952380953
     },
     {
       "modelName": "Decision Tree",
@@ -122,7 +124,8 @@
           "class_weight": "balanced",
           "random_state": 42
         }
-      }
+      },
+      "averagePrecision": 0.5498505494505495
     },
     {
       "modelName": "Random Forest",
@@ -163,7 +166,8 @@
           "class_weight": "balanced",
           "random_state": 42
         }
-      }
+      },
+      "averagePrecision": 0.792826728110599
     },
     {
       "modelName": "Neural Network",
@@ -213,7 +217,8 @@
           "max_iter": 300,
           "random_state": 42
         }
-      }
+      },
+      "averagePrecision": 0.7890983035862841
     }
   ]
 }

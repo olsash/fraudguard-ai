@@ -18,6 +18,7 @@ export interface ModelComparisonItem {
   recall: number;
   f1Score: number;
   rocAuc?: number | null;
+  averagePrecision?: number | null;
   confusionMatrix?: ModelConfusionMatrix | null;
   status: string;
   shortDescription: string;

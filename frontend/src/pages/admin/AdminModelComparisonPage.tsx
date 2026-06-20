@@ -78,7 +78,7 @@ export default function AdminModelComparisonPage() {
                   </ResponsiveContainer>
                 </ChartCard>
 
-                <ChartCard title="Core metrics by model" subtitle="Accuracy, precision, recall, and F1 score">
+                <ChartCard title="Core metrics by model" subtitle="Accuracy, precision, recall, F1 score, and average precision">
                   <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={chartData} margin={{ top: 12, right: 16, bottom: 18, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
@@ -90,6 +90,7 @@ export default function AdminModelComparisonPage() {
                       <Bar dataKey="precision" name="Precision" fill="oklch(0.78 0.18 200)" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="recall" name="Recall" fill="oklch(0.8 0.17 75)" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="f1Score" name="F1 Score" fill="oklch(0.72 0.18 155)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="averagePrecision" name="Average Precision" fill="oklch(0.68 0.18 35)" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -113,6 +114,7 @@ export default function AdminModelComparisonPage() {
                       <Th>Recall</Th>
                       <Th>F1 Score</Th>
                       <Th>ROC AUC</Th>
+                      <Th>Avg Precision</Th>
                       <Th>TN</Th>
                       <Th>FP</Th>
                       <Th>FN</Th>
@@ -124,7 +126,7 @@ export default function AdminModelComparisonPage() {
                   <tbody>
                     {results.models.length === 0 ? (
                       <tr className="border-t border-border">
-                        <td colSpan={13} className="px-4 py-10 text-center text-muted-foreground">No model comparison results found.</td>
+                        <td colSpan={14} className="px-4 py-10 text-center text-muted-foreground">No model comparison results found.</td>
                       </tr>
                     ) : results.models.map((model) => {
                       const best = isBestModel(model, results.bestModelName);
@@ -145,6 +147,7 @@ export default function AdminModelComparisonPage() {
                           <Td>{formatScore(model.recall)}</Td>
                           <Td>{formatScore(model.f1Score)}</Td>
                           <Td>{model.rocAuc == null ? "-" : formatScore(model.rocAuc)}</Td>
+                          <Td>{model.averagePrecision == null ? "-" : formatScore(model.averagePrecision)}</Td>
                           <Td>{formatCount(confusion?.trueNegatives)}</Td>
                           <Td>{formatCount(confusion?.falsePositives)}</Td>
                           <Td>{formatCount(confusion?.falseNegatives)}</Td>
@@ -182,6 +185,7 @@ export default function AdminModelComparisonPage() {
                       <Metric label="Recall" value={formatScore(bestModel.recall)} />
                       <Metric label="Precision" value={formatScore(bestModel.precision)} />
                       <Metric label="ROC AUC" value={bestModel.rocAuc == null ? "-" : formatScore(bestModel.rocAuc)} />
+                      <Metric label="Avg precision" value={bestModel.averagePrecision == null ? "-" : formatScore(bestModel.averagePrecision)} />
                     </div>
                   </div>
                 )}
@@ -465,7 +469,7 @@ function buildResultExplanation(model: ModelComparisonItem) {
     ? ` Confusion matrix: TN ${formatCount(model.confusionMatrix.trueNegatives)}, FP ${formatCount(model.confusionMatrix.falsePositives)}, FN ${formatCount(model.confusionMatrix.falseNegatives)}, TP ${formatCount(model.confusionMatrix.truePositives)}.`
     : "";
 
-  return `${status} Recorded test metrics: accuracy ${formatScore(model.accuracy)}, precision ${formatScore(model.precision)}, recall ${formatScore(model.recall)}, F1 score ${formatScore(model.f1Score)}, and ROC AUC ${model.rocAuc == null ? "Not documented" : formatScore(model.rocAuc)}.${confusion}`;
+  return `${status} Recorded test metrics: accuracy ${formatScore(model.accuracy)}, precision ${formatScore(model.precision)}, recall ${formatScore(model.recall)}, F1 score ${formatScore(model.f1Score)}, ROC AUC ${model.rocAuc == null ? "Not documented" : formatScore(model.rocAuc)}, and average precision ${model.averagePrecision == null ? "Not documented" : formatScore(model.averagePrecision)}.${confusion}`;
 }
 
 function toChartData(results: ModelComparisonResults) {
@@ -476,6 +480,7 @@ function toChartData(results: ModelComparisonResults) {
     precision: toPercent(model.precision),
     recall: toPercent(model.recall),
     f1Score: toPercent(model.f1Score),
+    averagePrecision: model.averagePrecision == null ? null : toPercent(model.averagePrecision),
     best: isBestModel(model, results.bestModelName),
   }));
 }
