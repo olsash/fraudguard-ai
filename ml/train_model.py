@@ -6,7 +6,7 @@ import joblib
 import pandas as pd
 import sklearn
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 
 from ml.preprocessing import FEATURES, TARGET, preprocess_training_data, validate_dataset
@@ -19,6 +19,65 @@ RANDOM_SEED = 42
 MAX_NON_FRAUD_ROWS = 250_000
 NON_FRAUD_TO_FRAUD_RATIO = 20
 SCALE_NUMERIC_FEATURES = False
+
+
+def print_class_distribution(labels: pd.Series, title: str) -> None:
+    counts = labels.value_counts().sort_index()
+    total = counts.sum()
+
+    print(title)
+    for class_value in [0, 1]:
+        count = int(counts.get(class_value, 0))
+        percentage = (count / total * 100) if total else 0
+        print(f"  isFraud={class_value}: {count} ({percentage:.4f}%)")
+
+    non_fraud_count = counts.get(0, 0)
+    fraud_count = counts.get(1, 0)
+    ratio = non_fraud_count / max(fraud_count, 1)
+    print(f"  non-fraud to fraud ratio: {ratio:.2f}:1")
+
+
+def evaluate_classifier(model_name: str, model, x_train, y_train, x_test, y_test) -> tuple[dict, object]:
+    model.fit(x_train, y_train)
+    predictions = model.predict(x_test)
+    cm = confusion_matrix(y_test, predictions, labels=[0, 1])
+    tn, fp, fn, tp = cm.ravel()
+
+    metrics = {
+        "model": model_name,
+        "accuracy": float(accuracy_score(y_test, predictions)),
+        "precision": float(precision_score(y_test, predictions, zero_division=0)),
+        "recall": float(recall_score(y_test, predictions, zero_division=0)),
+        "f1": float(f1_score(y_test, predictions, zero_division=0)),
+        "confusion_matrix": {
+            "true_negatives": int(tn),
+            "false_positives": int(fp),
+            "false_negatives": int(fn),
+            "true_positives": int(tp),
+        },
+    }
+
+    if hasattr(model, "predict_proba") and y_test.nunique() > 1:
+        probabilities = model.predict_proba(x_test)[:, 1]
+        metrics["roc_auc"] = float(roc_auc_score(y_test, probabilities))
+
+    return metrics, model
+
+
+def print_metrics(metrics: dict) -> None:
+    print(f"\n{metrics['model']}")
+    for metric_name in ["accuracy", "precision", "recall", "f1", "roc_auc"]:
+        if metric_name in metrics:
+            print(f"{metric_name}: {metrics[metric_name]:.4f}")
+
+    cm = metrics["confusion_matrix"]
+    print("confusion_matrix [[TN, FP], [FN, TP]]:")
+    print(
+        [
+            [cm["true_negatives"], cm["false_positives"]],
+            [cm["false_negatives"], cm["true_positives"]],
+        ]
+    )
 
 
 def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
@@ -55,6 +114,8 @@ def load_dataset() -> pd.DataFrame:
 
 def main() -> None:
     data = load_dataset()
+    print_class_distribution(data[TARGET], "Original class distribution:")
+
     fraud = data[data[TARGET] == 1]
     non_fraud = data[data[TARGET] == 0]
     non_fraud_rows = min(len(non_fraud), max(MAX_NON_FRAUD_ROWS, len(fraud) * NON_FRAUD_TO_FRAUD_RATIO))
@@ -62,6 +123,7 @@ def main() -> None:
     if len(fraud) > 0 and len(non_fraud) > non_fraud_rows:
         non_fraud = non_fraud.sample(n=non_fraud_rows, random_state=RANDOM_SEED)
         data = pd.concat([fraud, non_fraud], ignore_index=True).sample(frac=1, random_state=RANDOM_SEED)
+        print_class_distribution(data[TARGET], "\nTraining sample class distribution:")
 
     x, y, preprocessing_artifacts = preprocess_training_data(
         data,
@@ -76,28 +138,37 @@ def main() -> None:
         stratify=y if y.nunique() > 1 else None,
     )
 
-    model = RandomForestClassifier(
-        n_estimators=80,
-        max_depth=10,
-        class_weight="balanced",
-        random_state=RANDOM_SEED,
-        n_jobs=-1,
+    baseline_metrics, _ = evaluate_classifier(
+        "Random Forest - baseline without class_weight",
+        RandomForestClassifier(
+            n_estimators=80,
+            max_depth=10,
+            random_state=RANDOM_SEED,
+            n_jobs=-1,
+        ),
+        x_train,
+        y_train,
+        x_test,
+        y_test,
     )
-    model.fit(x_train, y_train)
+    balanced_metrics, model = evaluate_classifier(
+        "Random Forest - class_weight=balanced",
+        RandomForestClassifier(
+            n_estimators=80,
+            max_depth=10,
+            class_weight="balanced",
+            random_state=RANDOM_SEED,
+            n_jobs=-1,
+        ),
+        x_train,
+        y_train,
+        x_test,
+        y_test,
+    )
 
-    predictions = model.predict(x_test)
-    probabilities = model.predict_proba(x_test)[:, 1]
-
-    metrics = {
-        "accuracy": float(accuracy_score(y_test, predictions)),
-        "precision": float(precision_score(y_test, predictions, zero_division=0)),
-        "recall": float(recall_score(y_test, predictions, zero_division=0)),
-        "f1": float(f1_score(y_test, predictions, zero_division=0)),
-        "roc_auc": float(roc_auc_score(y_test, probabilities)),
-    }
-
-    for metric_name, metric_value in metrics.items():
-        print(f"{metric_name}: {metric_value:.4f}")
+    print("\nClass imbalance handling comparison:")
+    print_metrics(baseline_metrics)
+    print_metrics(balanced_metrics)
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, MODEL_DIR / "fraud_model.pkl")
@@ -117,7 +188,11 @@ def main() -> None:
             "type": "RandomForestClassifier",
             "parameters": model.get_params(),
         },
-        "metrics": metrics,
+        "imbalance_handling": {
+            "baseline_metrics": baseline_metrics,
+            "balanced_metrics": balanced_metrics,
+        },
+        "metrics": balanced_metrics,
     }
 
     with (MODEL_DIR / "training_metadata.json").open("w", encoding="utf-8") as metadata_file:
