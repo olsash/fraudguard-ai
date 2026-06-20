@@ -9,30 +9,16 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 
+from ml.preprocessing import FEATURES, TARGET, preprocess_training_data, validate_dataset
+
 
 ROOT = Path(__file__).resolve().parent
 DATASET_PATH = ROOT / "dataset" / "fraud.csv"
 MODEL_DIR = ROOT / "models"
-FEATURES = [
-    "type",
-    "amount",
-    "oldbalanceOrg",
-    "newbalanceOrig",
-    "oldbalanceDest",
-    "newbalanceDest",
-]
-TARGET = "isFraud"
-REQUIRED_COLUMNS = FEATURES + [TARGET]
-NUMERIC_COLUMNS = [
-    "amount",
-    "oldbalanceOrg",
-    "newbalanceOrig",
-    "oldbalanceDest",
-    "newbalanceDest",
-]
 RANDOM_SEED = 42
 MAX_NON_FRAUD_ROWS = 250_000
 NON_FRAUD_TO_FRAUD_RATIO = 20
+SCALE_NUMERIC_FEATURES = False
 
 
 def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
@@ -53,38 +39,6 @@ def dataset_metadata() -> dict:
         "sha256": sha256_file(DATASET_PATH),
         "random_seed": RANDOM_SEED,
     }
-
-
-def validate_dataset(data: pd.DataFrame) -> pd.DataFrame:
-    missing_columns = [column for column in REQUIRED_COLUMNS if column not in data.columns]
-    if missing_columns:
-        raise ValueError(
-            "Dataset is missing required columns: "
-            f"{', '.join(missing_columns)}. "
-            f"Expected columns: {', '.join(REQUIRED_COLUMNS)}"
-        )
-
-    data = data[REQUIRED_COLUMNS].dropna()
-
-    non_numeric_columns = [
-        column for column in NUMERIC_COLUMNS if not pd.api.types.is_numeric_dtype(data[column])
-    ]
-    if non_numeric_columns:
-        raise ValueError(
-            "Dataset columns must be numeric for training: "
-            f"{', '.join(non_numeric_columns)}"
-        )
-
-    invalid_target_values = (
-        data.loc[~data[TARGET].isin([0, 1]), TARGET].drop_duplicates().astype(str).tolist()
-    )
-    if invalid_target_values:
-        raise ValueError(
-            f"Dataset column '{TARGET}' must contain only binary values 0 and 1. "
-            f"Invalid values found: {invalid_target_values}"
-        )
-
-    return data
 
 
 def load_dataset() -> pd.DataFrame:
@@ -109,8 +63,10 @@ def main() -> None:
         non_fraud = non_fraud.sample(n=non_fraud_rows, random_state=RANDOM_SEED)
         data = pd.concat([fraud, non_fraud], ignore_index=True).sample(frac=1, random_state=RANDOM_SEED)
 
-    x = pd.get_dummies(data[FEATURES], columns=["type"])
-    y = data[TARGET].astype(int)
+    x, y, preprocessing_artifacts = preprocess_training_data(
+        data,
+        scale_numeric=SCALE_NUMERIC_FEATURES,
+    )
 
     x_train, x_test, y_train, y_test = train_test_split(
         x,
@@ -145,14 +101,17 @@ def main() -> None:
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, MODEL_DIR / "fraud_model.pkl")
-    joblib.dump(list(x.columns), MODEL_DIR / "columns.pkl")
+    joblib.dump(preprocessing_artifacts.columns, MODEL_DIR / "columns.pkl")
+    joblib.dump(preprocessing_artifacts.scaler, MODEL_DIR / "scaler.pkl")
 
     metadata = {
         "random_seed": RANDOM_SEED,
         "dataset": dataset_metadata(),
         "sklearn_version": sklearn.__version__,
         "features": FEATURES,
-        "encoded_columns": list(x.columns),
+        "encoded_columns": preprocessing_artifacts.columns,
+        "scale_numeric_features": preprocessing_artifacts.scale_numeric,
+        "scaler_artifact": "ml/models/scaler.pkl",
         "target": TARGET,
         "model": {
             "type": "RandomForestClassifier",

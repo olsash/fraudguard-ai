@@ -6,10 +6,13 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from ml.preprocessing import preprocess_prediction_data
+
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_PATH = ROOT / "models" / "fraud_model.pkl"
 COLUMNS_PATH = ROOT / "models" / "columns.pkl"
+SCALER_PATH = ROOT / "models" / "scaler.pkl"
 TRANSACTION_TYPES = ["CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"]
 
 app = FastAPI(title="FraudGuard ML Prediction Service")
@@ -38,7 +41,8 @@ def load_artifacts():
     if not MODEL_PATH.exists() or not COLUMNS_PATH.exists():
         raise HTTPException(status_code=503, detail="Model artifacts are not available. Run train_model.py first.")
 
-    return joblib.load(MODEL_PATH), joblib.load(COLUMNS_PATH)
+    scaler = joblib.load(SCALER_PATH) if SCALER_PATH.exists() else None
+    return joblib.load(MODEL_PATH), joblib.load(COLUMNS_PATH), scaler
 
 
 def risk_level(score: int) -> str:
@@ -117,7 +121,7 @@ def health():
 
 @app.post("/predict", response_model=PredictionResponse)
 def predict(request: PredictionRequest):
-    model, columns = load_artifacts()
+    model, columns, scaler = load_artifacts()
 
     row = {
         "type": request.transactionType,
@@ -127,8 +131,12 @@ def predict(request: PredictionRequest):
         "oldbalanceDest": request.oldBalanceDestination,
         "newbalanceDest": request.newBalanceDestination,
     }
-    frame = pd.get_dummies(pd.DataFrame([row]), columns=["type"])
-    frame = frame.reindex(columns=columns, fill_value=0)
+    frame = preprocess_prediction_data(
+        pd.DataFrame([row]),
+        columns=columns,
+        scaler=scaler,
+        scale_numeric=scaler is not None,
+    )
 
     probability = float(model.predict_proba(frame)[0][1])
     ml_score = clamp_score(probability * 100)
