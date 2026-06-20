@@ -22,6 +22,14 @@ FEATURES = [
     "newbalanceDest",
 ]
 TARGET = "isFraud"
+REQUIRED_COLUMNS = FEATURES + [TARGET]
+NUMERIC_COLUMNS = [
+    "amount",
+    "oldbalanceOrg",
+    "newbalanceOrig",
+    "oldbalanceDest",
+    "newbalanceDest",
+]
 RANDOM_SEED = 42
 MAX_NON_FRAUD_ROWS = 250_000
 NON_FRAUD_TO_FRAUD_RATIO = 20
@@ -47,6 +55,38 @@ def dataset_metadata() -> dict:
     }
 
 
+def validate_dataset(data: pd.DataFrame) -> pd.DataFrame:
+    missing_columns = [column for column in REQUIRED_COLUMNS if column not in data.columns]
+    if missing_columns:
+        raise ValueError(
+            "Dataset is missing required columns: "
+            f"{', '.join(missing_columns)}. "
+            f"Expected columns: {', '.join(REQUIRED_COLUMNS)}"
+        )
+
+    data = data[REQUIRED_COLUMNS].dropna()
+
+    non_numeric_columns = [
+        column for column in NUMERIC_COLUMNS if not pd.api.types.is_numeric_dtype(data[column])
+    ]
+    if non_numeric_columns:
+        raise ValueError(
+            "Dataset columns must be numeric for training: "
+            f"{', '.join(non_numeric_columns)}"
+        )
+
+    invalid_target_values = (
+        data.loc[~data[TARGET].isin([0, 1]), TARGET].drop_duplicates().astype(str).tolist()
+    )
+    if invalid_target_values:
+        raise ValueError(
+            f"Dataset column '{TARGET}' must contain only binary values 0 and 1. "
+            f"Invalid values found: {invalid_target_values}"
+        )
+
+    return data
+
+
 def load_dataset() -> pd.DataFrame:
     if not DATASET_PATH.exists():
         raise FileNotFoundError(
@@ -56,12 +96,7 @@ def load_dataset() -> pd.DataFrame:
         )
 
     data = pd.read_csv(DATASET_PATH)
-    required_columns = FEATURES + [TARGET]
-    missing_columns = [column for column in required_columns if column not in data.columns]
-    if missing_columns:
-        raise ValueError(f"Dataset is missing required columns: {', '.join(missing_columns)}")
-
-    return data[required_columns].dropna()
+    return validate_dataset(data)
 
 
 def main() -> None:
