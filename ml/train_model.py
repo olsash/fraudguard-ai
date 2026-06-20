@@ -15,6 +15,7 @@ from ml.preprocessing import FEATURES, TARGET, preprocess_training_data, validat
 ROOT = Path(__file__).resolve().parent
 DATASET_PATH = ROOT / "dataset" / "fraud.csv"
 MODEL_DIR = ROOT / "models"
+RESULTS_DIR = ROOT / "results"
 RANDOM_SEED = 42
 MAX_NON_FRAUD_ROWS = 250_000
 NON_FRAUD_TO_FRAUD_RATIO = 20
@@ -100,6 +101,37 @@ def dataset_metadata() -> dict:
     }
 
 
+def export_feature_importance(model, feature_columns: list[str]) -> None:
+    if not hasattr(model, "feature_importances_"):
+        print("Skipping feature importance export: trained model does not expose feature_importances_.")
+        return
+
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    feature_importance = (
+        pd.DataFrame(
+            {
+                "featureName": feature_columns,
+                "importance": model.feature_importances_,
+            }
+        )
+        .sort_values(by="importance", ascending=False)
+        .reset_index(drop=True)
+    )
+
+    payload = {
+        "source": "ml/train_model.py",
+        "modelName": "Random Forest - class_weight=balanced",
+        "modelType": "RandomForestClassifier",
+        "results": feature_importance.to_dict(orient="records"),
+    }
+
+    with (RESULTS_DIR / "feature_importance_results.json").open("w", encoding="utf-8") as file:
+        json.dump(payload, file, indent=2, default=float)
+
+    feature_importance.to_csv(RESULTS_DIR / "feature_importance_results.csv", index=False)
+    print(f"Saved feature importance results to {RESULTS_DIR / 'feature_importance_results.json'}")
+
+
 def load_dataset() -> pd.DataFrame:
     if not DATASET_PATH.exists():
         raise FileNotFoundError(
@@ -174,6 +206,7 @@ def main() -> None:
     joblib.dump(model, MODEL_DIR / "fraud_model.pkl")
     joblib.dump(preprocessing_artifacts.columns, MODEL_DIR / "columns.pkl")
     joblib.dump(preprocessing_artifacts.scaler, MODEL_DIR / "scaler.pkl")
+    export_feature_importance(model, preprocessing_artifacts.columns)
 
     metadata = {
         "random_seed": RANDOM_SEED,
