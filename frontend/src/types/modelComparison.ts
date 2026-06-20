@@ -3,6 +3,13 @@ export interface ModelHyperparameters {
   selected: Record<string, unknown>;
 }
 
+export interface ModelConfusionMatrix {
+  trueNegatives: number;
+  falsePositives: number;
+  falseNegatives: number;
+  truePositives: number;
+}
+
 export interface ModelComparisonItem {
   modelName: string;
   modelType: string;
@@ -11,6 +18,7 @@ export interface ModelComparisonItem {
   recall: number;
   f1Score: number;
   rocAuc?: number | null;
+  confusionMatrix?: ModelConfusionMatrix | null;
   status: string;
   shortDescription: string;
   hyperparameters?: ModelHyperparameters | null;

@@ -103,7 +103,7 @@ export default function AdminModelComparisonPage() {
                 <span className="ml-auto text-xs text-muted-foreground">{results.models.length} models tested</span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[980px]">
+                <table className="w-full text-sm min-w-[1180px]">
                   <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
                     <tr>
                       <Th>Model</Th>
@@ -113,6 +113,10 @@ export default function AdminModelComparisonPage() {
                       <Th>Recall</Th>
                       <Th>F1 Score</Th>
                       <Th>ROC AUC</Th>
+                      <Th>TN</Th>
+                      <Th>FP</Th>
+                      <Th>FN</Th>
+                      <Th>TP</Th>
                       <Th>Status</Th>
                       <Th />
                     </tr>
@@ -120,10 +124,11 @@ export default function AdminModelComparisonPage() {
                   <tbody>
                     {results.models.length === 0 ? (
                       <tr className="border-t border-border">
-                        <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">No model comparison results found.</td>
+                        <td colSpan={13} className="px-4 py-10 text-center text-muted-foreground">No model comparison results found.</td>
                       </tr>
                     ) : results.models.map((model) => {
                       const best = isBestModel(model, results.bestModelName);
+                      const confusion = model.confusionMatrix;
 
                       return (
                         <tr key={model.modelName} className={`border-t border-border hover:bg-secondary/40 ${best ? "bg-primary/5" : ""}`}>
@@ -140,6 +145,10 @@ export default function AdminModelComparisonPage() {
                           <Td>{formatScore(model.recall)}</Td>
                           <Td>{formatScore(model.f1Score)}</Td>
                           <Td>{model.rocAuc == null ? "-" : formatScore(model.rocAuc)}</Td>
+                          <Td>{formatCount(confusion?.trueNegatives)}</Td>
+                          <Td>{formatCount(confusion?.falsePositives)}</Td>
+                          <Td>{formatCount(confusion?.falseNegatives)}</Td>
+                          <Td>{formatCount(confusion?.truePositives)}</Td>
                           <Td>{best ? <BestBadge /> : <StatusBadge status={model.status} />}</Td>
                           <Td>
                             <button
@@ -309,6 +318,17 @@ function ModelDetailsModal({ model, onClose }: { model: ModelComparisonItem; onC
             <p className="text-sm text-muted-foreground leading-6">{buildResultExplanation(model)}</p>
           </DetailPanel>
         </div>
+
+        <div className="mt-4">
+          <DetailPanel title="Confusion matrix">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <Metric label="True negatives" value={formatCount(model.confusionMatrix?.trueNegatives)} />
+              <Metric label="False positives" value={formatCount(model.confusionMatrix?.falsePositives)} />
+              <Metric label="False negatives" value={formatCount(model.confusionMatrix?.falseNegatives)} />
+              <Metric label="True positives" value={formatCount(model.confusionMatrix?.truePositives)} />
+            </div>
+          </DetailPanel>
+        </div>
       </div>
     </div>
   );
@@ -350,6 +370,10 @@ function formatScore(value: number) {
 
 function formatPercentValue(value?: number) {
   return typeof value === "number" ? `${value.toFixed(2)}%` : "-";
+}
+
+function formatCount(value?: number) {
+  return typeof value === "number" ? value.toLocaleString() : "-";
 }
 
 function isBestModel(model: ModelComparisonItem, bestModelName: string) {
@@ -437,7 +461,11 @@ function buildResultExplanation(model: ModelComparisonItem) {
     ? "This model was selected as the best model in the exported comparison."
     : "This model was evaluated in the exported comparison but was not selected as the best model.";
 
-  return `${status} Recorded test metrics: accuracy ${formatScore(model.accuracy)}, precision ${formatScore(model.precision)}, recall ${formatScore(model.recall)}, F1 score ${formatScore(model.f1Score)}, and ROC AUC ${model.rocAuc == null ? "Not documented" : formatScore(model.rocAuc)}.`;
+  const confusion = model.confusionMatrix
+    ? ` Confusion matrix: TN ${formatCount(model.confusionMatrix.trueNegatives)}, FP ${formatCount(model.confusionMatrix.falsePositives)}, FN ${formatCount(model.confusionMatrix.falseNegatives)}, TP ${formatCount(model.confusionMatrix.truePositives)}.`
+    : "";
+
+  return `${status} Recorded test metrics: accuracy ${formatScore(model.accuracy)}, precision ${formatScore(model.precision)}, recall ${formatScore(model.recall)}, F1 score ${formatScore(model.f1Score)}, and ROC AUC ${model.rocAuc == null ? "Not documented" : formatScore(model.rocAuc)}.${confusion}`;
 }
 
 function toChartData(results: ModelComparisonResults) {

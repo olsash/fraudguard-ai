@@ -21,9 +21,18 @@ public class ModelComparisonItemDto
     public double Recall { get; set; }
     public double F1Score { get; set; }
     public double? RocAuc { get; set; }
+    public ModelConfusionMatrixDto? ConfusionMatrix { get; set; }
     public string Status { get; set; } = string.Empty;
     public string ShortDescription { get; set; } = string.Empty;
     public ModelHyperparametersDto? Hyperparameters { get; set; }
+}
+
+public class ModelConfusionMatrixDto
+{
+    public int TrueNegatives { get; set; }
+    public int FalsePositives { get; set; }
+    public int FalseNegatives { get; set; }
+    public int TruePositives { get; set; }
 }
 
 public class ModelHyperparametersDto

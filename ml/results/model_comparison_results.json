@@ -9,7 +9,7 @@
     "sampleSize": 50000,
     "randomSeed": 42,
     "selectionMetric": "F1-score",
-    "notes": "Metrics are recorded from the saved notebook output. This file is for display only and should not trigger model retraining."
+    "notes": "Metrics and confusion matrix values were exported from real model predictions."
   },
   "models": [
     {
@@ -20,6 +20,12 @@
       "recall": 0.9285714285714286,
       "f1Score": 0.046511627906976744,
       "rocAuc": 0.9245372092357873,
+      "confusionMatrix": {
+        "trueNegatives": 9454,
+        "falsePositives": 532,
+        "falseNegatives": 1,
+        "truePositives": 13
+      },
       "status": "Tested",
       "shortDescription": "Fast and interpretable linear baseline, but the recorded run produced very low precision, making it risky as a standalone fraud alert model.",
       "hyperparameters": {
@@ -49,6 +55,12 @@
       "recall": 0.6428571428571429,
       "f1Score": 0.75,
       "rocAuc": 0.8569497296214702,
+      "confusionMatrix": {
+        "trueNegatives": 9985,
+        "falsePositives": 1,
+        "falseNegatives": 5,
+        "truePositives": 9
+      },
       "status": "Tested",
       "shortDescription": "Simple distance-based classifier with strong precision in the recorded split, but less suitable for production scale because prediction cost grows with stored training data.",
       "hyperparameters": {
@@ -77,6 +89,12 @@
       "recall": 0.7142857142857143,
       "f1Score": 0.7407407407407407,
       "rocAuc": 0.856992646848445,
+      "confusionMatrix": {
+        "trueNegatives": 9983,
+        "falsePositives": 3,
+        "falseNegatives": 4,
+        "truePositives": 10
+      },
       "status": "Tested",
       "shortDescription": "Interpretable and fast tree model, but more prone to overfitting and less stable than the Random Forest ensemble.",
       "hyperparameters": {
@@ -114,6 +132,12 @@
       "recall": 0.7857142857142857,
       "f1Score": 0.88,
       "rocAuc": 0.9269548796887072,
+      "confusionMatrix": {
+        "trueNegatives": 9986,
+        "falsePositives": 0,
+        "falseNegatives": 3,
+        "truePositives": 11
+      },
       "status": "Best Model",
       "shortDescription": "Recommended deployment candidate with the best F1-score in the main comparison, no false positives in the recorded test split, and support for feature importance and SHAP explanations.",
       "hyperparameters": {
@@ -149,6 +173,12 @@
       "recall": 0.7142857142857143,
       "f1Score": 0.8333333333333334,
       "rocAuc": 0.9720394266258476,
+      "confusionMatrix": {
+        "trueNegatives": 9986,
+        "falsePositives": 0,
+        "falseNegatives": 4,
+        "truePositives": 10
+      },
       "status": "Tested",
       "shortDescription": "Strong nonlinear MLP candidate with the highest ROC-AUC in the recorded comparison, but harder to explain and requiring more tuning, calibration, and monitoring.",
       "hyperparameters": {
