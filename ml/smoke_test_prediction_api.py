@@ -82,7 +82,7 @@ def run_smoke_test(base_url: str, timeout_seconds: float) -> int:
         except URLError as error:
             print(
                 f"FAIL {name}: could not reach the ML prediction API. "
-                "Start it with `uvicorn ml.api.app:app --host 127.0.0.1 --port 8000`.",
+                "Start it from the ml folder with `python -m uvicorn api.app:app --host 127.0.0.1 --port 8000`.",
                 file=sys.stderr,
             )
             print(f"Connection detail: {error.reason}", file=sys.stderr)

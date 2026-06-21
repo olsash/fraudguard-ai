@@ -246,10 +246,25 @@ The ML API exists at:
 ml/api/app.py
 ```
 
-Start the FastAPI prediction service from the repository root after model artifacts exist:
+Start the FastAPI prediction service after model artifacts exist.
+
+From the `ml` folder:
 
 ```powershell
-uvicorn ml.api.app:app --reload --host 127.0.0.1 --port 8000
+cd ml
+python -m uvicorn api.app:app --reload --host 127.0.0.1 --port 8000
+```
+
+Or from the repository root:
+
+```powershell
+python -m uvicorn ml.api.app:app --reload --host 127.0.0.1 --port 8000
+```
+
+Windows helper script from the repository root:
+
+```powershell
+.\scripts\start-ml.ps1
 ```
 
 Health check:
@@ -372,7 +387,8 @@ python retrain_models.py
 2. Start the ML API:
 
 ```powershell
-uvicorn ml.api.app:app --reload --host 127.0.0.1 --port 8000
+cd ml
+python -m uvicorn api.app:app --reload --host 127.0.0.1 --port 8000
 ```
 
 3. Start the backend:

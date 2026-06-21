@@ -1,12 +1,20 @@
 from pathlib import Path
 import json
 import math
+import sys
 from typing import Literal
 
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+# Support both documented startup forms:
+# - from repository root: python -m uvicorn ml.api.app:app ...
+# - from ml folder: python -m uvicorn api.app:app ...
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from ml.paths import (
     BEST_MODEL_REGISTRY_PATH,
@@ -49,6 +57,8 @@ class PredictionResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+    service: str
+    modelStatus: str
     modelArtifactExists: bool
     columnsArtifactExists: bool
     scalerArtifactExists: bool
@@ -139,27 +149,28 @@ def validate_prediction_input(request: PredictionRequest) -> None:
 
 
 def risk_level(score: int) -> str:
-    if score >= 76:
-        return "Critical"
-    if score >= 51:
+    if score >= 70:
         return "High"
-    if score >= 21:
+    if score >= 40:
         return "Medium"
     return "Low"
 
 
 def suggested_action(score: int) -> str:
-    if score >= 76:
+    if score >= 70:
         return "Block transaction immediately"
-    if score >= 51:
+    if score >= 40:
         return "Manual review required"
-    if score >= 21:
-        return "Allow with enhanced monitoring"
     return "Approve transaction"
 
 
 def format_amount(value: float) -> str:
     return f"{value:,.2f}"
+
+
+def approximately_equal(left: float, right: float, tolerance_ratio: float = 0.02, minimum_tolerance: float = 1.0) -> bool:
+    tolerance = max(abs(right) * tolerance_ratio, minimum_tolerance)
+    return abs(left - right) <= tolerance
 
 
 def build_input_factors(request: PredictionRequest) -> list[str]:
@@ -206,6 +217,13 @@ def build_input_factors(request: PredictionRequest) -> list[str]:
             "Risk Factors|Origin balance movement differs from the amount by "
             f"{format_amount(origin_difference)}."
         )
+    elif (
+        request.transactionType in {"TRANSFER", "CASH_OUT"}
+        and request.oldBalanceOrigin > 0
+        and request.newBalanceOrigin == 0
+        and approximately_equal(request.amount, request.oldBalanceOrigin)
+    ):
+        factors.append("Risk Factors|Full origin balance was moved and the origin account became zero.")
     else:
         factors.append("Protective Factors|Origin balance movement is consistent with the transaction amount.")
 
@@ -226,12 +244,15 @@ def build_risk_breakdown(request: PredictionRequest) -> list[dict[str, str]]:
 
     high_amount = request.amount >= 100000
     if request.amount >= 1000000:
+        amount_factor = "High transaction amount"
         amount_explanation = f"Amount is {format_amount(request.amount)}, above the very-high-value threshold."
         amount_impact = "High risk"
     elif high_amount:
+        amount_factor = "High transaction amount"
         amount_explanation = f"Amount is {format_amount(request.amount)}, above the high-value threshold."
         amount_impact = "Risk"
     else:
+        amount_factor = "Transaction amount"
         amount_explanation = f"Amount is {format_amount(request.amount)}, below the high-value threshold."
         amount_impact = "Neutral"
 
@@ -244,6 +265,14 @@ def build_risk_breakdown(request: PredictionRequest) -> list[dict[str, str]]:
 
     if origin_delta <= 0 and request.amount > 0:
         origin_explanation = "Origin balance did not decrease even though the transaction amount is positive."
+        origin_impact = "Risk"
+    elif (
+        sensitive_type
+        and request.oldBalanceOrigin > 0
+        and request.newBalanceOrigin == 0
+        and approximately_equal(request.amount, request.oldBalanceOrigin)
+    ):
+        origin_explanation = "Full origin balance was transferred and the origin account became zero."
         origin_impact = "Risk"
     elif request.amount > 0 and abs(origin_delta - request.amount) > request.amount * 0.25:
         origin_explanation = (
@@ -276,7 +305,7 @@ def build_risk_breakdown(request: PredictionRequest) -> list[dict[str, str]]:
 
     return [
         {
-            "factor": "High transaction amount",
+            "factor": amount_factor,
             "impact": amount_impact,
             "explanation": amount_explanation,
         },
@@ -306,6 +335,17 @@ def build_risk_breakdown(request: PredictionRequest) -> list[dict[str, str]]:
 def rule_based_score(request: PredictionRequest) -> tuple[int, list[str]]:
     score = 0
     reasons: list[str] = []
+    origin_delta = request.oldBalanceOrigin - request.newBalanceOrigin
+    destination_delta = request.newBalanceDestination - request.oldBalanceDestination
+    sensitive_type = request.transactionType in {"TRANSFER", "CASH_OUT"}
+    full_origin_balance_moved = (
+        sensitive_type
+        and request.oldBalanceOrigin > 0
+        and request.newBalanceOrigin == 0
+        and approximately_equal(request.amount, request.oldBalanceOrigin)
+        and approximately_equal(origin_delta, request.amount)
+    )
+    destination_received_amount = request.amount > 0 and approximately_equal(destination_delta, request.amount)
 
     if request.amount > 500000:
         score += 20
@@ -323,10 +363,21 @@ def rule_based_score(request: PredictionRequest) -> tuple[int, list[str]]:
         score += 15
         reasons.append("Risk Factors|Rule +15: destination had zero previous balance and amount is greater than 100,000.")
 
-    origin_delta = request.oldBalanceOrigin - request.newBalanceOrigin
     if request.amount > 0 and abs(origin_delta - request.amount) > request.amount * 0.25:
         score += 15
         reasons.append("Risk Factors|Rule +15: origin balance movement differs from amount by more than 25%.")
+
+    if full_origin_balance_moved:
+        score = max(score, 80)
+        reasons.append(
+            "Risk Factors|Rule floor 80: full origin balance was transferred and the origin account became zero."
+        )
+
+    if full_origin_balance_moved and destination_received_amount:
+        score = max(score, 85)
+        reasons.append(
+            "Risk Factors|Rule floor 85: destination balance increased by approximately the transferred amount."
+        )
 
     return score, reasons
 
@@ -353,10 +404,12 @@ def build_reasons(
     else:
         reasons.append("Protective Factors|No rule-based risk checks were triggered.")
 
-    if final_score >= 51:
-        reasons.append("Final Decision|Final hybrid score is 51 or higher, so the transaction is flagged as fraud.")
+    if final_score >= 70:
+        reasons.append("Final Decision|Final hybrid score is 70 or higher, so the transaction is flagged as fraud.")
+    elif final_score >= 40:
+        reasons.append("Final Decision|Final hybrid score is 40 or higher, so the transaction needs review.")
     else:
-        reasons.append("Final Decision|Final hybrid score is below 51, so the transaction is not flagged as fraud.")
+        reasons.append("Final Decision|Final hybrid score is below 40, so the transaction is not flagged as fraud.")
 
     return reasons
 
@@ -370,7 +423,9 @@ def health():
     scaler_exists = SCALER_PATH.exists()
 
     return HealthResponse(
-        status="ready" if model_exists and columns_exists else "degraded",
+        status="ok",
+        service="FraudGuard ML Prediction Service",
+        modelStatus="ready" if model_exists and columns_exists else "degraded",
         modelArtifactExists=model_exists,
         columnsArtifactExists=columns_exists,
         scalerArtifactExists=scaler_exists,
@@ -409,7 +464,8 @@ def predict(request: PredictionRequest):
     rules_score, rule_reasons = rule_based_score(request)
     score = clamp_score(max(probability * 100, rules_score))
     level = risk_level(score)
-    is_fraud = score >= 51
+    is_fraud = score >= 70
+    predicted_class = "Fraud" if is_fraud else "Review" if score >= 40 else "Not fraud"
     reasons = build_reasons(request, ml_score, rules_score, rule_reasons, score)
 
     return PredictionResponse(
@@ -417,7 +473,7 @@ def predict(request: PredictionRequest):
         riskScore=score,
         riskLevel=level,
         isFraud=is_fraud,
-        predictedClass="Fraud" if is_fraud else "Not fraud",
+        predictedClass=predicted_class,
         confidence=round(max(probability, 1 - probability), 4),
         modelName=metadata.get("modelName"),
         modelTrainingDate=metadata.get("trainingDateUtc"),

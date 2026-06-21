@@ -87,6 +87,55 @@ public class PredictionsController : ControllerBase
         return Ok(ToResponse(prediction, result.FraudProbability, result.Confidence, result.Reasons, result));
     }
 
+    [HttpPost("advanced-test")]
+    public async Task<ActionResult<AdvancedModelTestResponseDto>> AdvancedTest(AdvancedModelTestRequestDto request, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized(new { message = "Invalid token." });
+        }
+
+        var validationErrors = request.Validate();
+        if (validationErrors.Length > 0)
+        {
+            return BadRequest(new { message = validationErrors[0], errors = validationErrors });
+        }
+
+        var predictionRequest = request.ToPredictionRequest();
+        PythonPredictionResult result;
+        try
+        {
+            result = await _predictionService.PredictAsync(predictionRequest, cancellationToken);
+        }
+        catch (PredictionServiceUnavailableException ex)
+        {
+            _logger.LogWarning(ex, "Advanced model test could not reach the ML prediction service for user {UserId}.", userId.Value);
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
+        }
+
+        var prediction = new Prediction
+        {
+            Id = 0,
+            UserId = userId.Value,
+            TransactionType = predictionRequest.TransactionType,
+            Amount = predictionRequest.AmountValue,
+            OldBalanceOrigin = predictionRequest.OldBalanceOriginValue,
+            NewBalanceOrigin = predictionRequest.NewBalanceOriginValue,
+            OldBalanceDestination = predictionRequest.OldBalanceDestinationValue,
+            NewBalanceDestination = predictionRequest.NewBalanceDestinationValue,
+            RiskScore = result.RiskScore,
+            RiskLevel = result.RiskLevel,
+            IsFraud = result.IsFraud,
+            Confidence = result.Confidence,
+            Explanation = JsonSerializer.Serialize(result.Reasons),
+            SuggestedAction = result.SuggestedAction,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        return Ok(ToAdvancedModelTestResponse(ToResponse(prediction, result.FraudProbability, result.Confidence, result.Reasons, result)));
+    }
+
     [HttpPost("predict-transaction/{transactionId:int}")]
     public async Task<ActionResult<TransactionPredictionResponse>> PredictTransaction(int transactionId, CancellationToken cancellationToken)
     {
@@ -264,6 +313,44 @@ public class PredictionsController : ControllerBase
         };
     }
 
+    private static AdvancedModelTestResponseDto ToAdvancedModelTestResponse(PredictionResponse response)
+    {
+        return new AdvancedModelTestResponseDto
+        {
+            Id = response.Id,
+            UserId = response.UserId,
+            TransactionId = response.TransactionId,
+            TransactionMerchant = response.TransactionMerchant,
+            TransactionCountry = response.TransactionCountry,
+            TransactionCategory = response.TransactionCategory,
+            TransactionCurrency = response.TransactionCurrency,
+            TransactionCreatedAt = response.TransactionCreatedAt,
+            TransactionStatus = response.TransactionStatus,
+            TransactionType = response.TransactionType,
+            Amount = response.Amount,
+            OldBalanceOrigin = response.OldBalanceOrigin,
+            NewBalanceOrigin = response.NewBalanceOrigin,
+            OldBalanceDestination = response.OldBalanceDestination,
+            NewBalanceDestination = response.NewBalanceDestination,
+            FraudProbability = response.FraudProbability,
+            RiskScore = response.RiskScore,
+            RiskLevel = response.RiskLevel,
+            IsFraud = response.IsFraud,
+            PredictedClass = response.PredictedClass,
+            Confidence = response.Confidence,
+            Reasons = response.Reasons,
+            ExplanationFactors = response.ExplanationFactors,
+            RiskBreakdown = response.RiskBreakdown,
+            ModelName = response.ModelName,
+            ModelTrainingDate = response.ModelTrainingDate,
+            SuggestedAction = response.SuggestedAction,
+            CreatedAt = response.CreatedAt,
+            Decision = response.PredictedClass,
+            Explanation = response.Reasons,
+            Timestamp = response.CreatedAt
+        };
+    }
+
     private static string[] ReadReasons(string explanation)
     {
         try
@@ -286,6 +373,7 @@ public class PredictionsController : ControllerBase
         var amountImpact = prediction.Amount >= 1_000_000
             ? "High risk"
             : prediction.Amount >= 100_000 ? "Risk" : "Neutral";
+        var amountFactor = prediction.Amount >= 100_000 ? "High transaction amount" : "Transaction amount";
         var amountExplanation = prediction.Amount >= 1_000_000
             ? $"Amount is {FormatMoney(prediction.Amount)}, above the very-high-value threshold."
             : prediction.Amount >= 100_000
@@ -344,7 +432,7 @@ public class PredictionsController : ControllerBase
         [
             new()
             {
-                Factor = "High transaction amount",
+                Factor = amountFactor,
                 Impact = amountImpact,
                 Explanation = amountExplanation
             },

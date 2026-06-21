@@ -2,7 +2,13 @@ import { Topbar } from "@/components/layout/Topbar";
 import { ApiError } from "@/services/api";
 import { predictionService } from "@/services/predictionService";
 import { transactionService } from "@/services/transactionService";
-import type { PredictionInput, PredictionResult, RiskBreakdownFactor, TransactionType } from "@/types/prediction";
+import type {
+  PredictionInput,
+  PredictionResult,
+  RiskBreakdownFactor,
+  TransactionPredictionResult,
+  TransactionType,
+} from "@/types/prediction";
 import type { Transaction } from "@/types/transaction";
 import {
   AlertTriangle,
@@ -13,6 +19,7 @@ import {
   Download,
   History,
   Loader2,
+  RefreshCw,
   ShieldCheck,
   Sparkles,
   WalletCards,
@@ -37,7 +44,10 @@ type AdvancedValidationResult =
   | { request: PredictionInput; message: null }
   | { request: null; message: string };
 
-const advancedNumberFields: Array<{ key: Exclude<keyof PredictionForm, "transactionType">; label: string }> = [
+const advancedNumberFields: Array<{
+  key: Exclude<keyof PredictionForm, "transactionType">;
+  label: string;
+}> = [
   { key: "amount", label: "Amount" },
   { key: "oldBalanceOrigin", label: "Old Balance Origin" },
   { key: "newBalanceOrigin", label: "New Balance Origin" },
@@ -47,16 +57,20 @@ const advancedNumberFields: Array<{ key: Exclude<keyof PredictionForm, "transact
 
 export default function Predict() {
   const [loading, setLoading] = useState(false);
+  const [transactionsLoading, setTransactionsLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [exportingHistory, setExportingHistory] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [result, setResult] = useState<PredictionResult | null>(null);
+  const [resultMode, setResultMode] = useState<"transaction" | "validation" | null>(null);
   const [history, setHistory] = useState<PredictionResult[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<PredictionResult | null>(null);
   const [form, setForm] = useState<PredictionForm>(initialForm);
   const [error, setError] = useState<string | null>(null);
+  const [transactionsError, setTransactionsError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   useEffect(() => {
     void loadHistory();
@@ -65,22 +79,29 @@ export default function Predict() {
 
   async function loadHistory() {
     setHistoryLoading(true);
+    setHistoryError(null);
     try {
       setHistory(await predictionService.getMyHistory());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load prediction history.");
+      setHistoryError(err instanceof Error ? err.message : "Unable to load prediction history.");
     } finally {
       setHistoryLoading(false);
     }
   }
 
   async function loadTransactions() {
+    setTransactionsLoading(true);
+    setTransactionsError(null);
     try {
       const rows = await transactionService.getTransactions();
       setTransactions(rows);
-      setSelectedTransaction((current) => current ? rows.find((item) => item.id === current.id) ?? current : null);
+      setSelectedTransaction((current) =>
+        current ? (rows.find((item) => item.id === current.id) ?? null) : null,
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load transactions.");
+      setTransactionsError(err instanceof Error ? err.message : "Unable to load transactions.");
+    } finally {
+      setTransactionsLoading(false);
     }
   }
 
@@ -93,10 +114,19 @@ export default function Predict() {
       downloadBlob(file, `prediction-history-${new Date().toISOString().slice(0, 10)}.csv`);
       toast.success("Prediction history exported");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to export prediction history.");
+      const message = err instanceof Error ? err.message : "Unable to export prediction history.";
+      setError(message);
+      toast.error(message);
     } finally {
       setExportingHistory(false);
     }
+  }
+
+  function selectTransaction(transactionId: string) {
+    setSelectedTransaction(transactions.find((item) => item.id === Number(transactionId)) ?? null);
+    setResult(null);
+    setResultMode(null);
+    setError(null);
   }
 
   async function analyzeSelectedTransaction() {
@@ -107,6 +137,7 @@ export default function Predict() {
 
     setLoading(true);
     setResult(null);
+    setResultMode(null);
     setError(null);
 
     try {
@@ -116,12 +147,17 @@ export default function Predict() {
         predictionService.getMyHistory(),
       ]);
       setSelectedTransaction(refreshedTransaction);
-      setTransactions((current) => current.map((item) => item.id === refreshedTransaction.id ? refreshedTransaction : item));
+      setTransactions((current) =>
+        current.map((item) => (item.id === refreshedTransaction.id ? refreshedTransaction : item)),
+      );
       setHistory(refreshedHistory);
-      setResult(refreshedHistory.find((item) => item.id === analysis.predictionId) ?? null);
+      setResult(buildAnalyzedTransactionResult(analysis, refreshedTransaction, refreshedHistory));
+      setResultMode("transaction");
       toast.success("Transaction analysis completed");
     } catch (err) {
-      setError(formatPredictionError(err, "Unable to analyze transaction."));
+      const message = formatPredictionError(err, "Unable to analyze transaction.");
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -141,15 +177,18 @@ export default function Predict() {
 
     setLoading(true);
     setResult(null);
+    setResultMode(null);
     setError(null);
 
     try {
-      const prediction = await predictionService.predict(validation.request);
-      const refreshedHistory = await predictionService.getMyHistory();
+      const prediction = await predictionService.advancedTest(validation.request);
       setResult(prediction);
-      setHistory(refreshedHistory);
+      setResultMode("validation");
+      toast.success("Advanced validation completed");
     } catch (err) {
-      setError(formatPredictionError(err, "Unable to run advanced model test."));
+      const message = formatPredictionError(err, "Unable to run advanced model test.");
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -157,7 +196,10 @@ export default function Predict() {
 
   return (
     <>
-      <Topbar title="Fraud Analysis" subtitle="Analyze saved transactions and monitor risk decisions" />
+      <Topbar
+        title="Fraud Analysis"
+        subtitle="Analyze saved transactions and monitor risk decisions"
+      />
       <main className="flex-1 p-4 md:p-8 grid lg:grid-cols-5 gap-6">
         <section className="lg:col-span-3 space-y-5">
           <div className="glass rounded-2xl p-6">
@@ -167,7 +209,9 @@ export default function Predict() {
               </div>
               <div>
                 <h2 className="font-display font-semibold">Select Transaction</h2>
-                <p className="text-xs text-muted-foreground">Transaction to analysis to result to alert.</p>
+                <p className="text-xs text-muted-foreground">
+                  Choose a saved transaction, then run a fresh analysis.
+                </p>
               </div>
             </div>
 
@@ -177,39 +221,51 @@ export default function Predict() {
               </div>
             )}
 
-            <label className="block">
-              <span className="text-xs text-muted-foreground">Choose existing transaction</span>
-              <select
-                value={selectedTransaction?.id ?? ""}
-                onChange={(event) => setSelectedTransaction(transactions.find((item) => item.id === Number(event.target.value)) ?? null)}
-                className="mt-1 w-full glass rounded-lg px-3 py-3 text-sm bg-background outline-none"
-              >
-                <option value="">Select transaction</option>
-                {transactions.map((transaction) => (
-                  <option key={transaction.id} value={transaction.id}>
-                    TX-{transaction.id} - {transaction.merchant} - {formatCurrency(transaction.amount, transaction.currency)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <TransactionPicker
+              loading={transactionsLoading}
+              error={transactionsError}
+              transactions={transactions}
+              selectedId={selectedTransaction?.id ?? ""}
+              onChange={selectTransaction}
+              onRetry={() => void loadTransactions()}
+            />
 
             <div className="mt-5">
-              {selectedTransaction ? (
+              {transactionsLoading ? (
+                <NeutralState
+                  title="Loading saved transactions"
+                  message="Fetching your transaction list from FraudGuard."
+                  spin
+                />
+              ) : transactionsError ? (
+                <NeutralState title="Unable to load transactions" message={transactionsError} />
+              ) : transactions.length === 0 ? (
+                <EmptyTransactionsState />
+              ) : selectedTransaction ? (
                 <TransactionSummaryCard transaction={selectedTransaction} />
               ) : (
-                <div className="glass rounded-xl p-8 text-center text-sm text-muted-foreground">
-                  Select a transaction to analyze fraud risk from saved merchant, category, country, amount, and type.
-                </div>
+                <NeutralState
+                  title="No transaction selected"
+                  message="Pick a saved transaction to preview neutral details. Risk status appears only after analysis."
+                />
               )}
             </div>
 
             <button
               type="button"
               onClick={() => void analyzeSelectedTransaction()}
-              disabled={!selectedTransaction || loading}
+              disabled={!selectedTransaction || loading || transactionsLoading}
               className="mt-6 w-full bg-gradient-primary text-primary-foreground rounded-lg py-3 font-medium ring-glow flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing transaction...</> : <><Zap className="h-4 w-4" /> Analyze Transaction</>}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Analyzing transaction...
+                </>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4" /> Analyze Transaction
+                </>
+              )}
             </button>
           </div>
 
@@ -221,22 +277,55 @@ export default function Predict() {
             >
               <div>
                 <p className="font-display font-semibold">Advanced Model Testing</p>
-                <p className="text-xs text-muted-foreground">Hidden PaySim fields for model validation only.</p>
+                <p className="text-xs text-muted-foreground">
+                  Model validation only. Results are not saved to prediction history.
+                </p>
               </div>
               <ChevronDown className={`h-4 w-4 transition ${advancedOpen ? "rotate-180" : ""}`} />
             </button>
             {advancedOpen && (
               <form onSubmit={runAdvancedPrediction} className="mt-5">
                 <div className="grid md:grid-cols-2 gap-4">
-                  <Select label="Transaction Type" icon={WalletCards} value={form.transactionType} options={transactionTypes} onChange={(value) => updateForm("transactionType", value)} />
-                  <Input label="Amount" icon={CreditCard} value={form.amount} onChange={(value) => updateForm("amount", value)} />
-                  <Input label="Old Balance Origin" value={form.oldBalanceOrigin} onChange={(value) => updateForm("oldBalanceOrigin", value)} />
-                  <Input label="New Balance Origin" value={form.newBalanceOrigin} onChange={(value) => updateForm("newBalanceOrigin", value)} />
-                  <Input label="Old Balance Destination" value={form.oldBalanceDestination} onChange={(value) => updateForm("oldBalanceDestination", value)} />
-                  <Input label="New Balance Destination" value={form.newBalanceDestination} onChange={(value) => updateForm("newBalanceDestination", value)} />
+                  <Select
+                    label="Transaction Type"
+                    icon={WalletCards}
+                    value={form.transactionType}
+                    options={transactionTypes}
+                    onChange={(value) => updateForm("transactionType", value)}
+                  />
+                  <Input
+                    label="Amount"
+                    icon={CreditCard}
+                    value={form.amount}
+                    onChange={(value) => updateForm("amount", value)}
+                  />
+                  <Input
+                    label="Old Balance Origin"
+                    value={form.oldBalanceOrigin}
+                    onChange={(value) => updateForm("oldBalanceOrigin", value)}
+                  />
+                  <Input
+                    label="New Balance Origin"
+                    value={form.newBalanceOrigin}
+                    onChange={(value) => updateForm("newBalanceOrigin", value)}
+                  />
+                  <Input
+                    label="Old Balance Destination"
+                    value={form.oldBalanceDestination}
+                    onChange={(value) => updateForm("oldBalanceDestination", value)}
+                  />
+                  <Input
+                    label="New Balance Destination"
+                    value={form.newBalanceDestination}
+                    onChange={(value) => updateForm("newBalanceDestination", value)}
+                  />
                 </div>
-                <button type="submit" disabled={loading} className="mt-6 w-full glass rounded-lg py-3 text-sm hover:ring-1 hover:ring-primary/40 disabled:opacity-60">
-                  Run Advanced Model Test
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="mt-6 w-full glass rounded-lg py-3 text-sm hover:ring-1 hover:ring-primary/40 disabled:opacity-60"
+                >
+                  {loading ? "Running validation..." : "Run Advanced Model Test"}
                 </button>
               </form>
             )}
@@ -244,29 +333,42 @@ export default function Predict() {
         </section>
 
         <section className="lg:col-span-2 space-y-4">
-          <ResultPanel loading={loading} result={result} />
+          <ResultPanel
+            loading={loading}
+            result={result}
+            mode={resultMode}
+            selectedTransaction={selectedTransaction}
+          />
           <HistoryPanel
             loading={historyLoading}
+            error={historyError}
             history={history}
             exporting={exportingHistory}
             onExport={() => void exportHistory()}
+            onRefresh={() => void loadHistory()}
             onSelect={(item) => {
               setSelectedHistoryItem(item);
-              if (item.transactionId) {
-                setSelectedTransaction(transactions.find((transaction) => transaction.id === item.transactionId) ?? selectedTransaction);
-              }
             }}
           />
         </section>
       </main>
-      {selectedHistoryItem && <PredictionDetailsModal prediction={selectedHistoryItem} onClose={() => setSelectedHistoryItem(null)} />}
+      {selectedHistoryItem && (
+        <PredictionDetailsModal
+          prediction={selectedHistoryItem}
+          onClose={() => setSelectedHistoryItem(null)}
+        />
+      )}
     </>
   );
 }
 
 function formatPredictionError(error: unknown, fallback: string) {
+  if (error instanceof ApiError && error.status === 404) {
+    return "Advanced model testing is not available from the current API. Confirm the backend includes /api/predictions/advanced-test.";
+  }
+
   if (error instanceof ApiError && error.status === 503) {
-    return "Prediction service is currently unavailable.";
+    return error.message || "Prediction service is unavailable. Please start the ML service and try again.";
   }
 
   return error instanceof Error ? error.message : fallback;
@@ -320,6 +422,152 @@ function validateAdvancedRequest(form: PredictionForm): AdvancedValidationResult
   };
 }
 
+function buildAnalyzedTransactionResult(
+  analysis: TransactionPredictionResult,
+  transaction: Transaction,
+  history: PredictionResult[],
+): PredictionResult {
+  const saved = history.find((item) => item.id === analysis.predictionId);
+
+  return {
+    id: analysis.predictionId,
+    userId: transaction.userId,
+    transactionId: transaction.id,
+    transactionMerchant: transaction.merchant,
+    transactionCountry: transaction.country,
+    transactionCategory: transaction.category,
+    transactionCurrency: transaction.currency,
+    transactionCreatedAt: transaction.createdAt,
+    transactionStatus: analysis.status,
+    transactionType: normalizeTransactionType(transaction.transactionType),
+    amount: transaction.amount,
+    oldBalanceOrigin: transaction.amount,
+    newBalanceOrigin: 0,
+    oldBalanceDestination: 0,
+    newBalanceDestination: transaction.amount,
+    fraudProbability: analysis.riskScore / 100,
+    riskScore: analysis.riskScore,
+    riskLevel: analysis.riskLevel,
+    isFraud: analysis.status === "fraud",
+    predictedClass: analysis.predictedClass,
+    confidence: analysis.confidence,
+    reasons: analysis.explanation,
+    explanationFactors: analysis.explanation,
+    riskBreakdown: saved?.riskBreakdown,
+    modelName: analysis.modelName,
+    modelTrainingDate: analysis.modelTrainingDate,
+    suggestedAction: saved?.suggestedAction ?? suggestedActionForScore(analysis.riskScore),
+    createdAt: analysis.createdAt,
+  };
+}
+
+function normalizeTransactionType(value: string): TransactionType {
+  const normalized = value.trim().toUpperCase().replace(/\s+/g, "_");
+  return transactionTypes.includes(normalized as TransactionType)
+    ? (normalized as TransactionType)
+    : "PAYMENT";
+}
+
+function suggestedActionForScore(score: number) {
+  return score >= 70
+    ? "Block transaction immediately"
+    : score >= 40
+      ? "Manual verification recommended"
+      : "Approve transaction";
+}
+
+function TransactionPicker({
+  loading,
+  error,
+  transactions,
+  selectedId,
+  onChange,
+  onRetry,
+}: {
+  loading: boolean;
+  error: string | null;
+  transactions: Transaction[];
+  selectedId: number | "";
+  onChange: (transactionId: string) => void;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-end gap-3">
+        <label className="block flex-1">
+          <span className="text-xs text-muted-foreground">Choose existing transaction</span>
+          <select
+            value={selectedId}
+            onChange={(event) => onChange(event.target.value)}
+            disabled={loading || Boolean(error) || transactions.length === 0}
+            className="mt-1 w-full glass rounded-lg px-3 py-3 text-sm bg-background outline-none disabled:opacity-60"
+          >
+            <option value="">{loading ? "Loading transactions..." : "Select transaction"}</option>
+            {transactions.map((transaction) => (
+              <option key={transaction.id} value={transaction.id}>
+                {formatTransactionOption(transaction)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {error && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mb-0.5 h-11 rounded-lg border border-border px-3 text-xs text-muted-foreground hover:text-foreground"
+          >
+            Retry
+          </button>
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Saved risk values are hidden here until you run a new analysis.
+      </p>
+    </div>
+  );
+}
+
+function formatTransactionOption(transaction: Transaction) {
+  return [
+    transaction.merchant,
+    formatCurrency(transaction.amount, transaction.currency),
+    transaction.transactionType,
+    transaction.category,
+    transaction.country,
+    formatDate(transaction.createdAt),
+  ].join(" - ");
+}
+
+function NeutralState({
+  title,
+  message,
+  spin = false,
+}: {
+  title: string;
+  message: string;
+  spin?: boolean;
+}) {
+  return (
+    <div className="glass rounded-xl p-8 text-center text-sm text-muted-foreground">
+      {spin && <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin text-primary" />}
+      <p className="font-medium text-foreground">{title}</p>
+      <p className="mx-auto mt-2 max-w-md text-xs leading-5">{message}</p>
+    </div>
+  );
+}
+
+function EmptyTransactionsState() {
+  return (
+    <div className="glass rounded-xl p-8 text-center">
+      <CreditCard className="mx-auto h-8 w-8 text-primary" />
+      <p className="mt-3 font-display font-semibold">No saved transactions yet</p>
+      <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-muted-foreground">
+        Add a transaction first, then return here to run a fraud analysis on real saved data.
+      </p>
+    </div>
+  );
+}
+
 function TransactionSummaryCard({ transaction }: { transaction: Transaction }) {
   return (
     <div className="glass rounded-xl p-4">
@@ -328,18 +576,30 @@ function TransactionSummaryCard({ transaction }: { transaction: Transaction }) {
           <p className="text-xs text-muted-foreground">Selected transaction</p>
           <p className="font-display text-lg font-semibold">{transaction.merchant}</p>
         </div>
-        <StatusPill status={transaction.status} />
+        <span className="rounded-md bg-primary/10 px-2 py-1 text-[10px] uppercase tracking-wider text-primary">
+          Ready for analysis
+        </span>
       </div>
       <div className="grid md:grid-cols-2 gap-3 text-sm">
         <SummaryMetric label="Merchant" value={transaction.merchant} />
         <SummaryMetric label="Category" value={transaction.category} />
         <SummaryMetric label="Country" value={transaction.country} />
-        <SummaryMetric label="Amount" value={formatCurrency(transaction.amount, transaction.currency)} />
+        <SummaryMetric
+          label="Amount"
+          value={formatCurrency(transaction.amount, transaction.currency)}
+        />
         <SummaryMetric label="Currency" value={transaction.currency} />
         <SummaryMetric label="Transaction Type" value={transaction.transactionType} />
-        <SummaryMetric label="Current Risk Score" value={transaction.riskScore == null ? "Pending" : `${transaction.riskScore}/100`} />
-        <SummaryMetric label="Current Status" value={transaction.status} />
+        <SummaryMetric label="Created" value={formatDateTime(transaction.createdAt)} />
+        <SummaryMetric
+          label="Description"
+          value={transaction.description ?? "No description provided"}
+        />
       </div>
+      <p className="mt-4 rounded-lg border border-border/50 bg-background/30 p-3 text-xs leading-5 text-muted-foreground">
+        This preview intentionally excludes previous risk scores and decisions. Click Analyze
+        Transaction to generate a new result.
+      </p>
     </div>
   );
 }
@@ -353,43 +613,82 @@ function SummaryMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatusPill({ status }: { status: string }) {
-  const color = {
-    pending: "bg-primary/15 text-primary",
-    safe: "bg-success/15 text-success",
-    review: "bg-warning/15 text-warning",
-    fraud: "bg-destructive/15 text-destructive",
-  }[status] ?? "bg-secondary text-muted-foreground";
-  return <span className={`rounded-md px-2 py-1 text-[10px] uppercase tracking-wider ${color}`}>{status}</span>;
-}
-
-function Input({ label, icon: Icon, value, onChange }: { label: string; icon?: typeof CreditCard; value: string; onChange: (value: string) => void }) {
+function Input({
+  label,
+  icon: Icon,
+  value,
+  onChange,
+}: {
+  label: string;
+  icon?: typeof CreditCard;
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <label className="block">
       <span className="text-xs text-muted-foreground">{label}</span>
       <div className="mt-1 flex items-center glass rounded-lg px-3 py-2.5 focus-within:ring-1 focus-within:ring-primary/60">
         {Icon && <Icon className="h-4 w-4 text-muted-foreground mr-2" />}
-        <input type="number" min="0" step="0.01" required value={value} onChange={(event) => onChange(event.target.value)} className="flex-1 bg-transparent text-sm outline-none" />
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          required
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="flex-1 bg-transparent text-sm outline-none"
+        />
       </div>
     </label>
   );
 }
 
-function Select({ label, icon: Icon, value, options, onChange }: { label: string; icon?: typeof WalletCards; value: TransactionType; options: TransactionType[]; onChange: (value: TransactionType) => void }) {
+function Select({
+  label,
+  icon: Icon,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  icon?: typeof WalletCards;
+  value: TransactionType;
+  options: TransactionType[];
+  onChange: (value: TransactionType) => void;
+}) {
   return (
     <label className="block">
       <span className="text-xs text-muted-foreground">{label}</span>
       <div className="mt-1 flex items-center glass rounded-lg px-3 py-2.5">
         {Icon && <Icon className="h-4 w-4 text-muted-foreground mr-2" />}
-        <select required value={value} onChange={(event) => onChange(event.target.value as TransactionType)} className="flex-1 bg-transparent text-sm outline-none appearance-none">
-          {options.map((option) => <option key={option} value={option} className="bg-card">{option}</option>)}
+        <select
+          required
+          value={value}
+          onChange={(event) => onChange(event.target.value as TransactionType)}
+          className="flex-1 bg-transparent text-sm outline-none appearance-none"
+        >
+          {options.map((option) => (
+            <option key={option} value={option} className="bg-card">
+              {option}
+            </option>
+          ))}
         </select>
       </div>
     </label>
   );
 }
 
-function ResultPanel({ loading, result }: { loading: boolean; result: PredictionResult | null }) {
+function ResultPanel({
+  loading,
+  result,
+  mode,
+  selectedTransaction,
+}: {
+  loading: boolean;
+  result: PredictionResult | null;
+  mode: "transaction" | "validation" | null;
+  selectedTransaction: Transaction | null;
+}) {
   if (loading) {
     return (
       <div className="glass rounded-2xl p-8 text-center relative overflow-hidden h-80 grid place-items-center">
@@ -399,7 +698,9 @@ function ResultPanel({ loading, result }: { loading: boolean; result: Prediction
             <Cpu className="h-8 w-8 text-primary-foreground" />
           </div>
           <p className="mt-5 font-display font-semibold">Analyzing transaction...</p>
-          <p className="text-xs text-muted-foreground">Scoring saved transaction data</p>
+          <p className="text-xs text-muted-foreground">
+            Scoring transaction data with the active fraud model.
+          </p>
         </div>
       </div>
     );
@@ -411,7 +712,10 @@ function ResultPanel({ loading, result }: { loading: boolean; result: Prediction
         <div>
           <ShieldCheck className="h-10 w-10 mx-auto text-primary" />
           <p className="mt-3 font-display font-semibold">Ready to analyze</p>
-          <p className="text-xs text-muted-foreground">Select a transaction to view prediction analysis.</p>
+          <p className="mx-auto mt-2 max-w-xs text-xs leading-5 text-muted-foreground">
+            Select a saved transaction and click Analyze Transaction. Scores, risk levels, and
+            decisions stay hidden until the API returns a result.
+          </p>
         </div>
       </div>
     );
@@ -423,11 +727,15 @@ function ResultPanel({ loading, result }: { loading: boolean; result: Prediction
 
   return (
     <div className={`glass rounded-2xl p-6 relative overflow-hidden ring-1 ${tone.ring}`}>
-      <div className={`absolute inset-0 bg-gradient-to-br ${tone.background} to-transparent pointer-events-none`} />
+      <div
+        className={`absolute inset-0 bg-gradient-to-br ${tone.background} to-transparent pointer-events-none`}
+      />
       <div className="relative">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Analysis Result</p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">
+              {mode === "validation" ? "Model Validation Result" : "Analysis Result"}
+            </p>
             <p className={`mt-1 text-2xl font-display font-semibold ${tone.text}`}>
               {formatStatus(status)}
             </p>
@@ -444,27 +752,77 @@ function ResultPanel({ loading, result }: { loading: boolean; result: Prediction
             <span>{result.riskScore}/100</span>
           </div>
           <div className="mt-2 h-3 rounded-full bg-secondary overflow-hidden">
-            <div className={`h-full rounded-full ${result.riskScore >= 70 ? "bg-destructive" : result.riskScore >= 40 ? "bg-warning" : "bg-success"}`} style={{ width: `${result.riskScore}%` }} />
+            <div
+              className={`h-full rounded-full ${result.riskScore >= 70 ? "bg-destructive" : result.riskScore >= 40 ? "bg-warning" : "bg-success"}`}
+              style={{ width: `${result.riskScore}%` }}
+            />
           </div>
           <div className="grid grid-cols-2 gap-2 mt-4 text-center text-xs">
             <Metric label="Probability" value={`${Math.round(result.fraudProbability * 100)}%`} />
             <Metric label="Confidence" value={`${Math.round(result.confidence * 100)}%`} />
-            <Metric label="Prediction" value={result.predictedClass ?? (result.isFraud ? "Fraud" : "Not fraud")} />
+            <Metric
+              label="Prediction"
+              value={result.predictedClass ?? (result.isFraud ? "Fraud" : "Not fraud")}
+            />
             <Metric label="Risk level" value={result.riskLevel} />
             {result.modelName && <Metric label="Model" value={result.modelName} />}
-            {result.modelTrainingDate && <Metric label="Trained" value={formatDateTime(result.modelTrainingDate)} />}
+            {result.modelTrainingDate && (
+              <Metric label="Trained" value={formatDateTime(result.modelTrainingDate)} />
+            )}
           </div>
         </div>
         <div className="mt-5">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Transaction Risk Breakdown</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">
+            Analyzed Transaction Details
+          </p>
+          <DetailGrid
+            items={[
+              [
+                "Transaction",
+                result.transactionId
+                  ? `TX-${result.transactionId}`
+                  : mode === "validation"
+                    ? "Validation input"
+                    : "Saved transaction",
+              ],
+              [
+                "Merchant",
+                result.transactionMerchant ?? selectedTransaction?.merchant ?? "Validation input",
+              ],
+              [
+                "Amount",
+                formatCurrency(
+                  result.amount,
+                  result.transactionCurrency ?? selectedTransaction?.currency ?? "USD",
+                ),
+              ],
+              ["Type", result.transactionType],
+              [
+                "Country",
+                result.transactionCountry ?? selectedTransaction?.country ?? "Not linked",
+              ],
+              ["Analyzed", formatDateTime(result.createdAt)],
+            ]}
+          />
+        </div>
+        <div className="mt-5">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">
+            Transaction Risk Breakdown
+          </p>
           <RiskBreakdownList factors={getRiskBreakdown(result)} />
         </div>
         <div className="mt-5">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Supporting Signals</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">
+            Supporting Signals
+          </p>
           <div className="space-y-4">
             {factorGroups.map((group) => (
               <div key={group.title}>
-                <p className={`mb-2 text-xs font-semibold uppercase tracking-widest ${group.color}`}>{group.title}</p>
+                <p
+                  className={`mb-2 text-xs font-semibold uppercase tracking-widest ${group.color}`}
+                >
+                  {group.title}
+                </p>
                 <ul className="space-y-2 text-sm text-foreground/90">
                   {group.items.map((reason) => (
                     <li key={`${group.title}-${reason}`} className="flex gap-2">
@@ -493,11 +851,23 @@ function getPredictionStatus(result: PredictionResult): AnalysisStatus {
     return status;
   }
 
-  if (result.riskScore >= 70 || result.isFraud) {
+  const riskLevel = result.riskLevel?.toLowerCase();
+  const predictedClass = result.predictedClass?.toLowerCase();
+
+  if (result.riskScore >= 70 || result.isFraud || riskLevel === "high" || predictedClass === "fraud") {
     return "fraud";
   }
 
-  return result.riskScore >= 40 ? "review" : "safe";
+  if (
+    result.riskScore >= 40 ||
+    riskLevel === "medium" ||
+    predictedClass === "review" ||
+    predictedClass === "needs review"
+  ) {
+    return "review";
+  }
+
+  return "safe";
 }
 
 function getStatusTone(status: AnalysisStatus) {
@@ -528,16 +898,27 @@ function getStatusTone(status: AnalysisStatus) {
 }
 
 function formatStatus(status: AnalysisStatus) {
-  return status.charAt(0).toUpperCase() + status.slice(1);
+  if (status === "fraud") {
+    return "High Risk";
+  }
+
+  if (status === "review") {
+    return "Needs Review";
+  }
+
+  return "Safe";
 }
 
 function groupAnalysisFactors(reasons: string[], status: AnalysisStatus) {
   const fallback = getFallbackFactors(status);
-  const grouped = (reasons.length > 0 ? reasons : fallback).reduce<Record<string, string[]>>((acc, rawReason) => {
-    const [section, reason] = splitAnalysisReason(rawReason);
-    acc[section] = [...(acc[section] ?? []), reason];
-    return acc;
-  }, {});
+  const grouped = (reasons.length > 0 ? reasons : fallback).reduce<Record<string, string[]>>(
+    (acc, rawReason) => {
+      const [section, reason] = splitAnalysisReason(rawReason);
+      acc[section] = [...(acc[section] ?? []), reason];
+      return acc;
+    },
+    {},
+  );
 
   return Object.entries(grouped).map(([title, items]) => ({
     title,
@@ -551,24 +932,28 @@ function getExplanationFactors(prediction: PredictionResult) {
 }
 
 function getRiskBreakdown(prediction: PredictionResult) {
-  return prediction.riskBreakdown?.length ? prediction.riskBreakdown : buildLocalRiskBreakdown(prediction);
+  return prediction.riskBreakdown?.length
+    ? prediction.riskBreakdown
+    : buildLocalRiskBreakdown(prediction);
 }
 
 function buildLocalRiskBreakdown(prediction: PredictionInput): RiskBreakdownFactor[] {
   const amount = prediction.amount;
   const originDelta = prediction.oldBalanceOrigin - prediction.newBalanceOrigin;
   const destinationDelta = prediction.newBalanceDestination - prediction.oldBalanceDestination;
-  const sensitiveType = prediction.transactionType === "TRANSFER" || prediction.transactionType === "CASH_OUT";
+  const sensitiveType =
+    prediction.transactionType === "TRANSFER" || prediction.transactionType === "CASH_OUT";
 
   return [
     {
-      factor: "High transaction amount",
+      factor: amount >= 100_000 ? "High transaction amount" : "Transaction amount",
       impact: amount >= 1_000_000 ? "High risk" : amount >= 100_000 ? "Risk" : "Neutral",
-      explanation: amount >= 1_000_000
-        ? `Amount is ${formatCurrency(amount)}, above the very-high-value threshold.`
-        : amount >= 100_000
-          ? `Amount is ${formatCurrency(amount)}, above the high-value threshold.`
-          : `Amount is ${formatCurrency(amount)}, below the high-value threshold.`,
+      explanation:
+        amount >= 1_000_000
+          ? `Amount is ${formatCurrency(amount)}, above the very-high-value threshold.`
+          : amount >= 100_000
+            ? `Amount is ${formatCurrency(amount)}, above the high-value threshold.`
+            : `Amount is ${formatCurrency(amount)}, below the high-value threshold.`,
     },
     {
       factor: "Transfer or cash-out transaction type",
@@ -579,30 +964,46 @@ function buildLocalRiskBreakdown(prediction: PredictionInput): RiskBreakdownFact
     },
     {
       factor: "Origin account balance drop",
-      impact: originDelta <= 0 && amount > 0 ? "Risk" : amount > 0 && Math.abs(originDelta - amount) > amount * 0.25 ? "Risk" : "Protective",
-      explanation: originDelta <= 0 && amount > 0
-        ? "Origin balance did not decrease even though the transaction amount is positive."
-        : amount > 0 && Math.abs(originDelta - amount) > amount * 0.25
-          ? `Origin balance dropped by ${formatCurrency(originDelta)}, which differs from the amount by more than 25%.`
-          : `Origin balance dropped by ${formatCurrency(originDelta)}, broadly matching the amount.`,
+      impact:
+        originDelta <= 0 && amount > 0
+          ? "Risk"
+          : amount > 0 && Math.abs(originDelta - amount) > amount * 0.25
+            ? "Risk"
+            : "Protective",
+      explanation:
+        originDelta <= 0 && amount > 0
+          ? "Origin balance did not decrease even though the transaction amount is positive."
+          : amount > 0 && Math.abs(originDelta - amount) > amount * 0.25
+            ? `Origin balance dropped by ${formatCurrency(originDelta)}, which differs from the amount by more than 25%.`
+            : `Origin balance dropped by ${formatCurrency(originDelta)}, broadly matching the amount.`,
     },
     {
       factor: "Destination account balance behavior",
-      impact: destinationDelta < 0 || (amount > 0 && destinationDelta === 0) || (prediction.oldBalanceDestination === 0 && amount >= 100_000) ? "Risk" : "Protective",
-      explanation: destinationDelta < 0
-        ? "Destination balance decreased during a transaction that should move funds in."
-        : amount > 0 && destinationDelta === 0
-          ? "Destination balance did not change despite a positive transaction amount."
-          : prediction.oldBalanceDestination === 0 && amount >= 100_000
-            ? "Destination started at zero and received a high-value amount."
-            : `Destination balance changed by ${formatCurrency(destinationDelta)}, consistent with receiving funds.`,
+      impact:
+        destinationDelta < 0 ||
+        (amount > 0 && destinationDelta === 0) ||
+        (prediction.oldBalanceDestination === 0 && amount >= 100_000)
+          ? "Risk"
+          : "Protective",
+      explanation:
+        destinationDelta < 0
+          ? "Destination balance decreased during a transaction that should move funds in."
+          : amount > 0 && destinationDelta === 0
+            ? "Destination balance did not change despite a positive transaction amount."
+            : prediction.oldBalanceDestination === 0 && amount >= 100_000
+              ? "Destination started at zero and received a high-value amount."
+              : `Destination balance changed by ${formatCurrency(destinationDelta)}, consistent with receiving funds.`,
     },
     {
       factor: "Zero balance after transaction",
-      impact: prediction.newBalanceOrigin === 0 || prediction.newBalanceDestination === 0 ? "Risk" : "Protective",
-      explanation: prediction.newBalanceOrigin === 0 || prediction.newBalanceDestination === 0
-        ? "At least one account has a zero balance after the transaction."
-        : "Neither account has a zero balance after the transaction.",
+      impact:
+        prediction.newBalanceOrigin === 0 || prediction.newBalanceDestination === 0
+          ? "Risk"
+          : "Protective",
+      explanation:
+        prediction.newBalanceOrigin === 0 || prediction.newBalanceDestination === 0
+          ? "At least one account has a zero balance after the transaction."
+          : "Neither account has a zero balance after the transaction.",
     },
   ];
 }
@@ -613,10 +1014,17 @@ function RiskBreakdownList({ factors }: { factors: RiskBreakdownFactor[] }) {
       {factors.map((factor) => {
         const tone = getBreakdownTone(factor.impact);
         return (
-          <div key={factor.factor} className="rounded-lg border border-border/50 bg-background/30 p-3">
+          <div
+            key={factor.factor}
+            className="rounded-lg border border-border/50 bg-background/30 p-3"
+          >
             <div className="flex items-start justify-between gap-3">
               <p className="text-sm font-semibold">{factor.factor}</p>
-              <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] uppercase tracking-wider ${tone.badge}`}>{factor.impact}</span>
+              <span
+                className={`shrink-0 rounded-md px-2 py-1 text-[10px] uppercase tracking-wider ${tone.badge}`}
+              >
+                {factor.impact}
+              </span>
             </div>
             <p className="mt-2 text-xs leading-5 text-muted-foreground">{factor.explanation}</p>
           </div>
@@ -671,31 +1079,54 @@ function getFactorTone(title: string, status: AnalysisStatus) {
 }
 
 function getFallbackFactors(status: AnalysisStatus) {
-  return [`Explanation Factors|No explanation factors were returned for this ${status} prediction.`];
+  return [
+    `Explanation Factors|No explanation factors were returned for this ${status} prediction.`,
+  ];
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="glass rounded-lg p-2"><p className="text-[10px] text-muted-foreground">{label}</p><p className="font-semibold mt-0.5">{value}</p></div>;
+  return (
+    <div className="glass rounded-lg p-2">
+      <p className="text-[10px] text-muted-foreground">{label}</p>
+      <p className="font-semibold mt-0.5">{value}</p>
+    </div>
+  );
 }
 
 function HistoryPanel({
   loading,
+  error,
   history,
   exporting,
   onExport,
+  onRefresh,
   onSelect,
 }: {
   loading: boolean;
+  error: string | null;
   history: PredictionResult[];
   exporting: boolean;
   onExport: () => void;
+  onRefresh: () => void;
   onSelect: (item: PredictionResult) => void;
 }) {
   return (
     <div className="glass rounded-2xl p-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-display font-semibold">Prediction history</p>
+        <div>
+          <p className="text-sm font-display font-semibold">Prediction history</p>
+          <p className="text-[11px] text-muted-foreground">Analyzed results only</p>
+        </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={loading}
+            title="Refresh prediction history"
+            className="h-8 w-8 grid place-items-center rounded-lg glass hover:ring-1 hover:ring-primary/40 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
           <button
             type="button"
             onClick={onExport}
@@ -703,9 +1134,12 @@ function HistoryPanel({
             title="Export prediction history"
             className="h-8 w-8 grid place-items-center rounded-lg glass hover:ring-1 hover:ring-primary/40 disabled:opacity-50"
           >
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
           </button>
-          <History className="h-4 w-4 text-muted-foreground" />
         </div>
       </div>
       <div className="mt-4 space-y-3 max-h-[360px] overflow-y-auto pr-1">
@@ -713,29 +1147,63 @@ function HistoryPanel({
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading history...
           </div>
+        ) : error ? (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
         ) : history.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No saved predictions yet.</p>
+          <div className="rounded-lg border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
+            <History className="mb-3 h-5 w-5 text-primary" />
+            <p className="font-medium text-foreground">No analyzed predictions yet</p>
+            <p className="mt-1 text-xs leading-5">
+              Run Analyze Transaction to create the first saved prediction result.
+            </p>
+          </div>
         ) : (
-          history.slice(0, 8).map((item) => <HistoryItem key={item.id} item={item} onSelect={onSelect} />)
+          history
+            .slice(0, 8)
+            .map((item) => <HistoryItem key={item.id} item={item} onSelect={onSelect} />)
         )}
       </div>
     </div>
   );
 }
 
-function HistoryItem({ item, onSelect }: { item: PredictionResult; onSelect: (item: PredictionResult) => void }) {
-  const title = item.transactionMerchant ?? (item.transactionId ? `Transaction #${item.transactionId}` : "Manual prediction");
+function HistoryItem({
+  item,
+  onSelect,
+}: {
+  item: PredictionResult;
+  onSelect: (item: PredictionResult) => void;
+}) {
+  const title =
+    item.transactionMerchant ??
+    (item.transactionId ? `Transaction #${item.transactionId}` : "Manual prediction");
   const status = item.transactionStatus ?? getPredictionStatus(item);
 
   return (
-    <button onClick={() => onSelect(item)} className="w-full text-left rounded-lg border border-border/50 bg-background/30 p-3 hover:bg-secondary/30">
+    <button
+      onClick={() => onSelect(item)}
+      className="w-full text-left rounded-lg border border-border/50 bg-background/30 p-3 hover:bg-secondary/30"
+    >
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold">{title}</p>
-          <p className="text-xs text-muted-foreground">{formatCurrency(item.amount)} - {status}</p>
+          <p className="text-xs text-muted-foreground">
+            {formatCurrency(item.amount, item.transactionCurrency ?? "USD")} -{" "}
+            {formatStatus(status)}
+          </p>
         </div>
         <div className="text-right">
-          <p className={item.isFraud ? "text-sm font-semibold text-destructive" : "text-sm font-semibold text-success"}>{item.riskScore}/100</p>
+          <p
+            className={
+              item.isFraud
+                ? "text-sm font-semibold text-destructive"
+                : "text-sm font-semibold text-success"
+            }
+          >
+            {item.riskScore}/100
+          </p>
           <p className="text-xs text-muted-foreground">{item.riskLevel}</p>
         </div>
       </div>
@@ -746,58 +1214,122 @@ function HistoryItem({ item, onSelect }: { item: PredictionResult; onSelect: (it
   );
 }
 
-function PredictionDetailsModal({ prediction, onClose }: { prediction: PredictionResult; onClose: () => void }) {
+function PredictionDetailsModal({
+  prediction,
+  onClose,
+}: {
+  prediction: PredictionResult;
+  onClose: () => void;
+}) {
   const status = getPredictionStatus(prediction);
   const tone = getStatusTone(status);
   const factorGroups = groupAnalysisFactors(getExplanationFactors(prediction), status);
   const alertGenerated = status === "review" || status === "fraud";
-  const title = prediction.transactionMerchant ?? (prediction.transactionId ? `Transaction #${prediction.transactionId}` : "Manual prediction");
+  const title =
+    prediction.transactionMerchant ??
+    (prediction.transactionId ? `Transaction #${prediction.transactionId}` : "Manual prediction");
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-background/80 p-4 backdrop-blur-sm">
-      <div role="dialog" aria-modal="true" className="glass mx-auto my-6 w-full max-w-4xl rounded-2xl ring-1 ring-border">
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="glass mx-auto my-6 w-full max-w-4xl rounded-2xl ring-1 ring-border"
+      >
         <div className="flex items-center justify-between border-b border-border p-5">
           <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Prediction details</p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">
+              Prediction details
+            </p>
             <h2 className="font-display text-xl font-semibold">{title}</h2>
           </div>
-          <button type="button" onClick={onClose} title="Close details" className="h-9 w-9 grid place-items-center rounded-lg glass hover:ring-1 hover:ring-primary/40">
+          <button
+            type="button"
+            onClick={onClose}
+            title="Close details"
+            className="h-9 w-9 grid place-items-center rounded-lg glass hover:ring-1 hover:ring-primary/40"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-5 p-5">
           <DetailSection title="Input Transaction Values">
-            <DetailGrid items={[
-              ["Transaction ID", prediction.transactionId ? `TX-${prediction.transactionId}` : "Manual prediction"],
-              ["Transaction Type", prediction.transactionType],
-              ["Amount", formatCurrency(prediction.amount, prediction.transactionCurrency ?? "USD")],
-              ["Old Origin Balance", formatCurrency(prediction.oldBalanceOrigin, prediction.transactionCurrency ?? "USD")],
-              ["New Origin Balance", formatCurrency(prediction.newBalanceOrigin, prediction.transactionCurrency ?? "USD")],
-              ["Old Destination Balance", formatCurrency(prediction.oldBalanceDestination, prediction.transactionCurrency ?? "USD")],
-              ["New Destination Balance", formatCurrency(prediction.newBalanceDestination, prediction.transactionCurrency ?? "USD")],
-            ]} />
+            <DetailGrid
+              items={[
+                [
+                  "Transaction ID",
+                  prediction.transactionId ? `TX-${prediction.transactionId}` : "Manual prediction",
+                ],
+                ["Transaction Type", prediction.transactionType],
+                [
+                  "Amount",
+                  formatCurrency(prediction.amount, prediction.transactionCurrency ?? "USD"),
+                ],
+                [
+                  "Old Origin Balance",
+                  formatCurrency(
+                    prediction.oldBalanceOrigin,
+                    prediction.transactionCurrency ?? "USD",
+                  ),
+                ],
+                [
+                  "New Origin Balance",
+                  formatCurrency(
+                    prediction.newBalanceOrigin,
+                    prediction.transactionCurrency ?? "USD",
+                  ),
+                ],
+                [
+                  "Old Destination Balance",
+                  formatCurrency(
+                    prediction.oldBalanceDestination,
+                    prediction.transactionCurrency ?? "USD",
+                  ),
+                ],
+                [
+                  "New Destination Balance",
+                  formatCurrency(
+                    prediction.newBalanceDestination,
+                    prediction.transactionCurrency ?? "USD",
+                  ),
+                ],
+              ]}
+            />
           </DetailSection>
 
           <DetailSection title="Stored Context">
-            <DetailGrid items={[
-              ["Merchant", prediction.transactionMerchant ?? "Manual prediction"],
-              ["Country", prediction.transactionCountry ?? "Not linked"],
-              ["Category", prediction.transactionCategory ?? "Not linked"],
-              ["Currency", prediction.transactionCurrency ?? "USD"],
-              ["Transaction Date", formatDateTime(prediction.transactionCreatedAt ?? prediction.createdAt)],
-              ["Created", formatDateTime(prediction.createdAt)],
-            ]} />
+            <DetailGrid
+              items={[
+                ["Merchant", prediction.transactionMerchant ?? "Manual prediction"],
+                ["Country", prediction.transactionCountry ?? "Not linked"],
+                ["Category", prediction.transactionCategory ?? "Not linked"],
+                ["Currency", prediction.transactionCurrency ?? "USD"],
+                [
+                  "Transaction Date",
+                  formatDateTime(prediction.transactionCreatedAt ?? prediction.createdAt),
+                ],
+                ["Created", formatDateTime(prediction.createdAt)],
+              ]}
+            />
           </DetailSection>
 
           <DetailSection title="Prediction Result">
             <div className={`rounded-xl border p-4 ${tone.ring}`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className={`text-2xl font-display font-semibold ${tone.text}`}>{prediction.riskScore}/100</p>
-                  <p className="text-xs text-muted-foreground">{prediction.riskLevel} risk · {formatStatus(status)}</p>
+                  <p className={`text-2xl font-display font-semibold ${tone.text}`}>
+                    {prediction.riskScore}/100
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {prediction.riskLevel} risk · {formatStatus(status)}
+                  </p>
                 </div>
-                {status === "fraud" ? <AlertTriangle className="h-8 w-8 text-destructive" /> : <ShieldCheck className={`h-8 w-8 ${tone.text}`} />}
+                {status === "fraud" ? (
+                  <AlertTriangle className="h-8 w-8 text-destructive" />
+                ) : (
+                  <ShieldCheck className={`h-8 w-8 ${tone.text}`} />
+                )}
               </div>
               <div className="mt-4 h-3 overflow-hidden rounded-full bg-secondary">
                 <div
@@ -806,11 +1338,22 @@ function PredictionDetailsModal({ prediction, onClose }: { prediction: Predictio
                 />
               </div>
               <div className="mt-4 grid sm:grid-cols-2 gap-3 text-sm">
-                <Metric label="Fraud probability" value={`${Math.round(prediction.fraudProbability * 100)}%`} />
+                <Metric
+                  label="Fraud probability"
+                  value={`${Math.round(prediction.fraudProbability * 100)}%`}
+                />
                 <Metric label="Confidence" value={`${Math.round(prediction.confidence * 100)}%`} />
-                <Metric label="Prediction label" value={prediction.predictedClass ?? (prediction.isFraud ? "Fraud" : "Not fraud")} />
+                <Metric
+                  label="Prediction label"
+                  value={prediction.predictedClass ?? (prediction.isFraud ? "Fraud" : "Not fraud")}
+                />
                 {prediction.modelName && <Metric label="Model used" value={prediction.modelName} />}
-                {prediction.modelTrainingDate && <Metric label="Training date" value={formatDateTime(prediction.modelTrainingDate)} />}
+                {prediction.modelTrainingDate && (
+                  <Metric
+                    label="Training date"
+                    value={formatDateTime(prediction.modelTrainingDate)}
+                  />
+                )}
               </div>
             </div>
           </DetailSection>
@@ -823,7 +1366,11 @@ function PredictionDetailsModal({ prediction, onClose }: { prediction: Predictio
             <div className="space-y-4">
               {factorGroups.map((group) => (
                 <div key={group.title}>
-                  <p className={`mb-2 text-xs font-semibold uppercase tracking-widest ${group.color}`}>{group.title}</p>
+                  <p
+                    className={`mb-2 text-xs font-semibold uppercase tracking-widest ${group.color}`}
+                  >
+                    {group.title}
+                  </p>
                   <ul className="space-y-2 text-sm">
                     {group.items.map((item) => (
                       <li key={`${group.title}-${item}`} className="flex gap-2">
@@ -839,18 +1386,32 @@ function PredictionDetailsModal({ prediction, onClose }: { prediction: Predictio
 
           <div className="space-y-5">
             <DetailSection title="Model Decision Summary">
-              <p className="text-sm leading-6 text-muted-foreground">{buildDecisionSummary(prediction, status)}</p>
+              <p className="text-sm leading-6 text-muted-foreground">
+                {buildDecisionSummary(prediction, status)}
+              </p>
               <p className={`mt-3 rounded-lg p-3 text-sm ${tone.action}`}>
                 <strong>Recommended action:</strong> {prediction.suggestedAction}
               </p>
             </DetailSection>
 
             <DetailSection title="Timeline">
-              <TimelineItem label="Prediction Created" value={formatDateTime(prediction.createdAt)} complete />
-              <TimelineItem label="Prediction Evaluated" value={`Risk score ${prediction.riskScore}/100 assigned`} complete />
+              <TimelineItem
+                label="Prediction Created"
+                value={formatDateTime(prediction.createdAt)}
+                complete
+              />
+              <TimelineItem
+                label="Prediction Evaluated"
+                value={`Risk score ${prediction.riskScore}/100 assigned`}
+                complete
+              />
               <TimelineItem
                 label="Alert Generated"
-                value={alertGenerated ? "Risk result created an alert for review." : "No alert required for this result."}
+                value={
+                  alertGenerated
+                    ? "Risk result created an alert for review."
+                    : "No alert required for this result."
+                }
                 complete={alertGenerated}
               />
             </DetailSection>
@@ -864,7 +1425,9 @@ function PredictionDetailsModal({ prediction, onClose }: { prediction: Predictio
 function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-xl border border-border/50 bg-background/25 p-4">
-      <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</h3>
+      <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        {title}
+      </h3>
       {children}
     </section>
   );
@@ -883,29 +1446,54 @@ function DetailGrid({ items }: { items: [string, string][] }) {
   );
 }
 
-function TimelineItem({ label, value, complete }: { label: string; value: string; complete: boolean }) {
+function TimelineItem({
+  label,
+  value,
+  complete,
+}: {
+  label: string;
+  value: string;
+  complete: boolean;
+}) {
   return (
     <div className="flex gap-3 pb-4 last:pb-0">
-      <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ring-4 ${complete ? "bg-success ring-success/15" : "bg-muted-foreground ring-secondary"}`} />
-      <div><p className="text-sm font-medium">{label}</p><p className="text-xs text-muted-foreground">{value}</p></div>
+      <span
+        className={`mt-1 h-3 w-3 shrink-0 rounded-full ring-4 ${complete ? "bg-success ring-success/15" : "bg-muted-foreground ring-secondary"}`}
+      />
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{value}</p>
+      </div>
     </div>
   );
 }
 
 function buildDecisionSummary(prediction: PredictionResult, status: AnalysisStatus) {
-  const classification = status === "fraud" ? "HIGH RISK" : status === "review" ? "MEDIUM RISK" : "LOW RISK";
-  const threshold = status === "fraud"
-    ? "exceeded the fraud threshold"
-    : status === "review"
-      ? "exceeded the review threshold"
-      : "remained below the review threshold";
+  const classification =
+    status === "fraud" ? "HIGH RISK" : status === "review" ? "MEDIUM RISK" : "LOW RISK";
+  const threshold =
+    status === "fraud"
+      ? "exceeded the fraud threshold"
+      : status === "review"
+        ? "exceeded the review threshold"
+        : "remained below the review threshold";
   return `Transaction was classified as ${classification} based on the evaluated transaction factors. The final score reached ${prediction.riskScore}/100 and ${threshold}.`;
 }
 
 function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(
+    new Date(value),
+  );
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value));
 }
 
 function formatCurrency(value: number, currency = "USD") {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 2 }).format(value);
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 2,
+  }).format(value);
 }

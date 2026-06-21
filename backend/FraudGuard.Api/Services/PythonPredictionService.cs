@@ -7,6 +7,7 @@ public class PythonPredictionService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<PythonPredictionService> _logger;
+    private const string StartupHint = "ML prediction service is not running. Start the Python FastAPI service on port 8000.";
 
     public PythonPredictionService(HttpClient httpClient, ILogger<PythonPredictionService> logger)
     {
@@ -22,18 +23,20 @@ public class PythonPredictionService
 
             if (!response.IsSuccessStatusCode)
             {
+                var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
                 _logger.LogWarning(
-                    "ML prediction service returned {StatusCode} for transaction type {TransactionType}.",
+                    "ML prediction service returned {StatusCode} for transaction type {TransactionType}. Body: {ResponseBody}",
                     (int)response.StatusCode,
-                    request.TransactionType);
-                throw new PredictionServiceUnavailableException();
+                    request.TransactionType,
+                    responseBody);
+                throw new PredictionServiceUnavailableException(BuildUnavailableMessage(responseBody));
             }
 
             var result = await response.Content.ReadFromJsonAsync<PythonPredictionResult>(cancellationToken: cancellationToken);
             if (result is null)
             {
                 _logger.LogWarning("ML prediction service returned an empty response body.");
-                throw new PredictionServiceUnavailableException();
+                throw new PredictionServiceUnavailableException(StartupHint);
             }
 
             return result;
@@ -41,18 +44,41 @@ public class PythonPredictionService
         catch (HttpRequestException ex)
         {
             _logger.LogWarning(ex, "Could not connect to the ML prediction service.");
-            throw new PredictionServiceUnavailableException();
+            throw new PredictionServiceUnavailableException(StartupHint);
         }
         catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogWarning(ex, "Timed out while waiting for the ML prediction service.");
-            throw new PredictionServiceUnavailableException();
+            throw new PredictionServiceUnavailableException("ML prediction service did not respond in time. Confirm the Python FastAPI service is running on port 8000.");
         }
         catch (JsonException ex)
         {
             _logger.LogWarning(ex, "ML prediction service returned an invalid response payload.");
-            throw new PredictionServiceUnavailableException();
+            throw new PredictionServiceUnavailableException("ML prediction service returned an invalid response. Check the FastAPI service logs.");
         }
+    }
+
+    private static string BuildUnavailableMessage(string responseBody)
+    {
+        if (string.IsNullOrWhiteSpace(responseBody))
+        {
+            return StartupHint;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(responseBody);
+            if (document.RootElement.TryGetProperty("detail", out var detail) && detail.ValueKind == JsonValueKind.String)
+            {
+                return $"ML prediction service error: {detail.GetString()}";
+            }
+        }
+        catch (JsonException)
+        {
+            return "ML prediction service returned an error. Check the FastAPI service logs.";
+        }
+
+        return "ML prediction service returned an error. Check the FastAPI service logs.";
     }
 }
 
@@ -86,7 +112,12 @@ public class PythonPredictionResult
 public class PredictionServiceUnavailableException : Exception
 {
     public PredictionServiceUnavailableException()
-        : base("Prediction service is currently unavailable.")
+        : this("ML prediction service is not running. Start the Python FastAPI service on port 8000.")
+    {
+    }
+
+    public PredictionServiceUnavailableException(string message)
+        : base(message)
     {
     }
 }

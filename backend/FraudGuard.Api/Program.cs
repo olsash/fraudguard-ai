@@ -24,7 +24,10 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ISystemLogService, SystemLogService>();
 builder.Services.AddHttpClient<PythonPredictionService>(client =>
 {
-    var baseUrl = builder.Configuration["PythonPredictionService:BaseUrl"] ?? "http://localhost:8000";
+    var baseUrl =
+        builder.Configuration["MlService:BaseUrl"]
+        ?? builder.Configuration["PythonPredictionService:BaseUrl"]
+        ?? "http://localhost:8000";
     client.BaseAddress = new Uri(baseUrl);
     client.Timeout = TimeSpan.FromSeconds(10);
 });
