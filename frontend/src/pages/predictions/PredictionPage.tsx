@@ -127,8 +127,9 @@ export default function Predict() {
 
     try {
       const prediction = await predictionService.predict(validation.request);
+      const refreshedHistory = await predictionService.getMyHistory();
       setResult(prediction);
-      setHistory((current) => [prediction, ...current.filter((item) => item.id !== prediction.id)]);
+      setHistory(refreshedHistory);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to run advanced model test.");
     } finally {
@@ -538,8 +539,6 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 function HistoryPanel({ loading, history, onSelect }: { loading: boolean; history: PredictionResult[]; onSelect: (item: PredictionResult) => void }) {
-  const transactionHistory = history.filter((item) => item.transactionId != null);
-
   return (
     <div className="glass rounded-2xl p-5">
       <div className="flex items-center justify-between">
@@ -551,10 +550,10 @@ function HistoryPanel({ loading, history, onSelect }: { loading: boolean; histor
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading history...
           </div>
-        ) : transactionHistory.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No transaction analyses yet.</p>
+        ) : history.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No saved predictions yet.</p>
         ) : (
-          transactionHistory.slice(0, 8).map((item) => <HistoryItem key={item.id} item={item} onSelect={onSelect} />)
+          history.slice(0, 8).map((item) => <HistoryItem key={item.id} item={item} onSelect={onSelect} />)
         )}
       </div>
     </div>
@@ -562,14 +561,15 @@ function HistoryPanel({ loading, history, onSelect }: { loading: boolean; histor
 }
 
 function HistoryItem({ item, onSelect }: { item: PredictionResult; onSelect: (item: PredictionResult) => void }) {
-  const transactionId = item.transactionId ?? 0;
+  const title = item.transactionMerchant ?? (item.transactionId ? `Transaction #${item.transactionId}` : "Manual prediction");
+  const status = item.transactionStatus ?? getPredictionStatus(item);
 
   return (
     <button onClick={() => onSelect(item)} className="w-full text-left rounded-lg border border-border/50 bg-background/30 p-3 hover:bg-secondary/30">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold">{item.transactionMerchant ?? `Transaction #${transactionId}`}</p>
-          <p className="text-xs text-muted-foreground">{formatCurrency(item.amount)} - {item.transactionStatus ?? (item.isFraud ? "fraud" : "safe")}</p>
+          <p className="text-sm font-semibold">{title}</p>
+          <p className="text-xs text-muted-foreground">{formatCurrency(item.amount)} - {status}</p>
         </div>
         <div className="text-right">
           <p className={item.isFraud ? "text-sm font-semibold text-destructive" : "text-sm font-semibold text-success"}>{item.riskScore}/100</p>
