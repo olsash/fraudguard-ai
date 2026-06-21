@@ -204,15 +204,7 @@ function normalizedFactors(prediction: AdminPredictionDetail) {
   const factors = prediction.factors.map(formatExplanationFactor).filter(Boolean);
   if (factors.length > 0) return factors;
 
-  if (prediction.riskScore >= 70) {
-    return ["High transaction amount", "High-risk country", "Suspicious transaction type", "Risk score exceeded fraud threshold"];
-  }
-
-  if (prediction.riskScore >= 40) {
-    return ["Medium transaction amount", "Country/category requires review", "Some risk signals detected"];
-  }
-
-  return ["Amount is within normal range", "Country is considered low risk", "Transaction type is common", "No suspicious pattern detected"];
+  return ["No explanation factors were returned for this prediction."];
 }
 
 function buildSummary(predictions: AdminPrediction[]) {

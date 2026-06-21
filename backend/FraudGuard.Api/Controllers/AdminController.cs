@@ -470,11 +470,8 @@ public class AdminController : ControllerBase
         {
             var mlResult = await _predictionService.PredictAsync(mlRequest, cancellationToken);
             var riskScore = Math.Clamp(Math.Max(mlResult.RiskScore, ruleResult.RiskScore), 0, 100);
-            var modelReasons = mlResult.RiskScore >= 40
-                ? mlResult.Reasons
-                    .Where(reason => !string.IsNullOrWhiteSpace(reason))
-                    .Select(reason => $"Model Signals|Model service reported: {reason}")
-                : [];
+            var modelReasons = mlResult.Reasons
+                .Where(reason => !string.IsNullOrWhiteSpace(reason));
 
             var reasons = ruleResult.Reasons
                 .Concat(modelReasons)
@@ -592,9 +589,42 @@ public class AdminController : ControllerBase
             score,
             MapRiskLevel(score),
             status,
-            BuildReasonSections(riskFactors, protectiveFactors),
+            BuildDerivedPredictionFactors(transaction).Concat(BuildReasonSections(riskFactors, protectiveFactors)).ToArray(),
             SuggestedActionForScore(score),
             score >= 70 ? 0.92 : score >= 40 ? 0.78 : 0.72);
+    }
+
+    private static string[] BuildDerivedPredictionFactors(Transaction transaction)
+    {
+        var normalizedType = NormalizeTransactionType(transaction.TransactionType);
+        var originDelta = transaction.Amount;
+        var destinationDelta = transaction.Amount;
+        var factors = new List<string>
+        {
+            $"Input Values|Transaction amount is {transaction.Amount:N2}.",
+            $"Input Values|Transaction type is {normalizedType}.",
+            $"Balance Movement|Saved transaction analysis uses derived origin balances: {transaction.Amount:N2} to 0.00, a decrease of {originDelta:N2}.",
+            $"Balance Movement|Saved transaction analysis uses derived destination balances: 0.00 to {transaction.Amount:N2}, an increase of {destinationDelta:N2}.",
+            "Risk Factors|Derived destination account starts with a zero balance for the ML transaction analysis."
+        };
+
+        if ((normalizedType == "TRANSFER" || normalizedType == "CASH_OUT") && transaction.Amount > 100000)
+        {
+            factors.Add($"Risk Factors|High amount transaction uses a fraud-sensitive type ({normalizedType}).");
+        }
+        else if (normalizedType == "TRANSFER" || normalizedType == "CASH_OUT")
+        {
+            factors.Add($"Risk Factors|Transaction type {normalizedType} has elevated fraud exposure.");
+        }
+        else
+        {
+            factors.Add($"Protective Factors|Transaction type {normalizedType} is lower risk in this rule set.");
+        }
+
+        factors.Add("Protective Factors|Derived origin balance movement is consistent with the transaction amount.");
+        factors.Add("Protective Factors|Derived destination balance movement is consistent with an incoming transfer.");
+
+        return factors.ToArray();
     }
 
     private async Task<bool> UpsertAlertAsync(Transaction transaction, Prediction prediction, CancellationToken cancellationToken)

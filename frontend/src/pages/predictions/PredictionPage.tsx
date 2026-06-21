@@ -496,26 +496,7 @@ function getFactorTone(title: string, status: AnalysisStatus) {
 }
 
 function getFallbackFactors(status: AnalysisStatus) {
-  if (status === "fraud") {
-    return [
-      "Risk Factors|Final risk exceeded the fraud threshold.",
-      "Risk Factors|Multiple fraud rules were triggered.",
-      "Protective Factors|No protective factor was strong enough to offset the risk score.",
-    ];
-  }
-
-  if (status === "review") {
-    return [
-      "Risk Factors|Transaction pattern requires additional verification.",
-      "Risk Factors|Final risk exceeded the review threshold.",
-      "Protective Factors|No confirmed fraud outcome has been assigned.",
-    ];
-  }
-
-  return [
-    "Protective Factors|No unusual transaction patterns were detected.",
-    "Protective Factors|Final risk remained below the fraud threshold.",
-  ];
+  return [`Explanation Factors|No explanation factors were returned for this ${status} prediction.`];
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
