@@ -97,6 +97,8 @@ export function AlertsWorkspace({ admin = false }: { admin?: boolean }) {
       const matchesSearch = !query
         || alert.title.toLowerCase().includes(query)
         || alert.merchant.toLowerCase().includes(query)
+        || alert.transactionType.toLowerCase().includes(query)
+        || alert.shortReason.toLowerCase().includes(query)
         || alert.country.toLowerCase().includes(query)
         || (alert.userName ?? "").toLowerCase().includes(query);
       return matchesSearch
@@ -232,16 +234,31 @@ function AlertRow({
           <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-1 text-xs text-muted-foreground">
             <span>Merchant: <strong className="text-foreground">{alert.merchant || "Unknown"}</strong></span>
             <span>Amount: <strong className="text-foreground">{formatCurrency(alert.amount, alert.currency)}</strong></span>
+            <span>Type: <strong className="text-foreground">{alert.transactionType || "Unknown"}</strong></span>
             <span>Country: <strong className="text-foreground">{alert.country || "Unknown"}</strong></span>
             <span>Risk: <strong className="text-foreground">{alert.riskScore}/100</strong></span>
             {admin && <span>User: <strong className="text-foreground">{alert.userName ?? `User ${alert.userId}`} (#{alert.userId})</strong></span>}
-            <span>Transaction: <strong className="text-foreground">TX-{alert.transactionId}</strong></span>
+            <span>Transaction: <strong className="text-foreground">{alert.transactionId ? `TX-${alert.transactionId}` : "Manual prediction"}</strong></span>
             <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {formatDate(alert.createdAt)}</span>
           </div>
+          {alert.shortReason && <p className="mt-2 text-xs text-muted-foreground">Reason: {alert.shortReason}</p>}
         </div>
 
         {admin && (
           <div className="flex flex-wrap items-end gap-2 xl:justify-end">
+            {alert.status !== "resolved" && (
+              <button
+                type="button"
+                disabled={updating}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onStatus?.("resolved");
+                }}
+                className="h-9 rounded-lg border border-success/30 px-3 text-xs font-medium text-success hover:bg-success/10 disabled:opacity-50"
+              >
+                Mark reviewed
+              </button>
+            )}
             <label className="glass min-w-40 rounded-lg px-3 py-2">
               <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">Update status</span>
               <div className="flex items-center gap-2">
@@ -303,8 +320,10 @@ function AlertDetailsModal({ alert, onClose }: { alert: FraudAlertRecord; onClos
             <AlertMetric label="Severity" value={alert.severity} />
             <AlertMetric label="Status" value={alert.status} />
             <AlertMetric label="Risk Score" value={`${alert.riskScore}/100`} />
-            <AlertMetric label="Transaction ID" value={`TX-${alert.transactionId}`} />
+            <AlertMetric label="Transaction ID" value={alert.transactionId ? `TX-${alert.transactionId}` : "Manual prediction"} />
+            <AlertMetric label="Prediction ID" value={alert.predictionId ? `PR-${alert.predictionId}` : "Not linked"} />
             <AlertMetric label="Merchant" value={alert.merchant || "Unknown"} />
+            <AlertMetric label="Transaction Type" value={alert.transactionType || "Unknown"} />
             <AlertMetric label="Amount" value={formatCurrency(alert.amount, alert.currency)} />
             <AlertMetric label="Country" value={alert.country || "Unknown"} />
             <AlertMetric label="Created Date" value={formatDate(alert.createdAt)} />
@@ -312,9 +331,11 @@ function AlertDetailsModal({ alert, onClose }: { alert: FraudAlertRecord; onClos
 
           <ModalSection title="Alert Explanation">
             <p className="text-sm leading-6 text-muted-foreground">
-              {highRisk
-                ? "This alert was generated automatically because the transaction exceeded the configured fraud threshold and was classified as High Risk."
-                : "This alert was generated automatically because the transaction requires additional review before it can be considered safe."}
+              {alert.shortReason || (
+                highRisk
+                  ? "This alert was generated automatically because the prediction exceeded the configured fraud threshold and was classified as high risk."
+                  : "This alert was generated automatically because the prediction requires additional review before it can be considered safe."
+              )}
             </p>
           </ModalSection>
 
@@ -362,10 +383,12 @@ function ModalSection({ title, children }: { title: string; children: React.Reac
 
 function getAlertFactors(alert: FraudAlertRecord) {
   const factors: string[] = [];
+  if (alert.shortReason) factors.push(alert.shortReason);
+  if (alert.transactionType) factors.push(`Transaction type: ${alert.transactionType}.`);
   if (alert.amount > 3000) factors.push("High transaction amount.");
   if (alert.riskScore >= 70) factors.push("Elevated fraud score exceeded the fraud threshold.");
   if (alert.country) factors.push(`Destination country requires review: ${alert.country}.`);
-  factors.push("Transaction pattern triggered automated fraud monitoring.");
+  if (factors.length === 0) factors.push("Prediction triggered automated fraud monitoring.");
   return factors;
 }
 

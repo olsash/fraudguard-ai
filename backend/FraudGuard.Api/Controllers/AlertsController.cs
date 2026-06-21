@@ -36,6 +36,7 @@ public class AlertsController : ControllerBase
         var query = _dbContext.FraudAlerts
             .AsNoTracking()
             .Include(alert => alert.Transaction)
+            .Include(alert => alert.Prediction)
             .Include(alert => alert.User)
             .AsQueryable();
 
@@ -127,6 +128,7 @@ public class AlertsController : ControllerBase
 
         var query = _dbContext.FraudAlerts
             .Include(alert => alert.Transaction)
+            .Include(alert => alert.Prediction)
             .Include(alert => alert.User)
             .AsQueryable();
 
@@ -145,6 +147,11 @@ public class AlertsController : ControllerBase
 
     private static FraudAlertDto ToDto(FraudAlert alert)
     {
+        var amount = alert.Transaction?.Amount ?? alert.Prediction?.Amount ?? 0;
+        var transactionType = alert.Transaction?.TransactionType ?? alert.Prediction?.TransactionType ?? string.Empty;
+        var currency = alert.Transaction?.Currency ?? "USD";
+        var reason = ShortReason(alert);
+
         return new FraudAlertDto
         {
             Id = alert.Id,
@@ -156,11 +163,45 @@ public class AlertsController : ControllerBase
             Severity = alert.Severity,
             Status = alert.Status,
             RiskScore = alert.RiskScore,
-            Merchant = alert.Transaction?.Merchant ?? string.Empty,
-            Amount = alert.Transaction?.Amount ?? 0,
-            Currency = alert.Transaction?.Currency ?? "USD",
+            Merchant = alert.Transaction?.Merchant ?? (alert.PredictionId.HasValue ? "Manual prediction" : string.Empty),
+            TransactionType = transactionType,
+            Amount = amount,
+            Currency = currency,
             Country = alert.Transaction?.Country ?? string.Empty,
+            ShortReason = reason,
             CreatedAt = alert.CreatedAt
         };
+    }
+
+    private static string ShortReason(FraudAlert alert)
+    {
+        if (alert.Prediction is null || string.IsNullOrWhiteSpace(alert.Prediction.Explanation))
+        {
+            return alert.RiskScore >= 70
+                ? "Risk score exceeded the high-risk fraud threshold."
+                : "Prediction requires fraud review.";
+        }
+
+        try
+        {
+            var reasons = System.Text.Json.JsonSerializer.Deserialize<string[]>(alert.Prediction.Explanation) ?? [];
+            var reason = reasons.FirstOrDefault(item => item.StartsWith("Risk Factors|", StringComparison.OrdinalIgnoreCase))
+                ?? reasons.FirstOrDefault(item => item.StartsWith("Final Decision|", StringComparison.OrdinalIgnoreCase))
+                ?? reasons.FirstOrDefault(item => !string.IsNullOrWhiteSpace(item));
+
+            if (!string.IsNullOrWhiteSpace(reason))
+            {
+                var delimiter = reason.IndexOf('|');
+                return delimiter >= 0 ? reason[(delimiter + 1)..].Trim() : reason.Trim();
+            }
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // Fall through to the risk-score reason below.
+        }
+
+        return alert.RiskScore >= 70
+            ? "Risk score exceeded the high-risk fraud threshold."
+            : "Prediction requires fraud review.";
     }
 }

@@ -121,7 +121,8 @@ public class AppDbContext : DbContext
             entity.HasOne(alert => alert.Transaction)
                 .WithMany()
                 .HasForeignKey(alert => alert.TransactionId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
             entity.HasOne(alert => alert.Prediction)
                 .WithMany()
                 .HasForeignKey(alert => alert.PredictionId)

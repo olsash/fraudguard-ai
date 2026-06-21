@@ -10,7 +10,7 @@ public class FraudAlert
 
     public User? User { get; set; }
 
-    public int TransactionId { get; set; }
+    public int? TransactionId { get; set; }
 
     public Transaction? Transaction { get; set; }
 

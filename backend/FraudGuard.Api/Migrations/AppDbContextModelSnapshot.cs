@@ -54,7 +54,7 @@ namespace FraudGuard.Api.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
 
-                    b.Property<int>("TransactionId")
+                    b.Property<int?>("TransactionId")
                         .HasColumnType("int");
 
                     b.Property<int>("UserId")
@@ -406,8 +406,7 @@ namespace FraudGuard.Api.Migrations
                     b.HasOne("FraudGuard.Api.Models.Transaction", "Transaction")
                         .WithMany()
                         .HasForeignKey("TransactionId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("FraudGuard.Api.Models.User", "User")
                         .WithMany()

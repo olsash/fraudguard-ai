@@ -72,6 +72,7 @@ public class PredictionsController : ControllerBase
 
         _dbContext.Predictions.Add(prediction);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await CreatePredictionAlertAsync(prediction, result.FraudProbability, cancellationToken);
         await _systemLogService.LogAsync("Success", "prediction", $"Prediction PR-{prediction.Id} created with risk score {prediction.RiskScore}/100.", prediction.UserId, null, cancellationToken);
 
         return Ok(ToResponse(prediction, result.FraudProbability, result.Confidence, result.Reasons));
@@ -411,7 +412,7 @@ public class PredictionsController : ControllerBase
 
     private async Task UpsertAlertAsync(Transaction transaction, Prediction prediction, CancellationToken cancellationToken)
     {
-        if (transaction.Status is not ("review" or "fraud"))
+        if (transaction.Status != "fraud" && !prediction.IsFraud && prediction.RiskScore < 70)
         {
             return;
         }
@@ -426,8 +427,8 @@ public class PredictionsController : ControllerBase
                 UserId = transaction.UserId,
                 TransactionId = transaction.Id,
                 PredictionId = prediction.Id,
-                Title = transaction.Status == "fraud" ? "High Risk Transaction Detected" : "Transaction Requires Review",
-                Severity = transaction.Status == "fraud" ? "high" : "medium",
+                Title = "High Risk Fraud Prediction",
+                Severity = prediction.RiskScore >= 85 ? "critical" : "high",
                 Status = "open",
                 RiskScore = prediction.RiskScore,
                 CreatedAt = DateTime.UtcNow
@@ -437,13 +438,46 @@ public class PredictionsController : ControllerBase
         else
         {
             alert.PredictionId = prediction.Id;
-            alert.Title = transaction.Status == "fraud" ? "High Risk Transaction Detected" : "Transaction Requires Review";
-            alert.Severity = transaction.Status == "fraud" ? "high" : "medium";
+            alert.Title = "High Risk Fraud Prediction";
+            alert.Severity = prediction.RiskScore >= 85 ? "critical" : "high";
             alert.RiskScore = prediction.RiskScore;
             await _systemLogService.LogAsync("Info", "alert", $"Alert updated for transaction TX-{transaction.Id}.", transaction.UserId, null, cancellationToken);
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task CreatePredictionAlertAsync(Prediction prediction, double fraudProbability, CancellationToken cancellationToken)
+    {
+        if (prediction.TransactionId.HasValue || (!prediction.IsFraud && prediction.RiskScore < 70))
+        {
+            return;
+        }
+
+        var existingAlert = await _dbContext.FraudAlerts
+            .FirstOrDefaultAsync(alert => alert.PredictionId == prediction.Id && alert.Status != "resolved", cancellationToken);
+
+        if (existingAlert is not null)
+        {
+            existingAlert.RiskScore = prediction.RiskScore;
+            existingAlert.Severity = prediction.RiskScore >= 85 || fraudProbability >= 0.85 ? "critical" : "high";
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        _dbContext.FraudAlerts.Add(new FraudAlert
+        {
+            UserId = prediction.UserId,
+            PredictionId = prediction.Id,
+            Title = "High Risk Fraud Prediction",
+            Severity = prediction.RiskScore >= 85 || fraudProbability >= 0.85 ? "critical" : "high",
+            Status = "open",
+            RiskScore = prediction.RiskScore,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _systemLogService.LogAsync("Warning", "alert", $"Alert generated for prediction PR-{prediction.Id}.", prediction.UserId, null, cancellationToken);
     }
 
     private static string NormalizeTransactionType(string transactionType)

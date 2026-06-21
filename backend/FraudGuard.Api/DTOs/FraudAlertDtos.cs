@@ -10,7 +10,7 @@ public class FraudAlertDto
 
     public string? UserName { get; set; }
 
-    public int TransactionId { get; set; }
+    public int? TransactionId { get; set; }
 
     public int? PredictionId { get; set; }
 
@@ -24,11 +24,15 @@ public class FraudAlertDto
 
     public string Merchant { get; set; } = string.Empty;
 
+    public string TransactionType { get; set; } = string.Empty;
+
     public decimal Amount { get; set; }
 
     public string Currency { get; set; } = string.Empty;
 
     public string Country { get; set; } = string.Empty;
+
+    public string ShortReason { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
 }

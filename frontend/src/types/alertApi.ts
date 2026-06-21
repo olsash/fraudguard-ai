@@ -5,15 +5,17 @@ export interface FraudAlertRecord {
   id: number;
   userId: number;
   userName?: string | null;
-  transactionId: number;
+  transactionId?: number | null;
   predictionId?: number | null;
   title: string;
   severity: AlertSeverity;
   status: AlertStatus;
   riskScore: number;
   merchant: string;
+  transactionType: string;
   amount: number;
   currency: string;
   country: string;
+  shortReason: string;
   createdAt: string;
 }

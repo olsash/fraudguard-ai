@@ -629,7 +629,7 @@ public class AdminController : ControllerBase
 
     private async Task<bool> UpsertAlertAsync(Transaction transaction, Prediction prediction, CancellationToken cancellationToken)
     {
-        if (transaction.Status is not ("review" or "fraud"))
+        if (transaction.Status != "fraud" && !prediction.IsFraud && prediction.RiskScore < 70)
         {
             return false;
         }
@@ -644,8 +644,8 @@ public class AdminController : ControllerBase
                 UserId = transaction.UserId,
                 TransactionId = transaction.Id,
                 PredictionId = prediction.Id,
-                Title = transaction.Status == "fraud" ? "High Risk Transaction Detected" : "Transaction Requires Review",
-                Severity = transaction.Status == "fraud" ? "high" : "medium",
+                Title = "High Risk Fraud Prediction",
+                Severity = prediction.RiskScore >= 85 ? "critical" : "high",
                 Status = "open",
                 RiskScore = prediction.RiskScore,
                 CreatedAt = DateTime.UtcNow
@@ -656,8 +656,8 @@ public class AdminController : ControllerBase
         }
 
         alert.PredictionId = prediction.Id;
-        alert.Title = transaction.Status == "fraud" ? "High Risk Transaction Detected" : "Transaction Requires Review";
-        alert.Severity = transaction.Status == "fraud" ? "high" : "medium";
+        alert.Title = "High Risk Fraud Prediction";
+        alert.Severity = prediction.RiskScore >= 85 ? "critical" : "high";
         alert.RiskScore = prediction.RiskScore;
         await _dbContext.SaveChangesAsync(cancellationToken);
         await _systemLogService.LogAsync("Info", "alert", $"Alert updated for transaction TX-{transaction.Id} by admin analysis.", transaction.UserId, transaction.User?.FullName, cancellationToken);
