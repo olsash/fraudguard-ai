@@ -1,4 +1,5 @@
 from pathlib import Path
+import math
 from typing import Literal
 
 import joblib
@@ -20,11 +21,11 @@ app = FastAPI(title="FraudGuard ML Prediction Service")
 
 class PredictionRequest(BaseModel):
     transactionType: Literal["CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"]
-    amount: float = Field(ge=0)
-    oldBalanceOrigin: float = Field(ge=0)
-    newBalanceOrigin: float = Field(ge=0)
-    oldBalanceDestination: float = Field(ge=0)
-    newBalanceDestination: float = Field(ge=0)
+    amount: float = Field(..., ge=0)
+    oldBalanceOrigin: float = Field(..., ge=0)
+    newBalanceOrigin: float = Field(..., ge=0)
+    oldBalanceDestination: float = Field(..., ge=0)
+    newBalanceDestination: float = Field(..., ge=0)
 
 
 class PredictionResponse(BaseModel):
@@ -43,6 +44,26 @@ def load_artifacts():
 
     scaler = joblib.load(SCALER_PATH) if SCALER_PATH.exists() else None
     return joblib.load(MODEL_PATH), joblib.load(COLUMNS_PATH), scaler
+
+
+def validate_prediction_input(request: PredictionRequest) -> None:
+    numeric_fields = {
+        "amount": request.amount,
+        "oldBalanceOrigin": request.oldBalanceOrigin,
+        "newBalanceOrigin": request.newBalanceOrigin,
+        "oldBalanceDestination": request.oldBalanceDestination,
+        "newBalanceDestination": request.newBalanceDestination,
+    }
+    invalid_fields = [
+        field_name
+        for field_name, value in numeric_fields.items()
+        if not math.isfinite(value) or value < 0
+    ]
+    if invalid_fields:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Prediction inputs must be numeric and non-negative: {', '.join(invalid_fields)}",
+        )
 
 
 def risk_level(score: int) -> str:
@@ -191,6 +212,7 @@ def health():
 
 @app.post("/predict", response_model=PredictionResponse)
 def predict(request: PredictionRequest):
+    validate_prediction_input(request)
     model, columns, scaler = load_artifacts()
 
     row = {

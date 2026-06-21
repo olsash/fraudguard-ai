@@ -31,6 +31,17 @@ const initialForm = {
 };
 
 type PredictionForm = typeof initialForm;
+type AdvancedValidationResult =
+  | { request: PredictionInput; message: null }
+  | { request: null; message: string };
+
+const advancedNumberFields: Array<{ key: Exclude<keyof PredictionForm, "transactionType">; label: string }> = [
+  { key: "amount", label: "Amount" },
+  { key: "oldBalanceOrigin", label: "Old Balance Origin" },
+  { key: "newBalanceOrigin", label: "New Balance Origin" },
+  { key: "oldBalanceDestination", label: "Old Balance Destination" },
+  { key: "newBalanceDestination", label: "New Balance Destination" },
+];
 
 export default function Predict() {
   const [loading, setLoading] = useState(false);
@@ -104,9 +115,9 @@ export default function Predict() {
 
   const runAdvancedPrediction = async (event: FormEvent) => {
     event.preventDefault();
-    const request = toAdvancedRequest(form);
-    if (!request) {
-      setError("Enter valid non-negative numbers for every balance and amount field.");
+    const validation = validateAdvancedRequest(form);
+    if (!validation.request) {
+      setError(validation.message);
       return;
     }
 
@@ -115,7 +126,7 @@ export default function Predict() {
     setError(null);
 
     try {
-      const prediction = await predictionService.predict(request);
+      const prediction = await predictionService.predict(validation.request);
       setResult(prediction);
       setHistory((current) => [prediction, ...current.filter((item) => item.id !== prediction.id)]);
     } catch (err) {
@@ -232,18 +243,41 @@ export default function Predict() {
   );
 }
 
-function toAdvancedRequest(form: PredictionForm): PredictionInput | null {
-  const request = {
-    transactionType: form.transactionType,
-    amount: Number(form.amount),
-    oldBalanceOrigin: Number(form.oldBalanceOrigin),
-    newBalanceOrigin: Number(form.newBalanceOrigin),
-    oldBalanceDestination: Number(form.oldBalanceDestination),
-    newBalanceDestination: Number(form.newBalanceDestination),
-  };
+function validateAdvancedRequest(form: PredictionForm): AdvancedValidationResult {
+  if (!transactionTypes.includes(form.transactionType)) {
+    return { request: null, message: "Choose a valid transaction type." };
+  }
 
-  const invalid = Object.entries(request).some(([key, value]) => key !== "transactionType" && (!Number.isFinite(value) || Number(value) < 0));
-  return invalid ? null : request;
+  const values = {} as Record<Exclude<keyof PredictionForm, "transactionType">, number>;
+  for (const field of advancedNumberFields) {
+    const rawValue = form[field.key].trim();
+    if (rawValue.length === 0) {
+      return { request: null, message: `${field.label} is required.` };
+    }
+
+    const value = Number(rawValue);
+    if (!Number.isFinite(value)) {
+      return { request: null, message: `${field.label} must be a numeric value.` };
+    }
+
+    if (value < 0) {
+      return { request: null, message: `${field.label} cannot be negative.` };
+    }
+
+    values[field.key] = value;
+  }
+
+  return {
+    request: {
+      transactionType: form.transactionType,
+      amount: values.amount,
+      oldBalanceOrigin: values.oldBalanceOrigin,
+      newBalanceOrigin: values.newBalanceOrigin,
+      oldBalanceDestination: values.oldBalanceDestination,
+      newBalanceDestination: values.newBalanceDestination,
+    },
+    message: null,
+  };
 }
 
 function TransactionSummaryCard({ transaction }: { transaction: Transaction }) {
@@ -295,7 +329,7 @@ function Input({ label, icon: Icon, value, onChange }: { label: string; icon?: t
       <span className="text-xs text-muted-foreground">{label}</span>
       <div className="mt-1 flex items-center glass rounded-lg px-3 py-2.5 focus-within:ring-1 focus-within:ring-primary/60">
         {Icon && <Icon className="h-4 w-4 text-muted-foreground mr-2" />}
-        <input type="number" min="0" step="0.01" value={value} onChange={(event) => onChange(event.target.value)} className="flex-1 bg-transparent text-sm outline-none" />
+        <input type="number" min="0" step="0.01" required value={value} onChange={(event) => onChange(event.target.value)} className="flex-1 bg-transparent text-sm outline-none" />
       </div>
     </label>
   );
@@ -307,7 +341,7 @@ function Select({ label, icon: Icon, value, options, onChange }: { label: string
       <span className="text-xs text-muted-foreground">{label}</span>
       <div className="mt-1 flex items-center glass rounded-lg px-3 py-2.5">
         {Icon && <Icon className="h-4 w-4 text-muted-foreground mr-2" />}
-        <select value={value} onChange={(event) => onChange(event.target.value as TransactionType)} className="flex-1 bg-transparent text-sm outline-none appearance-none">
+        <select required value={value} onChange={(event) => onChange(event.target.value as TransactionType)} className="flex-1 bg-transparent text-sm outline-none appearance-none">
           {options.map((option) => <option key={option} value={option} className="bg-card">{option}</option>)}
         </select>
       </div>
