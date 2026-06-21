@@ -44,6 +44,8 @@ public class PredictionResponse
 
     public string[] Reasons { get; set; } = [];
 
+    public string ModelName { get; set; } = "FraudGuard Hybrid Risk Model";
+
     public string SuggestedAction { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }

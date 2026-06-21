@@ -588,6 +588,7 @@ function PredictionDetailsModal({ prediction, onClose }: { prediction: Predictio
   const tone = getStatusTone(status);
   const factorGroups = groupAnalysisFactors(prediction.reasons, status);
   const alertGenerated = status === "review" || status === "fraud";
+  const title = prediction.transactionMerchant ?? (prediction.transactionId ? `Transaction #${prediction.transactionId}` : "Manual prediction");
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-background/80 p-4 backdrop-blur-sm">
@@ -595,7 +596,7 @@ function PredictionDetailsModal({ prediction, onClose }: { prediction: Predictio
         <div className="flex items-center justify-between border-b border-border p-5">
           <div>
             <p className="text-xs uppercase tracking-widest text-muted-foreground">Prediction details</p>
-            <h2 className="font-display text-xl font-semibold">{prediction.transactionMerchant ?? `Transaction #${prediction.transactionId}`}</h2>
+            <h2 className="font-display text-xl font-semibold">{title}</h2>
           </div>
           <button type="button" onClick={onClose} title="Close details" className="h-9 w-9 grid place-items-center rounded-lg glass hover:ring-1 hover:ring-primary/40">
             <X className="h-4 w-4" />
@@ -603,16 +604,26 @@ function PredictionDetailsModal({ prediction, onClose }: { prediction: Predictio
         </div>
 
         <div className="grid lg:grid-cols-2 gap-5 p-5">
-          <DetailSection title="Transaction Information">
+          <DetailSection title="Input Transaction Values">
             <DetailGrid items={[
               ["Transaction ID", prediction.transactionId ? `TX-${prediction.transactionId}` : "Manual prediction"],
-              ["Merchant", prediction.transactionMerchant ?? "Not available"],
-              ["Country", prediction.transactionCountry ?? "Not available"],
-              ["Category", prediction.transactionCategory ?? "Not available"],
-              ["Amount", formatCurrency(prediction.amount, prediction.transactionCurrency ?? "USD")],
-              ["Currency", prediction.transactionCurrency ?? "USD"],
               ["Transaction Type", prediction.transactionType],
-              ["Date", formatDateTime(prediction.transactionCreatedAt ?? prediction.createdAt)],
+              ["Amount", formatCurrency(prediction.amount, prediction.transactionCurrency ?? "USD")],
+              ["Old Origin Balance", formatCurrency(prediction.oldBalanceOrigin, prediction.transactionCurrency ?? "USD")],
+              ["New Origin Balance", formatCurrency(prediction.newBalanceOrigin, prediction.transactionCurrency ?? "USD")],
+              ["Old Destination Balance", formatCurrency(prediction.oldBalanceDestination, prediction.transactionCurrency ?? "USD")],
+              ["New Destination Balance", formatCurrency(prediction.newBalanceDestination, prediction.transactionCurrency ?? "USD")],
+            ]} />
+          </DetailSection>
+
+          <DetailSection title="Stored Context">
+            <DetailGrid items={[
+              ["Merchant", prediction.transactionMerchant ?? "Manual prediction"],
+              ["Country", prediction.transactionCountry ?? "Not linked"],
+              ["Category", prediction.transactionCategory ?? "Not linked"],
+              ["Currency", prediction.transactionCurrency ?? "USD"],
+              ["Transaction Date", formatDateTime(prediction.transactionCreatedAt ?? prediction.createdAt)],
+              ["Created", formatDateTime(prediction.createdAt)],
             ]} />
           </DetailSection>
 
@@ -630,6 +641,12 @@ function PredictionDetailsModal({ prediction, onClose }: { prediction: Predictio
                   className={`h-full rounded-full ${status === "fraud" ? "bg-destructive" : status === "review" ? "bg-warning" : "bg-success"}`}
                   style={{ width: `${Math.max(3, prediction.riskScore)}%` }}
                 />
+              </div>
+              <div className="mt-4 grid sm:grid-cols-2 gap-3 text-sm">
+                <Metric label="Fraud probability" value={`${Math.round(prediction.fraudProbability * 100)}%`} />
+                <Metric label="Confidence" value={`${Math.round(prediction.confidence * 100)}%`} />
+                <Metric label="Prediction label" value={prediction.isFraud ? "Fraud" : "Not fraud"} />
+                <Metric label="Model used" value={prediction.modelName} />
               </div>
             </div>
           </DetailSection>

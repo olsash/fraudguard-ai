@@ -26,6 +26,7 @@ export interface PredictionResult extends PredictionInput {
   isFraud: boolean;
   confidence: number;
   reasons: string[];
+  modelName: string;
   suggestedAction: string;
   createdAt: string;
 }
