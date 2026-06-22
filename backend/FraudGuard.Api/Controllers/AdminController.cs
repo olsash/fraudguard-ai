@@ -26,19 +26,40 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("transactions")]
-    public async Task<ActionResult<IEnumerable<AdminTransactionDto>>> GetTransactions(
-        [FromQuery] string? search,
-        [FromQuery] string? status,
-        [FromQuery] string? riskLevel,
-        [FromQuery] DateTime? fromDate,
-        [FromQuery] DateTime? toDate,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<AdminPagedResultDto<AdminTransactionDto>>> GetTransactions(
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? riskLevel = null,
+        [FromQuery] string? transactionType = null,
+        [FromQuery] decimal? minAmount = null,
+        [FromQuery] decimal? maxAmount = null,
+        [FromQuery] string? fraudStatus = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string? sortDirection = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null,
+        CancellationToken cancellationToken = default)
     {
-        var transactions = await ApplyTransactionFilters(BuildTransactionQuery(), search, status, riskLevel, fromDate, toDate)
-            .OrderByDescending(transaction => transaction.CreatedAt)
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 10, 100);
+
+        var query = ApplyTransactionFilters(BuildTransactionQuery(), search, status, riskLevel, transactionType, minAmount, maxAmount, fraudStatus, fromDate, toDate);
+        var totalCount = await query.CountAsync(cancellationToken);
+        var transactions = await ApplyTransactionSorting(query, sortBy, sortDirection)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        return Ok(transactions.Select(ToTransactionDto));
+        return Ok(new AdminPagedResultDto<AdminTransactionDto>
+        {
+            Items = transactions.Select(ToTransactionDto),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+        });
     }
 
     [HttpGet("transactions/{id:int}")]
@@ -168,17 +189,23 @@ public class AdminController : ControllerBase
         string? search,
         string? status,
         string? riskLevel,
+        string? transactionType,
+        decimal? minAmount,
+        decimal? maxAmount,
+        string? fraudStatus,
         DateTime? fromDate,
         DateTime? toDate)
     {
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
+            var numericSearch = int.TryParse(term.TrimStart('T', 'X', 'P', 'R', '-', '#'), out var searchedId);
             query = query.Where(transaction =>
                 transaction.Merchant.Contains(term)
                 || transaction.Country.Contains(term)
                 || transaction.Category.Contains(term)
                 || transaction.TransactionType.Contains(term)
+                || (numericSearch && (transaction.Id == searchedId || transaction.UserId == searchedId))
                 || (transaction.User != null && transaction.User.FullName.Contains(term))
                 || (transaction.User != null && transaction.User.Email.Contains(term)));
         }
@@ -189,7 +216,33 @@ public class AdminController : ControllerBase
             query = query.Where(transaction => transaction.Status == normalizedStatus);
         }
 
+        var normalizedFraudStatus = fraudStatus?.Trim().ToLowerInvariant();
+        if (normalizedFraudStatus == "fraud")
+        {
+            query = query.Where(transaction => transaction.Status == "fraud");
+        }
+        else if (normalizedFraudStatus is "not_fraud" or "not-fraud" or "notfraud")
+        {
+            query = query.Where(transaction => transaction.Status != "fraud");
+        }
+
         query = ApplyRiskFilter(query, riskLevel);
+
+        var normalizedTransactionType = NormalizeTransactionTypeFilter(transactionType);
+        if (normalizedTransactionType is not null)
+        {
+            query = query.Where(transaction => transaction.TransactionType == normalizedTransactionType);
+        }
+
+        if (minAmount.HasValue)
+        {
+            query = query.Where(transaction => transaction.Amount >= minAmount.Value);
+        }
+
+        if (maxAmount.HasValue)
+        {
+            query = query.Where(transaction => transaction.Amount <= maxAmount.Value);
+        }
 
         if (fromDate.HasValue)
         {
@@ -202,6 +255,22 @@ public class AdminController : ControllerBase
         }
 
         return query;
+    }
+
+    private static IQueryable<Transaction> ApplyTransactionSorting(IQueryable<Transaction> query, string? sortBy, string? sortDirection)
+    {
+        var descending = !string.Equals(sortDirection, "asc", StringComparison.OrdinalIgnoreCase);
+        return sortBy?.Trim().ToLowerInvariant() switch
+        {
+            "amount" => descending ? query.OrderByDescending(transaction => transaction.Amount) : query.OrderBy(transaction => transaction.Amount),
+            "riskscore" or "risk_score" or "risk" => descending
+                ? query.OrderByDescending(transaction => transaction.RiskScore ?? -1)
+                : query.OrderBy(transaction => transaction.RiskScore ?? -1),
+            "date" or "createdat" or "created_at" => descending
+                ? query.OrderByDescending(transaction => transaction.CreatedAt)
+                : query.OrderBy(transaction => transaction.CreatedAt),
+            _ => query.OrderByDescending(transaction => transaction.CreatedAt)
+        };
     }
 
     private static IQueryable<Prediction> ApplyPredictionFilters(

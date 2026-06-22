@@ -3,6 +3,9 @@ import type { TransactionStatus } from "@/types/transaction";
 export type AdminRiskLevel = "all" | "low" | "medium" | "high";
 export type AdminPredictionResultFilter = "all" | "fraud" | "not_fraud";
 export type AdminTransactionTypeFilter = "all" | "CASH_IN" | "CASH_OUT" | "DEBIT" | "PAYMENT" | "TRANSFER";
+export type AdminFraudStatusFilter = "all" | "fraud" | "not_fraud";
+export type AdminTransactionSortBy = "date" | "amount" | "riskScore";
+export type AdminSortDirection = "asc" | "desc";
 
 export interface AdminFilters {
   search?: string;
@@ -10,8 +13,23 @@ export interface AdminFilters {
   riskLevel?: AdminRiskLevel;
   predictionResult?: AdminPredictionResultFilter;
   transactionType?: AdminTransactionTypeFilter;
+  fraudStatus?: AdminFraudStatusFilter;
+  minAmount?: string;
+  maxAmount?: string;
+  sortBy?: AdminTransactionSortBy;
+  sortDirection?: AdminSortDirection;
+  page?: number;
+  pageSize?: number;
   fromDate?: string;
   toDate?: string;
+}
+
+export interface AdminPagedResult<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export interface AdminTransaction {

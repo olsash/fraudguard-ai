@@ -1,17 +1,20 @@
 import { StatCard } from "@/components/common/StatCard";
 import { Topbar } from "@/components/layout/Topbar";
 import { adminTransactionService } from "@/services/adminTransactionService";
-import type { AdminFilters, AdminTransaction, AdminTransactionDetail } from "@/types/admin";
+import type { AdminFilters, AdminPagedResult, AdminTransaction, AdminTransactionDetail } from "@/types/admin";
 import type { TransactionStatus } from "@/types/transaction";
 import { AlertTriangle, ChevronRight, Gauge, Loader2, Receipt, Search, ShieldCheck, ShieldQuestion, Sparkles, Wallet, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { RiskBar, StatusBadge, Td, Th } from "@/pages/transactions/TransactionsPage";
 import { toast } from "sonner";
 
-const emptyFilters: AdminFilters = { status: "all", riskLevel: "all" };
+const transactionTypes = ["all", "CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"] as const;
+const emptyFilters: AdminFilters = { status: "all", riskLevel: "all", transactionType: "all", fraudStatus: "all", sortBy: "date", sortDirection: "desc", page: 1, pageSize: 25 };
+const emptyPage: AdminPagedResult<AdminTransaction> = { items: [], totalCount: 0, page: 1, pageSize: 25, totalPages: 0 };
 
 export default function AdminTransactionsPage() {
   const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
+  const [pageData, setPageData] = useState<AdminPagedResult<AdminTransaction>>(emptyPage);
   const [filters, setFilters] = useState<AdminFilters>(emptyFilters);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,19 +27,29 @@ export default function AdminTransactionsPage() {
   useEffect(() => {
     const timeout = window.setTimeout(() => void loadTransactions(), 250);
     return () => window.clearTimeout(timeout);
-  }, [filters.search, filters.status, filters.riskLevel, filters.fromDate, filters.toDate]);
+  }, [filters.search, filters.status, filters.riskLevel, filters.transactionType, filters.fraudStatus, filters.minAmount, filters.maxAmount, filters.sortBy, filters.sortDirection, filters.page, filters.pageSize, filters.fromDate, filters.toDate]);
 
   async function loadTransactions() {
     setLoading(true);
     setError(null);
 
     try {
-      setTransactions(await adminTransactionService.getTransactions(filters));
+      const result = await adminTransactionService.getTransactions(filters);
+      setTransactions(result.items);
+      setPageData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load admin transactions.");
     } finally {
       setLoading(false);
     }
+  }
+
+  function updateFilters(nextFilters: AdminFilters) {
+    setFilters({ ...nextFilters, page: 1 });
+  }
+
+  function setPage(page: number) {
+    setFilters((current) => ({ ...current, page }));
   }
 
   async function openDetails(id: number) {
@@ -57,6 +70,7 @@ export default function AdminTransactionsPage() {
     try {
       const result = await adminTransactionService.analyzeTransaction(id);
       setTransactions((current) => current.map((item) => item.id === id ? result.transaction : item));
+      setPageData((current) => ({ ...current, items: current.items.map((item) => item.id === id ? result.transaction : item) }));
       setSelected((current) => current?.id === id ? result.transaction : current);
       toast.success(result.alertCreated ? "Analysis complete. Fraud alert created." : "Analysis complete.");
     } catch (err) {
@@ -71,7 +85,7 @@ export default function AdminTransactionsPage() {
       <Topbar title="Transactions" subtitle="All transactions across the platform" />
       <main className="flex-1 p-4 md:p-8 space-y-4">
         <section className="grid grid-cols-2 lg:grid-cols-7 gap-4">
-          <StatCard label="Total Transactions" value={summary.total.toLocaleString()} icon={Receipt} />
+          <StatCard label="Total Transactions" value={pageData.totalCount.toLocaleString()} icon={Receipt} />
           <StatCard label="Pending" value={summary.pending.toLocaleString()} icon={Loader2} tone="primary" />
           <StatCard label="Safe" value={summary.safe.toLocaleString()} icon={ShieldCheck} tone="success" />
           <StatCard label="Review" value={summary.review.toLocaleString()} icon={ShieldQuestion} tone="warning" />
@@ -80,30 +94,33 @@ export default function AdminTransactionsPage() {
           <StatCard label="Average Risk" value={`${summary.averageRisk}/100`} icon={Gauge} tone="primary" />
         </section>
 
-        <Toolbar filters={filters} onChange={setFilters} />
+        <Toolbar filters={filters} onChange={updateFilters} />
 
         {loading && <StatePanel title="Loading transactions" message="Fetching platform transactions from FraudGuard API." />}
         {!loading && error && <StatePanel title="Transactions unavailable" message={error} destructive />}
         {!loading && !error && (
           <div className="glass rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[1080px]">
+              <table className="w-full text-sm min-w-[1240px]">
                 <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr><Th>ID</Th><Th>Merchant</Th><Th>User</Th><Th>Country</Th><Th>Amount</Th><Th>Risk</Th><Th>Status</Th><Th>Time</Th><Th>Actions</Th></tr>
+                  <tr><Th>ID</Th><Th>Prediction</Th><Th>Merchant</Th><Th>User</Th><Th>Type</Th><Th>Country</Th><Th>Amount</Th><Th>Risk</Th><Th>Score</Th><Th>Status</Th><Th>Date</Th><Th>Actions</Th></tr>
                 </thead>
                 <tbody>
                   {transactions.length === 0 ? (
                     <tr className="border-t border-border">
-                      <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">No transactions found</td>
+                      <td colSpan={12} className="px-4 py-10 text-center text-muted-foreground">No transactions found</td>
                     </tr>
                   ) : transactions.map((transaction) => (
                     <tr key={transaction.id} onClick={() => void openDetails(transaction.id)} className="border-t border-border hover:bg-secondary/40 cursor-pointer">
                       <Td><span className="font-mono text-xs">TX-{transaction.id}</span></Td>
+                      <Td><span className="font-mono text-xs">{transaction.predictionId ? `PR-${transaction.predictionId}` : "Not analyzed"}</span></Td>
                       <Td>{transaction.merchant}</Td>
                       <Td>{transaction.userName}</Td>
+                      <Td><span className="font-mono text-xs">{transaction.transactionType}</span></Td>
                       <Td>{transaction.country}</Td>
                       <Td className="font-mono font-semibold">{formatCurrency(transaction.amount, transaction.currency)}</Td>
                       <Td><RiskBar value={transaction.riskScore} /></Td>
+                      <Td className="font-mono">{transaction.riskScore == null ? "-" : `${transaction.riskScore}/100`}</Td>
                       <Td><StatusBadge s={transaction.status} /></Td>
                       <Td className="text-xs text-muted-foreground">{formatDateTime(transaction.createdAt)}</Td>
                       <Td>
@@ -126,6 +143,7 @@ export default function AdminTransactionsPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination pageData={pageData} onPageChange={setPage} />
           </div>
         )}
       </main>
@@ -147,7 +165,7 @@ function Toolbar({ filters, onChange }: { filters: AdminFilters; onChange: (filt
     <div className="glass rounded-2xl p-4 flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-2 glass rounded-lg px-3 py-2 flex-1 min-w-[240px]">
         <Search className="h-4 w-4 text-muted-foreground" />
-        <input value={filters.search ?? ""} onChange={(e) => onChange({ ...filters, search: e.target.value })} placeholder="Search merchant, user, country..." className="flex-1 bg-transparent text-sm outline-none" />
+        <input value={filters.search ?? ""} onChange={(e) => onChange({ ...filters, search: e.target.value })} placeholder="Search merchant, user, country, transaction ID..." className="flex-1 bg-transparent text-sm outline-none" />
       </div>
       <div className="flex items-center gap-1">
         {(["all", "pending", "safe", "review", "fraud"] as Array<"all" | TransactionStatus>).map((status) => (
@@ -157,6 +175,18 @@ function Toolbar({ filters, onChange }: { filters: AdminFilters; onChange: (filt
           </button>
         ))}
       </div>
+      <select value={filters.transactionType ?? "all"} onChange={(event) => onChange({ ...filters, transactionType: event.target.value as AdminFilters["transactionType"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+        {transactionTypes.map((type) => (
+          <option key={type} value={type}>{type === "all" ? "All types" : type}</option>
+        ))}
+      </select>
+      <select value={filters.fraudStatus ?? "all"} onChange={(event) => onChange({ ...filters, fraudStatus: event.target.value as AdminFilters["fraudStatus"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+        <option value="all">All fraud status</option>
+        <option value="fraud">Fraud only</option>
+        <option value="not_fraud">Not fraud</option>
+      </select>
+      <input type="number" min="0" step="0.01" value={filters.minAmount ?? ""} onChange={(e) => onChange({ ...filters, minAmount: e.target.value || undefined })} placeholder="Min amount" className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none w-28" />
+      <input type="number" min="0" step="0.01" value={filters.maxAmount ?? ""} onChange={(e) => onChange({ ...filters, maxAmount: e.target.value || undefined })} placeholder="Max amount" className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none w-28" />
       <input type="date" value={filters.fromDate ?? ""} onChange={(e) => onChange({ ...filters, fromDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
       <input type="date" value={filters.toDate ?? ""} onChange={(e) => onChange({ ...filters, toDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
       <select value={filters.riskLevel ?? "all"} onChange={(event) => onChange({ ...filters, riskLevel: event.target.value as AdminFilters["riskLevel"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
@@ -165,6 +195,41 @@ function Toolbar({ filters, onChange }: { filters: AdminFilters; onChange: (filt
         <option value="medium">Medium risk</option>
         <option value="high">High risk</option>
       </select>
+      <select value={filters.sortBy ?? "date"} onChange={(event) => onChange({ ...filters, sortBy: event.target.value as AdminFilters["sortBy"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+        <option value="date">Sort by date</option>
+        <option value="amount">Sort by amount</option>
+        <option value="riskScore">Sort by risk</option>
+      </select>
+      <select value={filters.sortDirection ?? "desc"} onChange={(event) => onChange({ ...filters, sortDirection: event.target.value as AdminFilters["sortDirection"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+        <option value="desc">Descending</option>
+        <option value="asc">Ascending</option>
+      </select>
+      <select value={filters.pageSize ?? 25} onChange={(event) => onChange({ ...filters, pageSize: Number(event.target.value) })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+        <option value={10}>10 / page</option>
+        <option value={25}>25 / page</option>
+        <option value={50}>50 / page</option>
+        <option value={100}>100 / page</option>
+      </select>
+    </div>
+  );
+}
+
+function Pagination({ pageData, onPageChange }: { pageData: AdminPagedResult<AdminTransaction>; onPageChange: (page: number) => void }) {
+  const firstItem = pageData.totalCount === 0 ? 0 : (pageData.page - 1) * pageData.pageSize + 1;
+  const lastItem = Math.min(pageData.totalCount, pageData.page * pageData.pageSize);
+  const canGoBack = pageData.page > 1;
+  const canGoForward = pageData.page < pageData.totalPages;
+
+  return (
+    <div className="border-t border-border px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+      <span>
+        Showing {firstItem.toLocaleString()}-{lastItem.toLocaleString()} of {pageData.totalCount.toLocaleString()}
+      </span>
+      <div className="flex items-center gap-2">
+        <button onClick={() => onPageChange(pageData.page - 1)} disabled={!canGoBack} className="glass rounded-lg px-3 py-1.5 disabled:opacity-50">Previous</button>
+        <span className="font-mono">Page {pageData.page} / {Math.max(pageData.totalPages, 1)}</span>
+        <button onClick={() => onPageChange(pageData.page + 1)} disabled={!canGoForward} className="glass rounded-lg px-3 py-1.5 disabled:opacity-50">Next</button>
+      </div>
     </div>
   );
 }
