@@ -13,6 +13,20 @@ export interface RecentPrediction {
   createdAt: string;
 }
 
+export interface RecentTransaction {
+  id: number;
+  userId: number;
+  merchant: string;
+  category: string;
+  country: string;
+  amount: number;
+  currency: string;
+  riskScore: number | null;
+  status: "pending" | "safe" | "review" | "fraud";
+  transactionType: string;
+  createdAt: string;
+}
+
 export interface RiskDistributionPoint {
   riskLevel: PredictionRisk;
   count: number;
@@ -41,6 +55,7 @@ export interface DashboardSummary {
   mostCommonTransactionType: string;
   latestPrediction: RecentPrediction | null;
   recentPredictions: RecentPrediction[];
+  recentTransactions: RecentTransaction[];
   riskDistribution: RiskDistributionPoint[];
   predictionsPerDay: PredictionChartPoint[];
   highRiskCases?: number | null;

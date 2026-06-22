@@ -25,4 +25,12 @@ export const dashboardService = {
       throw toDashboardError(error);
     }
   },
+
+  async getUserDashboardSummary(): Promise<DashboardSummary> {
+    try {
+      return await apiGet<DashboardSummary>("/dashboard/user");
+    } catch (error) {
+      throw toDashboardError(error);
+    }
+  },
 };

@@ -31,16 +31,32 @@ public class DashboardController : ControllerBase
             return Unauthorized(new { message = "Invalid token." });
         }
 
-        var isAdmin = User.IsInRole("Admin");
+        return Ok(await BuildSummaryAsync(userId.Value, User.IsInRole("Admin"), cancellationToken));
+    }
+
+    [HttpGet("user")]
+    public async Task<ActionResult<DashboardSummaryDto>> UserSummary(CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized(new { message = "Invalid token." });
+        }
+
+        return Ok(await BuildSummaryAsync(userId.Value, false, cancellationToken));
+    }
+
+    private async Task<DashboardSummaryDto> BuildSummaryAsync(int userId, bool includeAllUsers, CancellationToken cancellationToken)
+    {
         var predictionsQuery = _dbContext.Predictions.AsNoTracking();
         var transactionsQuery = _dbContext.Transactions.AsNoTracking();
         var alertsQuery = _dbContext.FraudAlerts.AsNoTracking();
 
-        if (!isAdmin)
+        if (!includeAllUsers)
         {
-            predictionsQuery = predictionsQuery.Where(prediction => prediction.UserId == userId.Value);
-            transactionsQuery = transactionsQuery.Where(transaction => transaction.UserId == userId.Value);
-            alertsQuery = alertsQuery.Where(alert => alert.UserId == userId.Value);
+            predictionsQuery = predictionsQuery.Where(prediction => prediction.UserId == userId);
+            transactionsQuery = transactionsQuery.Where(transaction => transaction.UserId == userId);
+            alertsQuery = alertsQuery.Where(alert => alert.UserId == userId);
         }
 
         var totalPredictions = await predictionsQuery.CountAsync(cancellationToken);
@@ -65,8 +81,8 @@ public class DashboardController : ControllerBase
             alert => alert.RiskScore >= 70 || alert.Severity == "high" || alert.Severity == "critical",
             cancellationToken);
 
-        var mostCommonTransactionType = await predictionsQuery
-            .GroupBy(prediction => prediction.TransactionType)
+        var mostCommonTransactionType = await transactionsQuery
+            .GroupBy(transaction => transaction.TransactionType)
             .OrderByDescending(group => group.Count())
             .ThenBy(group => group.Key)
             .Select(group => group.Key)
@@ -78,7 +94,7 @@ public class DashboardController : ControllerBase
             {
                 Id = prediction.Id,
                 UserId = prediction.UserId,
-                UserEmail = isAdmin ? prediction.User != null ? prediction.User.Email : null : null,
+                UserEmail = includeAllUsers ? prediction.User != null ? prediction.User.Email : null : null,
                 TransactionType = prediction.TransactionType,
                 Amount = prediction.Amount,
                 RiskScore = prediction.RiskScore,
@@ -96,7 +112,7 @@ public class DashboardController : ControllerBase
             {
                 Id = prediction.Id,
                 UserId = prediction.UserId,
-                UserEmail = isAdmin ? prediction.User != null ? prediction.User.Email : null : null,
+                UserEmail = includeAllUsers ? prediction.User != null ? prediction.User.Email : null : null,
                 TransactionType = prediction.TransactionType,
                 Amount = prediction.Amount,
                 RiskScore = prediction.RiskScore,
@@ -128,6 +144,25 @@ public class DashboardController : ControllerBase
             })
             .ToListAsync(cancellationToken);
 
+        var recentTransactions = await transactionsQuery
+            .OrderByDescending(transaction => transaction.CreatedAt)
+            .Take(6)
+            .Select(transaction => new RecentTransactionDto
+            {
+                Id = transaction.Id,
+                UserId = transaction.UserId,
+                Merchant = transaction.Merchant,
+                Category = transaction.Category,
+                Country = transaction.Country,
+                Amount = transaction.Amount,
+                Currency = transaction.Currency,
+                RiskScore = transaction.RiskScore,
+                Status = transaction.Status,
+                TransactionType = transaction.TransactionType,
+                CreatedAt = transaction.CreatedAt
+            })
+            .ToListAsync(cancellationToken);
+
         var summary = new DashboardSummaryDto
         {
             TotalPredictions = totalPredictions,
@@ -144,6 +179,7 @@ public class DashboardController : ControllerBase
             MostCommonTransactionType = mostCommonTransactionType,
             LatestPrediction = latestPrediction,
             RecentPredictions = recentPredictions,
+            RecentTransactions = recentTransactions,
             RiskDistribution = RiskLevels
                 .Select(level => new RiskDistributionDto
                 {
@@ -168,14 +204,14 @@ public class DashboardController : ControllerBase
                 .ToList()
         };
 
-        if (isAdmin)
+        if (includeAllUsers)
         {
             summary.TotalUsers = await _dbContext.Users.AsNoTracking().CountAsync(cancellationToken);
             summary.HighRiskCases = await predictionsQuery.CountAsync(prediction => prediction.RiskScore >= 70 && prediction.RiskScore < 90, cancellationToken);
             summary.CriticalRiskCases = await predictionsQuery.CountAsync(prediction => prediction.RiskScore >= 90, cancellationToken);
         }
 
-        return Ok(summary);
+        return summary;
     }
 
     private int? GetCurrentUserId()

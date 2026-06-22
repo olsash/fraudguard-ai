@@ -1,7 +1,13 @@
 import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/common/StatCard";
 import { dashboardService } from "@/services/dashboardService";
-import type { DashboardSummary, PredictionChartPoint, RecentPrediction, RiskDistributionPoint } from "@/types/dashboard";
+import type {
+  DashboardSummary,
+  PredictionChartPoint,
+  RecentPrediction,
+  RecentTransaction,
+  RiskDistributionPoint,
+} from "@/types/dashboard";
 import {
   Activity,
   AlertTriangle,
@@ -50,7 +56,7 @@ export default function Dashboard() {
       setError(null);
 
       try {
-        const data = await dashboardService.getDashboardSummary();
+        const data = await dashboardService.getUserDashboardSummary();
         if (active) {
           setSummary(data);
         }
@@ -75,7 +81,7 @@ export default function Dashboard() {
   return (
     <>
       <Topbar title="Dashboard" subtitle="Live overview of your fraud detection workspace" />
-      <main className="flex-1 p-4 md:p-8 space-y-6">
+      <main className="flex-1 overflow-x-hidden p-4 md:p-8 space-y-6">
         {loading && <StatePanel icon={Loader2} title="Loading dashboard" message="Fetching your prediction statistics from FraudGuard API." spin />}
         {!loading && error && <StatePanel icon={AlertTriangle} title="Dashboard unavailable" message={error} tone="destructive" />}
         {!loading && !error && summary && <DashboardContent summary={summary} />}
@@ -95,13 +101,13 @@ function DashboardContent({ summary }: { summary: DashboardSummary }) {
         </div>
       )}
 
-      <section className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[repeat(6,minmax(190px,1fr))] gap-4">
         <StatCard label="Total predictions" value={summary.totalPredictions.toLocaleString()} icon={Brain} />
         <StatCard label="Fraud predictions" value={summary.fraudPredictions.toLocaleString()} icon={AlertTriangle} tone="destructive" />
         <StatCard label="Non-fraud predictions" value={summary.nonFraudPredictions.toLocaleString()} icon={ShieldCheck} tone="success" />
         <StatCard label="Average risk" value={`${summary.averageRiskScore}/100`} icon={Gauge} tone="warning" />
         <StatCard label="High-risk alerts" value={summary.highRiskAlerts.toLocaleString()} icon={AlertTriangle} tone="destructive" />
-        <StatCard label="Common type" value={summary.mostCommonTransactionType} icon={Receipt} tone="primary" />
+        <StatCard label="Common type" value={summary.mostCommonTransactionType} icon={Receipt} tone="primary" valueSize="compact" />
       </section>
 
       <section className="grid lg:grid-cols-3 gap-4">
@@ -132,8 +138,11 @@ function DashboardContent({ summary }: { summary: DashboardSummary }) {
       </section>
 
       <section className="grid lg:grid-cols-3 gap-4">
-        <Card title="Recent predictions" sub="Latest saved model decisions" className="lg:col-span-2">
+        <Card title="Recent predictions" sub="Latest saved model decisions">
           <RecentPredictions predictions={summary.recentPredictions} />
+        </Card>
+        <Card title="Recent transactions" sub="Latest saved transaction records">
+          <RecentTransactions transactions={summary.recentTransactions} />
         </Card>
         <LiveInsights summary={summary} />
       </section>
@@ -143,7 +152,7 @@ function DashboardContent({ summary }: { summary: DashboardSummary }) {
 
 export function Card({ title, sub, children, className = "" }: { title: string; sub?: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`glass rounded-2xl p-5 ${className}`}>
+    <div className={`glass min-w-0 overflow-hidden rounded-2xl p-5 ${className}`}>
       <div className="mb-4">
         <p className="text-sm font-display font-semibold">{title}</p>
         {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
@@ -186,6 +195,10 @@ function RiskDistributionChart({ data, total }: { data: RiskDistributionPoint[];
     color: riskColors[item.riskLevel],
   }));
 
+  if (total === 0) {
+    return <EmptyChart message="Run predictions to populate risk distribution." />;
+  }
+
   return (
     <>
       <ResponsiveContainer height="70%">
@@ -215,8 +228,8 @@ function LatestPrediction({ prediction }: { prediction: RecentPrediction | null 
       {prediction ? (
         <div className="h-full flex flex-col justify-between">
           <div>
-            <div className={`inline-flex rounded-lg px-3 py-1 text-xs font-semibold ${prediction.isFraud ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
-              {prediction.isFraud ? "Fraud detected" : "Transaction safe"}
+            <div className={`inline-flex rounded-lg px-3 py-1 text-xs font-semibold ${getPredictionTone(prediction).badge}`}>
+              {getPredictionLabel(prediction)}
             </div>
             <p className="mt-4 text-3xl font-display font-semibold">{prediction.riskScore}/100</p>
             <p className="text-sm text-muted-foreground">{prediction.riskLevel} risk - {prediction.transactionType}</p>
@@ -248,8 +261,7 @@ function RecentPredictions({ predictions }: { predictions: RecentPrediction[] })
     <div className="space-y-1">
       {predictions.map((prediction) => (
         <div key={prediction.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary/50 text-sm">
-          <div className={`h-8 w-8 rounded-lg grid place-items-center text-xs font-semibold
-            ${prediction.isFraud ? "bg-destructive/20 text-destructive" : "bg-success/20 text-success"}`}>
+          <div className={`h-8 w-8 rounded-lg grid place-items-center text-xs font-semibold ${getPredictionTone(prediction).badge}`}>
             {prediction.transactionType[0]}
           </div>
           <div className="flex-1 min-w-0">
@@ -257,11 +269,45 @@ function RecentPredictions({ predictions }: { predictions: RecentPrediction[] })
             <p className="text-xs text-muted-foreground">{formatDateTime(prediction.createdAt)}</p>
           </div>
           <div className="text-right">
-            <p className={prediction.isFraud ? "font-semibold text-destructive" : "font-semibold text-success"}>{prediction.riskScore}/100</p>
+            <p className={`font-semibold ${getPredictionTone(prediction).text}`}>{prediction.riskScore}/100</p>
             <p className="text-[10px] text-muted-foreground">{prediction.riskLevel}</p>
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function RecentTransactions({ transactions }: { transactions: RecentTransaction[] }) {
+  if (transactions.length === 0) {
+    return <p className="text-sm text-muted-foreground">No saved transactions yet.</p>;
+  }
+
+  return (
+    <div className="space-y-1">
+      {transactions.map((transaction) => {
+        const tone = getTransactionStatusTone(transaction.status);
+        return (
+          <div
+            key={transaction.id}
+            className="flex min-w-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-secondary/50"
+          >
+            <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-semibold ${tone.badge}`}>
+              {transaction.transactionType[0] ?? "T"}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{transaction.merchant || `TX-${transaction.id}`}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {transaction.transactionType} - {transaction.category} - {transaction.country}
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="font-mono text-xs">{formatCurrency(transaction.amount, transaction.currency)}</p>
+              <p className={`text-[10px] font-medium ${tone.text}`}>{formatStatus(transaction.status)}</p>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -283,9 +329,10 @@ function LiveInsights({ summary }: { summary: DashboardSummary }) {
           </div>
         </div>
         <ul className="mt-4 space-y-3 text-sm">
-          <Insight text={`${fraudRate}% of stored predictions are currently flagged as fraud.`} tone="destructive" />
-          <Insight text={`Average risk score is ${summary.averageRiskScore}/100 across ${summary.totalPredictions.toLocaleString()} predictions.`} tone="warning" />
+          <Insight text={`${fraudRate}% of stored predictions are currently flagged as fraud.`} tone={fraudRate > 0 ? "destructive" : "success"} />
+          <Insight text={`Average risk score is ${summary.averageRiskScore}/100 across ${summary.totalPredictions.toLocaleString()} predictions.`} tone={summary.averageRiskScore >= 40 ? "warning" : "primary"} />
           <Insight text={`Highest risk case reached ${summary.highestRiskScore}/100.`} tone="primary" />
+          <Insight text={`${summary.totalTransactions.toLocaleString()} saved transactions are available for analysis.`} tone="primary" />
           <Insight text={`${summary.nonFraudPredictions.toLocaleString()} predictions were classified as non-fraud.`} tone="success" />
         </ul>
         <div className="mt-5 w-full glass rounded-lg py-2 text-sm flex items-center justify-center gap-2 text-muted-foreground">
@@ -294,6 +341,58 @@ function LiveInsights({ summary }: { summary: DashboardSummary }) {
       </div>
     </div>
   );
+}
+
+function EmptyChart({ message }: { message: string }) {
+  return (
+    <div className="grid h-full min-h-[180px] place-items-center rounded-xl border border-border/40 bg-background/20 p-4 text-center text-sm text-muted-foreground">
+      {message}
+    </div>
+  );
+}
+
+function getPredictionTone(prediction: RecentPrediction) {
+  if (prediction.isFraud || prediction.riskScore >= 70 || prediction.riskLevel === "High" || prediction.riskLevel === "Critical") {
+    return { badge: "bg-destructive/20 text-destructive", text: "text-destructive" };
+  }
+
+  if (prediction.riskScore >= 40 || prediction.riskLevel === "Medium") {
+    return { badge: "bg-warning/20 text-warning", text: "text-warning" };
+  }
+
+  return { badge: "bg-success/20 text-success", text: "text-success" };
+}
+
+function getPredictionLabel(prediction: RecentPrediction) {
+  if (prediction.isFraud || prediction.riskScore >= 70) {
+    return "Fraud detected";
+  }
+
+  if (prediction.riskScore >= 40 || prediction.riskLevel === "Medium") {
+    return "Needs review";
+  }
+
+  return "Transaction safe";
+}
+
+function getTransactionStatusTone(status: RecentTransaction["status"]) {
+  if (status === "fraud") {
+    return { badge: "bg-destructive/20 text-destructive", text: "text-destructive" };
+  }
+
+  if (status === "review") {
+    return { badge: "bg-warning/20 text-warning", text: "text-warning" };
+  }
+
+  if (status === "safe") {
+    return { badge: "bg-success/20 text-success", text: "text-success" };
+  }
+
+  return { badge: "bg-primary/15 text-primary", text: "text-primary" };
+}
+
+function formatStatus(status: string) {
+  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 function Insight({ text, tone }: { text: string; tone: "destructive" | "success" | "primary" | "warning" }) {
@@ -341,10 +440,10 @@ function toChartData(points: PredictionChartPoint[]) {
   }));
 }
 
-function formatCurrency(value: number) {
+function formatCurrency(value: number, currency = "USD") {
   return new Intl.NumberFormat(undefined, {
     style: "currency",
-    currency: "USD",
+    currency,
     maximumFractionDigits: 2,
   }).format(value);
 }

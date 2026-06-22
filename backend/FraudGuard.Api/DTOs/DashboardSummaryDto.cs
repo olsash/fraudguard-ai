@@ -32,6 +32,8 @@ public class DashboardSummaryDto
 
     public List<RecentPredictionDto> RecentPredictions { get; set; } = [];
 
+    public List<RecentTransactionDto> RecentTransactions { get; set; } = [];
+
     public List<RiskDistributionDto> RiskDistribution { get; set; } = [];
 
     public List<PredictionChartPointDto> PredictionsPerDay { get; set; } = [];
@@ -78,6 +80,31 @@ public class RecentPredictionDto
     public bool IsFraud { get; set; }
 
     public string SuggestedAction { get; set; } = string.Empty;
+
+    public DateTime CreatedAt { get; set; }
+}
+
+public class RecentTransactionDto
+{
+    public int Id { get; set; }
+
+    public int UserId { get; set; }
+
+    public string Merchant { get; set; } = string.Empty;
+
+    public string Category { get; set; } = string.Empty;
+
+    public string Country { get; set; } = string.Empty;
+
+    public decimal Amount { get; set; }
+
+    public string Currency { get; set; } = "USD";
+
+    public int? RiskScore { get; set; }
+
+    public string Status { get; set; } = string.Empty;
+
+    public string TransactionType { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
 }
