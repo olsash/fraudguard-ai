@@ -42,9 +42,14 @@ export default function AdminModelComparisonPage() {
       />
       <main className="flex-1 p-4 md:p-8 space-y-4">
         <section className="glass rounded-2xl p-5">
-          <p className="max-w-4xl text-sm text-muted-foreground leading-6">
-            This page summarizes the classifiers tested during the fraud detection experiments. The full technical details are available in the notebook, while this page shows the main comparison results.
-          </p>
+          <div className="max-w-5xl space-y-2 text-sm text-muted-foreground leading-6">
+            <p>
+              This page summarizes the classifiers tested during the fraud detection experiments using the exported ML results from the backend API.
+            </p>
+            <p>
+              F1-score matters because fraud detection needs a practical balance between catching fraud and avoiding excessive false alerts. Recall matters because missed fraud cases become false negatives, which are usually more costly than reviewing a suspicious transaction.
+            </p>
+          </div>
         </section>
 
         {loading && <StatePanel title="Loading model comparison" message="Fetching evaluated model results from FraudGuard API." />}
@@ -114,6 +119,7 @@ export default function AdminModelComparisonPage() {
                       <Th>Recall</Th>
                       <Th>F1 Score</Th>
                       <Th>ROC AUC</Th>
+                      <Th>Selected Hyperparameters</Th>
                       <Th>Avg Precision</Th>
                       <Th>TN</Th>
                       <Th>FP</Th>
@@ -126,7 +132,7 @@ export default function AdminModelComparisonPage() {
                   <tbody>
                     {results.models.length === 0 ? (
                       <tr className="border-t border-border">
-                        <td colSpan={14} className="px-4 py-10 text-center text-muted-foreground">No model comparison results found.</td>
+                        <td colSpan={15} className="px-4 py-10 text-center text-muted-foreground">No model comparison results found.</td>
                       </tr>
                     ) : results.models.map((model) => {
                       const best = isBestModel(model, results.bestModelName);
@@ -147,6 +153,7 @@ export default function AdminModelComparisonPage() {
                           <Td>{formatScore(model.recall)}</Td>
                           <Td>{formatScore(model.f1Score)}</Td>
                           <Td>{model.rocAuc == null ? "-" : formatScore(model.rocAuc)}</Td>
+                          <Td><SelectedHyperparameters model={model} /></Td>
                           <Td>{model.averagePrecision == null ? "-" : formatScore(model.averagePrecision)}</Td>
                           <Td>{formatCount(confusion?.trueNegatives)}</Td>
                           <Td>{formatCount(confusion?.falsePositives)}</Td>
@@ -265,6 +272,27 @@ function StatusBadge({ status }: { status: string }) {
   return <span className="rounded bg-secondary/70 px-2 py-1 text-[10px] uppercase text-muted-foreground">{status}</span>;
 }
 
+function SelectedHyperparameters({ model }: { model: ModelComparisonItem }) {
+  const rows = buildHyperparameterRows(model, "selected")
+    .filter((row) => row.value !== "Not documented")
+    .slice(0, 4);
+
+  if (rows.length === 0) {
+    return <span className="text-xs text-muted-foreground">Not documented</span>;
+  }
+
+  return (
+    <div className="max-w-xs space-y-1">
+      {rows.map((row) => (
+        <div key={row.label} className="grid grid-cols-[88px_minmax(0,1fr)] gap-2 text-xs">
+          <span className="text-muted-foreground truncate">{row.label}</span>
+          <span className="font-mono break-words">{row.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function StatePanel({ title, message, destructive }: { title: string; message: string; destructive?: boolean }) {
   return (
     <div className={`glass rounded-2xl p-10 text-center ${destructive ? "ring-1 ring-destructive/40" : ""}`}>
@@ -296,7 +324,7 @@ function ModelDetailsModal({ model, onClose }: { model: ModelComparisonItem; onC
             <p className="text-xs uppercase tracking-wider text-muted-foreground">Classifier details</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <h2 className="font-display text-xl font-semibold">{model.modelName}</h2>
-              {model.status.toLowerCase() === "best model" && <BestBadge />}
+              {(model.isBestModel || model.status.toLowerCase() === "best model") && <BestBadge />}
             </div>
             <p className="mt-1 font-mono text-xs text-muted-foreground">{model.modelType}</p>
           </div>
@@ -381,11 +409,13 @@ function formatCount(value?: number) {
 }
 
 function isBestModel(model: ModelComparisonItem, bestModelName: string) {
-  return model.status.toLowerCase() === "best model" || model.modelName.toLowerCase() === bestModelName.toLowerCase();
+  return Boolean(model.isBestModel) || model.status.toLowerCase() === "best model" || model.modelName.toLowerCase() === bestModelName.toLowerCase();
 }
 
 function buildHyperparameterRows(model: ModelComparisonItem, group: "tested" | "selected") {
-  const params = model.hyperparameters?.[group] ?? {};
+  const params = group === "selected"
+    ? model.selectedHyperparameters ?? model.hyperparameters?.selected ?? {}
+    : model.hyperparameters?.tested ?? {};
   const keys = preferredHyperparameterKeys(model);
   const documentedKeys = Object.keys(params);
   const orderedKeys = [...keys, ...documentedKeys.filter((key) => !keys.includes(key))];
