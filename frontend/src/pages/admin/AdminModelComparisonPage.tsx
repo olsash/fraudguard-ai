@@ -76,6 +76,7 @@ export default function AdminModelComparisonPage() {
                       <XAxis dataKey="shortName" tick={{ fontSize: 11 }} interval={0} />
                       <YAxis tickFormatter={(value) => `${value}%`} width={42} tick={{ fontSize: 11 }} domain={[0, 100]} />
                       <Tooltip content={<ScoreTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
                       <Bar dataKey="f1Score" name="F1 Score" radius={[6, 6, 0, 0]}>
                         {chartData.map((item) => <Cell key={item.modelName} fill={item.best ? "oklch(0.72 0.18 155)" : "oklch(0.65 0.22 285)"} />)}
                       </Bar>
@@ -83,7 +84,7 @@ export default function AdminModelComparisonPage() {
                   </ResponsiveContainer>
                 </ChartCard>
 
-                <ChartCard title="Core metrics by model" subtitle="Accuracy, precision, recall, F1 score, and average precision">
+                <ChartCard title="Core metrics by model" subtitle="Accuracy, precision, recall, F1 score, and ROC-AUC">
                   <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={chartData} margin={{ top: 12, right: 16, bottom: 18, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
@@ -95,7 +96,7 @@ export default function AdminModelComparisonPage() {
                       <Bar dataKey="precision" name="Precision" fill="oklch(0.78 0.18 200)" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="recall" name="Recall" fill="oklch(0.8 0.17 75)" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="f1Score" name="F1 Score" fill="oklch(0.72 0.18 155)" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="averagePrecision" name="Average Precision" fill="oklch(0.68 0.18 35)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="rocAuc" name="ROC-AUC" fill="oklch(0.68 0.18 35)" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -510,6 +511,7 @@ function toChartData(results: ModelComparisonResults) {
     precision: toPercent(model.precision),
     recall: toPercent(model.recall),
     f1Score: toPercent(model.f1Score),
+    rocAuc: model.rocAuc == null ? null : toPercent(model.rocAuc),
     averagePrecision: model.averagePrecision == null ? null : toPercent(model.averagePrecision),
     best: isBestModel(model, results.bestModelName),
   }));
