@@ -8,7 +8,8 @@ import { useEffect, useMemo, useState } from "react";
 import { RiskBar, StatusBadge, Td, Th } from "@/pages/transactions/TransactionsPage";
 import { toast } from "sonner";
 
-const emptyFilters: AdminFilters = { status: "all", riskLevel: "all" };
+const transactionTypes = ["all", "CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"] as const;
+const emptyFilters: AdminFilters = { status: "all", riskLevel: "all", predictionResult: "all", transactionType: "all" };
 
 export default function AdminPredictionsPage() {
   const [predictions, setPredictions] = useState<AdminPrediction[]>([]);
@@ -23,7 +24,7 @@ export default function AdminPredictionsPage() {
   useEffect(() => {
     const timeout = window.setTimeout(() => void loadPredictions(), 250);
     return () => window.clearTimeout(timeout);
-  }, [filters.search, filters.status, filters.riskLevel, filters.fromDate, filters.toDate]);
+  }, [filters.search, filters.status, filters.riskLevel, filters.predictionResult, filters.transactionType, filters.fromDate, filters.toDate]);
 
   async function loadPredictions() {
     setLoading(true);
@@ -68,9 +69,9 @@ export default function AdminPredictionsPage() {
         {!loading && !error && (
           <div className="glass rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[1080px]">
+              <table className="w-full text-sm min-w-[1180px]">
                 <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr><Th>Prediction ID</Th><Th>Transaction</Th><Th>User</Th><Th>Country</Th><Th>Amount</Th><Th>Risk</Th><Th>Risk Score</Th><Th>Status</Th><Th>Created</Th><Th /></tr>
+                  <tr><Th>Prediction ID</Th><Th>User</Th><Th>Transaction</Th><Th>Type</Th><Th>Amount</Th><Th>Prediction Result</Th><Th>Risk</Th><Th>Score</Th><Th>Created</Th><Th /></tr>
                 </thead>
                 <tbody>
                   {predictions.length === 0 ? (
@@ -78,13 +79,13 @@ export default function AdminPredictionsPage() {
                   ) : predictions.map((prediction) => (
                     <tr key={prediction.id} onClick={() => void openDetails(prediction.id)} className="border-t border-border hover:bg-secondary/40 cursor-pointer">
                       <Td><span className="font-mono text-xs">PR-{prediction.id}</span></Td>
-                      <Td>{prediction.transactionMerchant ?? (prediction.transactionId ? `TX-${prediction.transactionId}` : prediction.transactionType)}</Td>
                       <Td>{prediction.userName}</Td>
-                      <Td>{prediction.country}</Td>
+                      <Td>{prediction.transactionMerchant ?? (prediction.transactionId ? `TX-${prediction.transactionId}` : "Manual prediction")}</Td>
+                      <Td><span className="font-mono text-xs">{prediction.transactionType}</span></Td>
                       <Td className="font-mono font-semibold">{formatCurrency(prediction.amount, prediction.currency)}</Td>
+                      <Td><StatusBadge s={prediction.status} /></Td>
                       <Td><RiskBar value={prediction.riskScore} /></Td>
                       <Td className="font-mono">{prediction.riskScore}/100</Td>
-                      <Td><StatusBadge s={prediction.status} /></Td>
                       <Td className="text-xs text-muted-foreground">{formatDateTime(prediction.createdAt)}</Td>
                       <Td><ChevronRight className="h-4 w-4 text-muted-foreground" /></Td>
                     </tr>
@@ -106,7 +107,7 @@ function Toolbar({ filters, onChange }: { filters: AdminFilters; onChange: (filt
     <div className="glass rounded-2xl p-4 flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-2 glass rounded-lg px-3 py-2 flex-1 min-w-[240px]">
         <Search className="h-4 w-4 text-muted-foreground" />
-        <input value={filters.search ?? ""} onChange={(e) => onChange({ ...filters, search: e.target.value })} placeholder="Search transaction, merchant, user, country..." className="flex-1 bg-transparent text-sm outline-none" />
+        <input value={filters.search ?? ""} onChange={(e) => onChange({ ...filters, search: e.target.value })} placeholder="Search user, transaction ID, prediction ID, merchant..." className="flex-1 bg-transparent text-sm outline-none" />
       </div>
       <div className="flex items-center gap-1">
         {(["all", "safe", "review", "fraud"] as Array<"all" | TransactionStatus>).map((status) => (
@@ -116,6 +117,16 @@ function Toolbar({ filters, onChange }: { filters: AdminFilters; onChange: (filt
           </button>
         ))}
       </div>
+      <select value={filters.predictionResult ?? "all"} onChange={(event) => onChange({ ...filters, predictionResult: event.target.value as AdminFilters["predictionResult"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+        <option value="all">All results</option>
+        <option value="fraud">Fraud</option>
+        <option value="not_fraud">Not fraud</option>
+      </select>
+      <select value={filters.transactionType ?? "all"} onChange={(event) => onChange({ ...filters, transactionType: event.target.value as AdminFilters["transactionType"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+        {transactionTypes.map((type) => (
+          <option key={type} value={type}>{type === "all" ? "All types" : type}</option>
+        ))}
+      </select>
       <input type="date" value={filters.fromDate ?? ""} onChange={(e) => onChange({ ...filters, fromDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
       <input type="date" value={filters.toDate ?? ""} onChange={(e) => onChange({ ...filters, toDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
       <select value={filters.riskLevel ?? "all"} onChange={(event) => onChange({ ...filters, riskLevel: event.target.value as AdminFilters["riskLevel"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">

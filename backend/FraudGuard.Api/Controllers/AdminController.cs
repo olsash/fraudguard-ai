@@ -116,12 +116,14 @@ public class AdminController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? status,
         [FromQuery] string? riskLevel,
+        [FromQuery] string? predictionResult,
+        [FromQuery] string? transactionType,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
         [FromQuery] int? userId,
         CancellationToken cancellationToken)
     {
-        var predictions = await ApplyPredictionFilters(BuildPredictionQuery(), search, status, riskLevel, fromDate, toDate, userId)
+        var predictions = await ApplyPredictionFilters(BuildPredictionQuery(), search, status, riskLevel, predictionResult, transactionType, fromDate, toDate, userId)
             .OrderByDescending(prediction => prediction.CreatedAt)
             .ToListAsync(cancellationToken);
 
@@ -207,6 +209,8 @@ public class AdminController : ControllerBase
         string? search,
         string? status,
         string? riskLevel,
+        string? predictionResult,
+        string? transactionType,
         DateTime? fromDate,
         DateTime? toDate,
         int? userId)
@@ -214,8 +218,10 @@ public class AdminController : ControllerBase
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
+            var numericSearch = int.TryParse(term.TrimStart('T', 'X', 'P', 'R', '-', '#'), out var searchedId);
             query = query.Where(prediction =>
                 prediction.TransactionType.Contains(term)
+                || (numericSearch && (prediction.Id == searchedId || prediction.TransactionId == searchedId || prediction.UserId == searchedId))
                 || (prediction.Transaction != null && prediction.Transaction.Merchant.Contains(term))
                 || (prediction.Transaction != null && prediction.Transaction.Country.Contains(term))
                 || (prediction.Transaction != null && prediction.Transaction.Category.Contains(term))
@@ -244,6 +250,22 @@ public class AdminController : ControllerBase
         else if (normalizedRisk == "high")
         {
             query = query.Where(prediction => prediction.RiskScore >= 70);
+        }
+
+        var normalizedPredictionResult = predictionResult?.Trim().ToLowerInvariant();
+        if (normalizedPredictionResult == "fraud")
+        {
+            query = query.Where(prediction => prediction.IsFraud);
+        }
+        else if (normalizedPredictionResult is "not_fraud" or "not-fraud" or "notfraud")
+        {
+            query = query.Where(prediction => !prediction.IsFraud);
+        }
+
+        var normalizedTransactionType = NormalizeTransactionTypeFilter(transactionType);
+        if (normalizedTransactionType is not null)
+        {
+            query = query.Where(prediction => prediction.TransactionType == normalizedTransactionType);
         }
 
         if (fromDate.HasValue)
@@ -697,6 +719,19 @@ public class AdminController : ControllerBase
         return normalized is "CASH_IN" or "CASH_OUT" or "DEBIT" or "PAYMENT" or "TRANSFER"
             ? normalized
             : "PAYMENT";
+    }
+
+    private static string? NormalizeTransactionTypeFilter(string? transactionType)
+    {
+        if (string.IsNullOrWhiteSpace(transactionType) || transactionType.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var normalized = transactionType.Trim().ToUpperInvariant().Replace(" ", "_");
+        return normalized is "CASH_IN" or "CASH_OUT" or "DEBIT" or "PAYMENT" or "TRANSFER"
+            ? normalized
+            : null;
     }
 
     private static string? NormalizeStatus(string? status)

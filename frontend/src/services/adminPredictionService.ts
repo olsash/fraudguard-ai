@@ -7,6 +7,8 @@ function toQuery(filters?: AdminFilters & { userId?: number }) {
   if (filters?.search) params.set("search", filters.search);
   if (filters?.status && filters.status !== "all") params.set("status", filters.status);
   if (filters?.riskLevel && filters.riskLevel !== "all") params.set("riskLevel", filters.riskLevel);
+  if (filters?.predictionResult && filters.predictionResult !== "all") params.set("predictionResult", filters.predictionResult);
+  if (filters?.transactionType && filters.transactionType !== "all") params.set("transactionType", filters.transactionType);
   if (filters?.fromDate) params.set("fromDate", filters.fromDate);
   if (filters?.toDate) params.set("toDate", filters.toDate);
   if (filters?.userId) params.set("userId", String(filters.userId));

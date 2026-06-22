@@ -1,11 +1,15 @@
 import type { TransactionStatus } from "@/types/transaction";
 
 export type AdminRiskLevel = "all" | "low" | "medium" | "high";
+export type AdminPredictionResultFilter = "all" | "fraud" | "not_fraud";
+export type AdminTransactionTypeFilter = "all" | "CASH_IN" | "CASH_OUT" | "DEBIT" | "PAYMENT" | "TRANSFER";
 
 export interface AdminFilters {
   search?: string;
   status?: "all" | TransactionStatus;
   riskLevel?: AdminRiskLevel;
+  predictionResult?: AdminPredictionResultFilter;
+  transactionType?: AdminTransactionTypeFilter;
   fromDate?: string;
   toDate?: string;
 }
