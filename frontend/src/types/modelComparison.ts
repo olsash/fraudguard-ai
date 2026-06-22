@@ -12,6 +12,7 @@ export interface ModelConfusionMatrix {
 
 export interface ModelComparisonItem {
   modelName: string;
+  classifierName?: string;
   modelType: string;
   accuracy: number;
   precision: number;
@@ -22,7 +23,9 @@ export interface ModelComparisonItem {
   confusionMatrix?: ModelConfusionMatrix | null;
   status: string;
   shortDescription: string;
+  isBestModel?: boolean;
   hyperparameters?: ModelHyperparameters | null;
+  selectedHyperparameters?: Record<string, unknown> | null;
 }
 
 export interface ModelComparisonResults {
@@ -31,5 +34,6 @@ export interface ModelComparisonResults {
   targetVariable: string;
   bestModelName: string;
   bestModelReason: string;
+  evaluationSource?: Record<string, unknown> | null;
   models: ModelComparisonItem[];
 }

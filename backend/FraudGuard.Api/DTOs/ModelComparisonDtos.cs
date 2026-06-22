@@ -9,12 +9,24 @@ public class ModelComparisonResultsDto
     public string TargetVariable { get; set; } = string.Empty;
     public string BestModelName { get; set; } = string.Empty;
     public string BestModelReason { get; set; } = string.Empty;
+    public Dictionary<string, JsonElement>? EvaluationSource { get; set; }
     public List<ModelComparisonItemDto> Models { get; set; } = [];
 }
 
 public class ModelComparisonItemDto
 {
     public string ModelName { get; set; } = string.Empty;
+    public string ClassifierName
+    {
+        get => ModelName;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                ModelName = value;
+            }
+        }
+    }
     public string ModelType { get; set; } = string.Empty;
     public double Accuracy { get; set; }
     public double Precision { get; set; }
@@ -25,7 +37,9 @@ public class ModelComparisonItemDto
     public ModelConfusionMatrixDto? ConfusionMatrix { get; set; }
     public string Status { get; set; } = string.Empty;
     public string ShortDescription { get; set; } = string.Empty;
+    public bool IsBestModel { get; set; }
     public ModelHyperparametersDto? Hyperparameters { get; set; }
+    public Dictionary<string, JsonElement>? SelectedHyperparameters => Hyperparameters?.Selected;
 }
 
 public class ModelConfusionMatrixDto
