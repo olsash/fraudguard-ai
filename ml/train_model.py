@@ -5,9 +5,20 @@ import json
 import joblib
 import pandas as pd
 import sklearn
+from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import (
+    accuracy_score,
+    adjusted_rand_score,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+    silhouette_score,
+)
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 from ml.preprocessing import FEATURES, TARGET, preprocess_training_data, validate_dataset
 
@@ -20,6 +31,11 @@ RANDOM_SEED = 42
 MAX_NON_FRAUD_ROWS = 250_000
 NON_FRAUD_TO_FRAUD_RATIO = 20
 SCALE_NUMERIC_FEATURES = False
+CLUSTERING_K_VALUES = [2, 3, 4, 5, 6, 8, 10]
+CLUSTERING_INIT_METHODS = ["k-means++", "random"]
+CLUSTERING_N_INIT_VALUES = [10]
+CLUSTERING_SAMPLE_SIZE = 50_000
+CLUSTERING_SILHOUETTE_SAMPLE_SIZE = 10_000
 
 
 def print_class_distribution(labels: pd.Series, title: str) -> None:
@@ -132,6 +148,90 @@ def export_feature_importance(model, feature_columns: list[str]) -> None:
     print(f"Saved feature importance results to {RESULTS_DIR / 'feature_importance_results.json'}")
 
 
+def export_clustering_results(features: pd.DataFrame, labels: pd.Series) -> None:
+    if features.empty or labels.empty:
+        print("Skipping clustering export: no feature rows available.")
+        return
+
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    sample_size = min(len(features), CLUSTERING_SAMPLE_SIZE)
+    sampled_features = features.sample(n=sample_size, random_state=RANDOM_SEED)
+    sampled_labels = labels.loc[sampled_features.index]
+
+    scaled_features = StandardScaler().fit_transform(sampled_features)
+    results = []
+
+    for k_value in CLUSTERING_K_VALUES:
+        if k_value >= sample_size:
+            continue
+
+        for init_method in CLUSTERING_INIT_METHODS:
+            for n_init in CLUSTERING_N_INIT_VALUES:
+                kmeans = KMeans(
+                    n_clusters=k_value,
+                    init=init_method,
+                    n_init=n_init,
+                    random_state=RANDOM_SEED,
+                )
+                clusters = kmeans.fit_predict(scaled_features)
+
+                results.append(
+                    {
+                        "algorithmName": "KMeans",
+                        "k": int(k_value),
+                        "initializationMethod": init_method,
+                        "nInit": int(n_init),
+                        "inertia": float(kmeans.inertia_),
+                        "silhouetteScore": float(
+                            silhouette_score(
+                                scaled_features,
+                                clusters,
+                                sample_size=min(CLUSTERING_SILHOUETTE_SAMPLE_SIZE, sample_size),
+                                random_state=RANDOM_SEED,
+                            )
+                        ),
+                        # The target label is used only after clustering to compare cluster assignments.
+                        "adjustedRandIndex": float(adjusted_rand_score(sampled_labels, clusters)),
+                    }
+                )
+
+    if not results:
+        print("Skipping clustering export: no valid KMeans configurations were evaluated.")
+        return
+
+    best_result = max(results, key=lambda item: item["silhouetteScore"])
+    tested_k_values = sorted({item["k"] for item in results})
+    for result in results:
+        result["testedKValues"] = tested_k_values
+        result["bestK"] = int(best_result["k"])
+        result["isBest"] = (
+            result["k"] == best_result["k"]
+            and result["initializationMethod"] == best_result["initializationMethod"]
+            and result["nInit"] == best_result["nInit"]
+        )
+
+    payload = {
+        "source": "ml/train_model.py",
+        "algorithmName": "KMeans",
+        "targetExcludedDuringTraining": True,
+        "targetUsedForComparisonOnly": TARGET,
+        "sampleSize": int(sample_size),
+        "randomSeed": RANDOM_SEED,
+        "selectionMetric": "silhouetteScore",
+        "testedKValues": tested_k_values,
+        "bestK": int(best_result["k"]),
+        "clusteringResults": results,
+    }
+
+    json_path = RESULTS_DIR / "clustering_results.json"
+    csv_path = RESULTS_DIR / "clustering_results.csv"
+    with json_path.open("w", encoding="utf-8") as file:
+        json.dump(payload, file, indent=2, default=float)
+
+    pd.DataFrame(results).to_csv(csv_path, index=False)
+    print(f"Saved clustering results to {json_path}")
+
+
 def load_dataset() -> pd.DataFrame:
     if not DATASET_PATH.exists():
         raise FileNotFoundError(
@@ -207,6 +307,7 @@ def main() -> None:
     joblib.dump(preprocessing_artifacts.columns, MODEL_DIR / "columns.pkl")
     joblib.dump(preprocessing_artifacts.scaler, MODEL_DIR / "scaler.pkl")
     export_feature_importance(model, preprocessing_artifacts.columns)
+    export_clustering_results(x, y)
 
     metadata = {
         "random_seed": RANDOM_SEED,
