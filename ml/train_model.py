@@ -3,9 +3,14 @@ import hashlib
 import json
 
 import joblib
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import pandas as pd
 import sklearn
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     accuracy_score,
@@ -36,6 +41,7 @@ CLUSTERING_INIT_METHODS = ["k-means++", "random"]
 CLUSTERING_N_INIT_VALUES = [10]
 CLUSTERING_SAMPLE_SIZE = 50_000
 CLUSTERING_SILHOUETTE_SAMPLE_SIZE = 10_000
+PCA_PLOT_SAMPLE_SIZE = 10_000
 
 
 def print_class_distribution(labels: pd.Series, title: str) -> None:
@@ -160,6 +166,7 @@ def export_clustering_results(features: pd.DataFrame, labels: pd.Series) -> None
 
     scaled_features = StandardScaler().fit_transform(sampled_features)
     results = []
+    cluster_assignments_by_config = {}
 
     for k_value in CLUSTERING_K_VALUES:
         if k_value >= sample_size:
@@ -174,6 +181,8 @@ def export_clustering_results(features: pd.DataFrame, labels: pd.Series) -> None
                     random_state=RANDOM_SEED,
                 )
                 clusters = kmeans.fit_predict(scaled_features)
+                config_key = (k_value, init_method, n_init)
+                cluster_assignments_by_config[config_key] = clusters
 
                 results.append(
                     {
@@ -200,6 +209,12 @@ def export_clustering_results(features: pd.DataFrame, labels: pd.Series) -> None
         return
 
     best_result = max(results, key=lambda item: item["silhouetteScore"])
+    best_config_key = (
+        best_result["k"],
+        best_result["initializationMethod"],
+        best_result["nInit"],
+    )
+    best_clusters = cluster_assignments_by_config[best_config_key]
     tested_k_values = sorted({item["k"] for item in results})
     for result in results:
         result["testedKValues"] = tested_k_values
@@ -220,6 +235,8 @@ def export_clustering_results(features: pd.DataFrame, labels: pd.Series) -> None
         "selectionMetric": "silhouetteScore",
         "testedKValues": tested_k_values,
         "bestK": int(best_result["k"]),
+        "pcaClusterPlotPath": "ml/results/kmeans_pca_clusters.png",
+        "pcaTrueLabelPlotPath": "ml/results/kmeans_pca_true_labels.png",
         "clusteringResults": results,
     }
 
@@ -229,7 +246,80 @@ def export_clustering_results(features: pd.DataFrame, labels: pd.Series) -> None
         json.dump(payload, file, indent=2, default=float)
 
     pd.DataFrame(results).to_csv(csv_path, index=False)
+    export_pca_clustering_plots(scaled_features, sampled_labels, best_clusters, best_result)
     print(f"Saved clustering results to {json_path}")
+
+
+def export_pca_clustering_plots(
+    scaled_features,
+    true_labels: pd.Series,
+    clusters,
+    best_result: dict,
+) -> None:
+    pca_coordinates = PCA(n_components=2, random_state=RANDOM_SEED).fit_transform(scaled_features)
+    plot_data = pd.DataFrame(
+        {
+            "pca1": pca_coordinates[:, 0],
+            "pca2": pca_coordinates[:, 1],
+            "cluster": clusters,
+            "isFraud": true_labels.astype(int).to_numpy(),
+        }
+    )
+
+    if len(plot_data) > PCA_PLOT_SAMPLE_SIZE:
+        plot_data = plot_data.sample(n=PCA_PLOT_SAMPLE_SIZE, random_state=RANDOM_SEED)
+
+    cluster_plot_path = RESULTS_DIR / "kmeans_pca_clusters.png"
+    true_label_plot_path = RESULTS_DIR / "kmeans_pca_true_labels.png"
+    title_suffix = (
+        f"k={best_result['k']}, init={best_result['initializationMethod']}, "
+        f"n_init={best_result['nInit']}"
+    )
+
+    save_pca_scatter_plot(
+        plot_data,
+        color_column="cluster",
+        title=f"KMeans clusters projected with PCA ({title_suffix})",
+        colorbar_label="Cluster",
+        output_path=cluster_plot_path,
+    )
+    save_pca_scatter_plot(
+        plot_data,
+        color_column="isFraud",
+        title="True fraud labels projected with PCA",
+        colorbar_label="isFraud",
+        output_path=true_label_plot_path,
+    )
+    print(f"Saved PCA clustering plots to {cluster_plot_path} and {true_label_plot_path}")
+
+
+def save_pca_scatter_plot(
+    plot_data: pd.DataFrame,
+    *,
+    color_column: str,
+    title: str,
+    colorbar_label: str,
+    output_path: Path,
+) -> None:
+    fig, ax = plt.subplots(figsize=(9, 6))
+    scatter = ax.scatter(
+        plot_data["pca1"],
+        plot_data["pca2"],
+        c=plot_data[color_column],
+        cmap="tab10" if color_column == "cluster" else "coolwarm",
+        s=8,
+        alpha=0.7,
+        linewidths=0,
+    )
+    ax.set_title(title)
+    ax.set_xlabel("Principal component 1")
+    ax.set_ylabel("Principal component 2")
+    ax.grid(alpha=0.2)
+    colorbar = fig.colorbar(scatter, ax=ax)
+    colorbar.set_label(colorbar_label)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
 
 
 def load_dataset() -> pd.DataFrame:
