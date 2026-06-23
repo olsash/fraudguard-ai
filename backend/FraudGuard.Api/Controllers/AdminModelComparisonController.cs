@@ -14,6 +14,8 @@ public class AdminModelComparisonController : ControllerBase
 {
     private const string JsonResultsRelativePath = "ml/results/model_comparison_results.json";
     private const string CsvResultsRelativePath = "ml/results/model_comparison_results.csv";
+    private const string JsonClusteringResultsRelativePath = "ml/results/clustering_results.json";
+    private const string CsvClusteringResultsRelativePath = "ml/results/clustering_results.csv";
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -57,6 +59,7 @@ public class AdminModelComparisonController : ControllerBase
             }
 
             NormalizeResults(results);
+            results.ClusteringResults = await ReadClusteringResultsIfAvailableAsync(cancellationToken);
             return Ok(results);
         }
         catch (JsonException ex)
@@ -93,6 +96,14 @@ public class AdminModelComparisonController : ControllerBase
             .FirstOrDefault(System.IO.File.Exists);
     }
 
+    private string? ResolveClusteringResultsPath()
+    {
+        return new[] { _environment.ContentRootPath, Directory.GetCurrentDirectory() }
+            .SelectMany(GetClusteringCandidatePaths)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(System.IO.File.Exists);
+    }
+
     private static IEnumerable<string> GetCandidatePaths(string startPath)
     {
         var directory = new DirectoryInfo(startPath);
@@ -101,6 +112,18 @@ public class AdminModelComparisonController : ControllerBase
         {
             yield return Path.Combine(directory.FullName, JsonResultsRelativePath);
             yield return Path.Combine(directory.FullName, CsvResultsRelativePath);
+            directory = directory.Parent;
+        }
+    }
+
+    private static IEnumerable<string> GetClusteringCandidatePaths(string startPath)
+    {
+        var directory = new DirectoryInfo(startPath);
+
+        while (directory is not null)
+        {
+            yield return Path.Combine(directory.FullName, JsonClusteringResultsRelativePath);
+            yield return Path.Combine(directory.FullName, CsvClusteringResultsRelativePath);
             directory = directory.Parent;
         }
     }
@@ -161,6 +184,80 @@ public class AdminModelComparisonController : ControllerBase
         };
     }
 
+    private async Task<List<ClusteringResultDto>> ReadClusteringResultsIfAvailableAsync(CancellationToken cancellationToken)
+    {
+        var clusteringPath = ResolveClusteringResultsPath();
+        if (clusteringPath is null)
+        {
+            return [];
+        }
+
+        try
+        {
+            return Path.GetExtension(clusteringPath).Equals(".csv", StringComparison.OrdinalIgnoreCase)
+                ? await ReadClusteringCsvResultsAsync(clusteringPath, cancellationToken)
+                : await ReadClusteringJsonResultsAsync(clusteringPath, cancellationToken);
+        }
+        catch (Exception ex) when (ex is JsonException or IOException or InvalidDataException)
+        {
+            _logger.LogError(ex, "Clustering results file could not be read: {ClusteringPath}", clusteringPath);
+            throw new InvalidDataException("Clustering results file exists but could not be read or parsed.");
+        }
+    }
+
+    private static async Task<List<ClusteringResultDto>> ReadClusteringJsonResultsAsync(string resultsPath, CancellationToken cancellationToken)
+    {
+        await using var stream = System.IO.File.OpenRead(resultsPath);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+        var root = document.RootElement;
+        var rows = root.ValueKind == JsonValueKind.Array
+            ? root.EnumerateArray()
+            : ReadJsonArray(root, "clusteringResults", "results", "models", "clusters");
+
+        return rows
+            .Select(ReadClusteringJsonRow)
+            .Where(result => !string.IsNullOrWhiteSpace(result.AlgorithmName))
+            .ToList();
+    }
+
+    private static async Task<List<ClusteringResultDto>> ReadClusteringCsvResultsAsync(string resultsPath, CancellationToken cancellationToken)
+    {
+        var lines = await System.IO.File.ReadAllLinesAsync(resultsPath, cancellationToken);
+        if (lines.Length < 2)
+        {
+            throw new InvalidDataException("Clustering results CSV is empty or missing result rows.");
+        }
+
+        var headers = ParseCsvLine(lines[0])
+            .Select(NormalizeHeader)
+            .ToArray();
+
+        return lines
+            .Skip(1)
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .Select(line =>
+            {
+                var values = ParseCsvLine(line);
+                var row = headers
+                    .Select((header, index) => new { header, value = index < values.Count ? values[index] : string.Empty })
+                    .Where(item => !string.IsNullOrWhiteSpace(item.header))
+                    .ToDictionary(item => item.header, item => item.value, StringComparer.OrdinalIgnoreCase);
+
+                return new ClusteringResultDto
+                {
+                    AlgorithmName = ReadString(row, "algorithmname", "algorithm", "modelname", "model"),
+                    TestedKValues = ReadIntList(ReadString(row, "testedkvalues", "testedk", "kvalues", "clusters")),
+                    BestK = ReadOptionalInt(row, "bestk", "selectedk", "k"),
+                    SilhouetteScore = ReadOptionalDouble(row, "silhouettescore", "silhouette"),
+                    Inertia = ReadOptionalDouble(row, "inertia"),
+                    AdjustedRandIndex = ReadOptionalDouble(row, "adjustedrandindex", "ari"),
+                    IsBest = ReadBoolean(row, "isbest", "best")
+                };
+            })
+            .Where(result => !string.IsNullOrWhiteSpace(result.AlgorithmName))
+            .ToList();
+    }
+
     private static void NormalizeResults(ModelComparisonResultsDto results)
     {
         if (string.IsNullOrWhiteSpace(results.BestModelName))
@@ -181,6 +278,164 @@ public class AdminModelComparisonController : ControllerBase
                 || model.Status.Equals("Best Model", StringComparison.OrdinalIgnoreCase)
                 || model.ModelName.Equals(results.BestModelName, StringComparison.OrdinalIgnoreCase);
         }
+    }
+
+    private static IEnumerable<JsonElement> ReadJsonArray(JsonElement root, params string[] propertyNames)
+    {
+        foreach (var propertyName in propertyNames)
+        {
+            if (TryGetProperty(root, propertyName, out var property) && property.ValueKind == JsonValueKind.Array)
+            {
+                return property.EnumerateArray();
+            }
+        }
+
+        return [];
+    }
+
+    private static ClusteringResultDto ReadClusteringJsonRow(JsonElement row)
+    {
+        return new ClusteringResultDto
+        {
+            AlgorithmName = ReadJsonString(row, "algorithmName", "algorithm", "modelName", "model"),
+            TestedKValues = ReadJsonIntList(row, "testedKValues", "testedK", "kValues", "clusters"),
+            BestK = ReadJsonInt(row, "bestK", "selectedK", "k"),
+            SilhouetteScore = ReadJsonDouble(row, "silhouetteScore", "silhouette"),
+            Inertia = ReadJsonDouble(row, "inertia"),
+            AdjustedRandIndex = ReadJsonDouble(row, "adjustedRandIndex", "ari"),
+            IsBest = ReadJsonBool(row, "isBest", "best")
+        };
+    }
+
+    private static string ReadJsonString(JsonElement row, params string[] propertyNames)
+    {
+        foreach (var propertyName in propertyNames)
+        {
+            if (TryGetProperty(row, propertyName, out var property))
+            {
+                return property.ValueKind == JsonValueKind.String
+                    ? property.GetString() ?? string.Empty
+                    : property.ToString();
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static int? ReadJsonInt(JsonElement row, params string[] propertyNames)
+    {
+        foreach (var propertyName in propertyNames)
+        {
+            if (TryGetProperty(row, propertyName, out var property))
+            {
+                if (property.ValueKind == JsonValueKind.Number && property.TryGetInt32(out var numericValue))
+                {
+                    return numericValue;
+                }
+
+                if (property.ValueKind == JsonValueKind.String && int.TryParse(property.GetString(), out var stringValue))
+                {
+                    return stringValue;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static double? ReadJsonDouble(JsonElement row, params string[] propertyNames)
+    {
+        foreach (var propertyName in propertyNames)
+        {
+            if (TryGetProperty(row, propertyName, out var property))
+            {
+                if (property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out var numericValue))
+                {
+                    return numericValue;
+                }
+
+                if (property.ValueKind == JsonValueKind.String
+                    && double.TryParse(property.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var stringValue))
+                {
+                    return stringValue;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static bool ReadJsonBool(JsonElement row, params string[] propertyNames)
+    {
+        foreach (var propertyName in propertyNames)
+        {
+            if (TryGetProperty(row, propertyName, out var property))
+            {
+                if (property.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                {
+                    return property.GetBoolean();
+                }
+
+                if (property.ValueKind == JsonValueKind.String)
+                {
+                    var raw = property.GetString()?.Trim().ToLowerInvariant();
+                    return raw is "true" or "1" or "yes" or "best";
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static List<int> ReadJsonIntList(JsonElement row, params string[] propertyNames)
+    {
+        foreach (var propertyName in propertyNames)
+        {
+            if (TryGetProperty(row, propertyName, out var property))
+            {
+                if (property.ValueKind == JsonValueKind.Array)
+                {
+                    return property.EnumerateArray()
+                        .Select(item => item.ValueKind == JsonValueKind.Number && item.TryGetInt32(out var value) ? value : (int?)null)
+                        .Where(value => value.HasValue)
+                        .Select(value => value!.Value)
+                        .Distinct()
+                        .OrderBy(value => value)
+                        .ToList();
+                }
+
+                return ReadIntList(property.ValueKind == JsonValueKind.String ? property.GetString() ?? string.Empty : property.ToString());
+            }
+        }
+
+        return [];
+    }
+
+    private static bool TryGetProperty(JsonElement element, string propertyName, out JsonElement property)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            property = default;
+            return false;
+        }
+
+        if (element.TryGetProperty(propertyName, out property))
+        {
+            return true;
+        }
+
+        var normalizedName = NormalizeHeader(propertyName);
+        foreach (var item in element.EnumerateObject())
+        {
+            if (NormalizeHeader(item.Name) == normalizedName)
+            {
+                property = item.Value;
+                return true;
+            }
+        }
+
+        property = default;
+        return false;
     }
 
     private static List<string> ParseCsvLine(string line)
@@ -266,6 +521,18 @@ public class AdminModelComparisonController : ControllerBase
     {
         var raw = ReadString(row, keys);
         return int.TryParse(raw, out var value) ? value : null;
+    }
+
+    private static List<int> ReadIntList(string raw)
+    {
+        return raw
+            .Split([',', ';', '|', ' ', '[', ']'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => int.TryParse(value, out var parsed) ? parsed : (int?)null)
+            .Where(value => value.HasValue)
+            .Select(value => value!.Value)
+            .Distinct()
+            .OrderBy(value => value)
+            .ToList();
     }
 
     private static ModelHyperparametersDto? ReadHyperparameters(Dictionary<string, string> row)

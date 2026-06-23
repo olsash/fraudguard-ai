@@ -28,6 +28,16 @@ export interface ModelComparisonItem {
   selectedHyperparameters?: Record<string, unknown> | null;
 }
 
+export interface ClusteringResult {
+  algorithmName: string;
+  testedKValues: number[];
+  bestK?: number | null;
+  silhouetteScore?: number | null;
+  inertia?: number | null;
+  adjustedRandIndex?: number | null;
+  isBest?: boolean;
+}
+
 export interface ModelComparisonResults {
   datasetName: string;
   problemType: string;
@@ -36,4 +46,5 @@ export interface ModelComparisonResults {
   bestModelReason: string;
   evaluationSource?: Record<string, unknown> | null;
   models: ModelComparisonItem[];
+  clusteringResults?: ClusteringResult[];
 }

@@ -11,6 +11,7 @@ public class ModelComparisonResultsDto
     public string BestModelReason { get; set; } = string.Empty;
     public Dictionary<string, JsonElement>? EvaluationSource { get; set; }
     public List<ModelComparisonItemDto> Models { get; set; } = [];
+    public List<ClusteringResultDto> ClusteringResults { get; set; } = [];
 }
 
 public class ModelComparisonItemDto
@@ -54,4 +55,15 @@ public class ModelHyperparametersDto
 {
     public Dictionary<string, JsonElement> Tested { get; set; } = [];
     public Dictionary<string, JsonElement> Selected { get; set; } = [];
+}
+
+public class ClusteringResultDto
+{
+    public string AlgorithmName { get; set; } = string.Empty;
+    public List<int> TestedKValues { get; set; } = [];
+    public int? BestK { get; set; }
+    public double? SilhouetteScore { get; set; }
+    public double? Inertia { get; set; }
+    public double? AdjustedRandIndex { get; set; }
+    public bool IsBest { get; set; }
 }

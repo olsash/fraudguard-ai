@@ -1,6 +1,6 @@
 import { Topbar } from "@/components/layout/Topbar";
 import { adminModelComparisonService } from "@/services/adminModelComparisonService";
-import type { ModelComparisonItem, ModelComparisonResults } from "@/types/modelComparison";
+import type { ClusteringResult, ModelComparisonItem, ModelComparisonResults } from "@/types/modelComparison";
 import { Award, BarChart3, Database, Eye, Loader2, Target, Trophy, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -102,6 +102,8 @@ export default function AdminModelComparisonPage() {
                 </ChartCard>
               </section>
             )}
+
+            <ClusteringResultsSection clusteringResults={results.clusteringResults ?? []} />
 
             <section className="glass rounded-2xl overflow-hidden">
               <div className="px-5 py-3 border-b border-border flex items-center gap-2">
@@ -273,6 +275,55 @@ function StatusBadge({ status }: { status: string }) {
   return <span className="rounded bg-secondary/70 px-2 py-1 text-[10px] uppercase text-muted-foreground">{status}</span>;
 }
 
+function ClusteringResultsSection({ clusteringResults }: { clusteringResults: ClusteringResult[] }) {
+  return (
+    <section className="glass rounded-2xl overflow-hidden">
+      <div className="px-5 py-3 border-b border-border flex flex-wrap items-center gap-2">
+        <BarChart3 className="h-4 w-4 text-primary" />
+        <span className="text-sm font-display font-semibold">Clustering results</span>
+        <span className="ml-auto text-xs text-muted-foreground">{clusteringResults.length} unsupervised result{clusteringResults.length === 1 ? "" : "s"}</span>
+      </div>
+      <div className="px-5 pt-4 text-sm text-muted-foreground leading-6">
+        Clustering was performed without using the target label. The model groups transactions from feature patterns only; the real `isFraud` label is used afterward only to evaluate alignment with adjusted rand index when that metric is exported.
+      </div>
+      {clusteringResults.length === 0 ? (
+        <div className="px-5 py-8 text-sm text-muted-foreground">
+          No clustering results export was found in the ML results folder. Export `ml/results/clustering_results.json` or `ml/results/clustering_results.csv` to display these metrics.
+        </div>
+      ) : (
+        <div className="overflow-x-auto mt-4">
+          <table className="w-full text-sm min-w-[820px]">
+            <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <Th>Algorithm</Th>
+                <Th>Tested k values</Th>
+                <Th>Best k</Th>
+                <Th>Silhouette score</Th>
+                <Th>Inertia</Th>
+                <Th>Adjusted rand index</Th>
+                <Th>Status</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {clusteringResults.map((result, index) => (
+                <tr key={`${result.algorithmName}-${result.bestK ?? index}`} className={`border-t border-border hover:bg-secondary/40 ${result.isBest ? "bg-primary/5" : ""}`}>
+                  <Td><span className="font-medium">{result.algorithmName}</span></Td>
+                  <Td><span className="font-mono text-xs">{result.testedKValues.length ? result.testedKValues.join(", ") : "-"}</span></Td>
+                  <Td><span className="font-mono">{result.bestK ?? "-"}</span></Td>
+                  <Td><span className="font-mono">{formatDecimalMetric(result.silhouetteScore)}</span></Td>
+                  <Td><span className="font-mono">{formatNumberMetric(result.inertia)}</span></Td>
+                  <Td><span className="font-mono">{formatDecimalMetric(result.adjustedRandIndex)}</span></Td>
+                  <Td>{result.isBest ? <BestBadge /> : <StatusBadge status="Tested" />}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SelectedHyperparameters({ model }: { model: ModelComparisonItem }) {
   const rows = buildHyperparameterRows(model, "selected")
     .filter((row) => row.value !== "Not documented")
@@ -407,6 +458,14 @@ function formatPercentValue(value?: number) {
 
 function formatCount(value?: number) {
   return typeof value === "number" ? value.toLocaleString() : "-";
+}
+
+function formatDecimalMetric(value?: number | null) {
+  return typeof value === "number" ? value.toFixed(4) : "-";
+}
+
+function formatNumberMetric(value?: number | null) {
+  return typeof value === "number" ? value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "-";
 }
 
 function isBestModel(model: ModelComparisonItem, bestModelName: string) {
