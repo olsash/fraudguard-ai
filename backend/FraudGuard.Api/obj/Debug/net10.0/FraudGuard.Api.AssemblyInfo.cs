@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FraudGuard.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+95f760fb9aa724015895bc59e7538bb57337c652")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2b033f6475931cc9fd3021575e274251c6a0c539")]
 [assembly: System.Reflection.AssemblyProductAttribute("FraudGuard.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FraudGuard.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

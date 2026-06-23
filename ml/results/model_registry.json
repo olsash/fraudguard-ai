@@ -1,0 +1,120 @@
+{
+  "models": [
+    {
+      "id": "random_forest",
+      "displayName": "Random Forest",
+      "version": "v1.0.0",
+      "status": "idle",
+      "isActive": false,
+      "isEnabled": true,
+      "accuracy": 98.36,
+      "precision": 91.24,
+      "recall": 99.57,
+      "f1Score": 95.23,
+      "rocAuc": 99.89,
+      "lastTrainedAt": "2026-07-03T14:59:52.637831+00:00",
+      "lastBenchmarkedAt": "2026-07-03T15:49:32.022652+00:00",
+      "artifactPath": "ml/models/random_forest.pkl",
+      "notes": "Tree ensemble that reduces variance and models non-linear interactions.",
+      "confusionMatrix": {
+        "trueNegatives": 8200,
+        "falsePositives": 157,
+        "falseNegatives": 7,
+        "truePositives": 1636
+      }
+    },
+    {
+      "id": "decision_tree",
+      "displayName": "Decision Tree",
+      "version": "v1.0.1",
+      "status": "idle",
+      "isActive": false,
+      "isEnabled": true,
+      "accuracy": 99.43,
+      "precision": 97.66,
+      "recall": 98.9,
+      "f1Score": 98.28,
+      "rocAuc": 99.25,
+      "lastTrainedAt": "2026-07-03T15:09:30.964314+00:00",
+      "lastBenchmarkedAt": "2026-07-03T15:09:30.964346+00:00",
+      "artifactPath": "ml/models/decision_tree.pkl",
+      "notes": "Rule-based classifier that captures non-linear thresholds.",
+      "confusionMatrix": {
+        "trueNegatives": 8318,
+        "falsePositives": 39,
+        "falseNegatives": 18,
+        "truePositives": 1625
+      }
+    },
+    {
+      "id": "knn",
+      "displayName": "KNN",
+      "version": "v1.0.1",
+      "status": "idle",
+      "isActive": false,
+      "isEnabled": true,
+      "accuracy": 97.51,
+      "precision": 91.49,
+      "recall": 93.55,
+      "f1Score": 92.51,
+      "rocAuc": 97.84,
+      "lastTrainedAt": "2026-07-03T15:08:10.523422+00:00",
+      "lastBenchmarkedAt": "2026-07-03T15:08:10.523450+00:00",
+      "artifactPath": "ml/models/knn.pkl",
+      "notes": "Distance-based classifier for local transaction similarity.",
+      "confusionMatrix": {
+        "trueNegatives": 8214,
+        "falsePositives": 143,
+        "falseNegatives": 106,
+        "truePositives": 1537
+      }
+    },
+    {
+      "id": "neural_network",
+      "displayName": "Neural Network / MLPClassifier",
+      "version": "v1.0.2",
+      "status": "disabled",
+      "isActive": false,
+      "isEnabled": false,
+      "accuracy": 88.8,
+      "precision": 74.6,
+      "recall": 48.27,
+      "f1Score": 58.61,
+      "rocAuc": 91.32,
+      "lastTrainedAt": "2026-07-03T15:34:26.906342+00:00",
+      "lastBenchmarkedAt": "2026-07-03T15:34:26.906361+00:00",
+      "artifactPath": "ml/models/neural_network.pkl",
+      "notes": "Multilayer perceptron for non-linear decision boundaries.",
+      "confusionMatrix": {
+        "trueNegatives": 8087,
+        "falsePositives": 270,
+        "falseNegatives": 850,
+        "truePositives": 793
+      }
+    },
+    {
+      "id": "logistic_regression",
+      "displayName": "Logistic Regression",
+      "version": "v1.0.1",
+      "status": "live",
+      "isActive": true,
+      "isEnabled": true,
+      "accuracy": 72.15,
+      "precision": 36.88,
+      "recall": 97.69,
+      "f1Score": 53.54,
+      "rocAuc": 97.45,
+      "lastTrainedAt": "2026-07-03T15:45:32.824392+00:00",
+      "lastBenchmarkedAt": "2026-07-03T15:45:32.824405+00:00",
+      "artifactPath": "ml/models/logistic_regression.pkl",
+      "notes": "Interpretable baseline classifier with balanced class weights.",
+      "confusionMatrix": {
+        "trueNegatives": 5610,
+        "falsePositives": 2747,
+        "falseNegatives": 38,
+        "truePositives": 1605
+      }
+    }
+  ],
+  "updatedAt": "2026-07-03T15:49:32.024926+00:00"
+}

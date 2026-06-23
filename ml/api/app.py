@@ -1,12 +1,14 @@
 from pathlib import Path
 import json
+import logging
 import math
 import sys
 from typing import Literal
 
 import joblib
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 # Support both documented startup forms:
@@ -24,11 +26,46 @@ from ml.paths import (
     resolve_repo_path,
 )
 from ml.preprocessing import preprocess_prediction_data, validate_encoded_columns
+from ml.model_registry import (
+    ModelRegistryError,
+    active_artifact_path,
+    activate_model,
+    benchmark_model,
+    disable_model,
+    enable_model,
+    get_model,
+    get_models,
+    retrain_model,
+)
 
 
 TRANSACTION_TYPES = ["CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"]
+LOGGER = logging.getLogger("fraudguard.ml_api")
 
 app = FastAPI(title="FraudGuard ML Prediction Service")
+
+
+@app.exception_handler(ModelRegistryError)
+async def model_registry_exception_handler(_: Request, exc: ModelRegistryError):
+    LOGGER.warning("model registry request failed model_id=%s status=%s message=%s", exc.model_id, exc.status_code, exc.message)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "message": exc.message,
+            "modelId": exc.model_id,
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def unexpected_exception_handler(request: Request, exc: Exception):
+    LOGGER.exception("unexpected ML service error path=%s", request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "message": "ML service failed while processing the model request. Check the Python service logs."
+        },
+    )
 
 
 class PredictionRequest(BaseModel):
@@ -112,6 +149,17 @@ def validate_model_feature_alignment(model, columns: list[str]) -> None:
 
 
 def resolve_best_model_metadata() -> tuple[Path, dict]:
+    try:
+        model_path, active_model = active_artifact_path()
+        return model_path, {
+            "modelName": active_model.get("displayName"),
+            "trainingDateUtc": active_model.get("lastTrainedAt"),
+            "modelId": active_model.get("id"),
+            "version": active_model.get("version"),
+        }
+    except ModelRegistryError:
+        pass
+
     if not BEST_MODEL_REGISTRY_PATH.exists():
         return COMPATIBILITY_MODEL_PATH, {}
 
@@ -431,6 +479,48 @@ def health():
         scalerArtifactExists=scaler_exists,
         modelName=metadata.get("modelName"),
     )
+
+
+@app.get("/models")
+def list_models():
+    LOGGER.info("model action=list")
+    return get_models()
+
+
+@app.get("/models/{model_id}")
+def model_details(model_id: str):
+    LOGGER.info("model action=details model_id=%s", model_id)
+    return get_model(model_id)
+
+
+@app.post("/models/{model_id}/benchmark")
+def run_model_benchmark(model_id: str):
+    LOGGER.info("model action=benchmark model_id=%s", model_id)
+    return benchmark_model(model_id)
+
+
+@app.post("/models/{model_id}/retrain")
+def run_model_retrain(model_id: str):
+    LOGGER.info("model action=retrain model_id=%s", model_id)
+    return retrain_model(model_id)
+
+
+@app.post("/models/{model_id}/enable")
+def enable_registered_model(model_id: str):
+    LOGGER.info("model action=enable model_id=%s", model_id)
+    return enable_model(model_id)
+
+
+@app.post("/models/{model_id}/disable")
+def disable_registered_model(model_id: str):
+    LOGGER.info("model action=disable model_id=%s", model_id)
+    return disable_model(model_id)
+
+
+@app.post("/models/{model_id}/activate")
+def activate_registered_model(model_id: str):
+    LOGGER.info("model action=activate model_id=%s", model_id)
+    return activate_model(model_id)
 
 
 @app.post("/predict", response_model=PredictionResponse)
