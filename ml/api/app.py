@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import math
 from typing import Literal
 
@@ -11,7 +12,9 @@ from ml.preprocessing import preprocess_prediction_data
 
 
 ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = ROOT.parent
 MODEL_PATH = ROOT / "models" / "fraud_model.pkl"
+BEST_MODEL_REGISTRY_PATH = ROOT / "results" / "best_model_registry.json"
 COLUMNS_PATH = ROOT / "models" / "columns.pkl"
 SCALER_PATH = ROOT / "models" / "scaler.pkl"
 TRANSACTION_TYPES = ["CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"]
@@ -39,11 +42,33 @@ class PredictionResponse(BaseModel):
 
 
 def load_artifacts():
-    if not MODEL_PATH.exists() or not COLUMNS_PATH.exists():
+    model_path = resolve_best_model_path()
+    if not model_path.exists() or not COLUMNS_PATH.exists():
         raise HTTPException(status_code=503, detail="Model artifacts are not available. Run train_model.py first.")
 
     scaler = joblib.load(SCALER_PATH) if SCALER_PATH.exists() else None
-    return joblib.load(MODEL_PATH), joblib.load(COLUMNS_PATH), scaler
+    return joblib.load(model_path), joblib.load(COLUMNS_PATH), scaler
+
+
+def resolve_best_model_path() -> Path:
+    if not BEST_MODEL_REGISTRY_PATH.exists():
+        return MODEL_PATH
+
+    try:
+        with BEST_MODEL_REGISTRY_PATH.open("r", encoding="utf-8") as file:
+            registry = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return MODEL_PATH
+
+    artifact = registry.get("modelArtifact")
+    if not isinstance(artifact, str) or not artifact.strip():
+        return MODEL_PATH
+
+    artifact_path = Path(artifact)
+    if artifact_path.is_absolute():
+        return artifact_path
+
+    return PROJECT_ROOT / artifact_path
 
 
 def validate_prediction_input(request: PredictionRequest) -> None:

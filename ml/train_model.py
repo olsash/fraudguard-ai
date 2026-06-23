@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime, timezone
 import hashlib
 import json
 
@@ -87,6 +88,13 @@ def evaluate_classifier(model_name: str, model, x_train, y_train, x_test, y_test
     return metrics, model
 
 
+def select_best_model(evaluated_models: list[tuple[dict, object]], selected_metric: str = "f1") -> tuple[dict, object]:
+    if not evaluated_models:
+        raise ValueError("No evaluated models are available for best model selection.")
+
+    return max(evaluated_models, key=lambda item: item[0].get(selected_metric, 0))
+
+
 def print_metrics(metrics: dict) -> None:
     print(f"\n{metrics['model']}")
     for metric_name in ["accuracy", "precision", "recall", "f1", "roc_auc"]:
@@ -152,6 +160,29 @@ def export_feature_importance(model, feature_columns: list[str]) -> None:
 
     feature_importance.to_csv(RESULTS_DIR / "feature_importance_results.csv", index=False)
     print(f"Saved feature importance results to {RESULTS_DIR / 'feature_importance_results.json'}")
+
+
+def export_best_model_registry(best_metrics: dict, best_model, feature_columns: list[str]) -> None:
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    selected_metric = "f1"
+    registry = {
+        "source": "ml/train_model.py",
+        "modelName": best_metrics["model"],
+        "selectedMetric": selected_metric,
+        "metricScore": float(best_metrics[selected_metric]),
+        "selectedHyperparameters": best_model.get_params(),
+        "trainingDateUtc": datetime.now(timezone.utc).isoformat(),
+        "featureColumns": feature_columns,
+        "modelArtifact": "ml/models/best_model.pkl",
+        "compatibilityModelArtifact": "ml/models/fraud_model.pkl",
+        "columnsArtifact": "ml/models/columns.pkl",
+        "scalerArtifact": "ml/models/scaler.pkl",
+    }
+
+    with (RESULTS_DIR / "best_model_registry.json").open("w", encoding="utf-8") as file:
+        json.dump(registry, file, indent=2, default=str)
+
+    print(f"Saved best model registry to {RESULTS_DIR / 'best_model_registry.json'}")
 
 
 def export_clustering_results(features: pd.DataFrame, labels: pd.Series) -> None:
@@ -360,7 +391,7 @@ def main() -> None:
         stratify=y if y.nunique() > 1 else None,
     )
 
-    baseline_metrics, _ = evaluate_classifier(
+    baseline_metrics, baseline_model = evaluate_classifier(
         "Random Forest - baseline without class_weight",
         RandomForestClassifier(
             n_estimators=80,
@@ -373,7 +404,7 @@ def main() -> None:
         x_test,
         y_test,
     )
-    balanced_metrics, model = evaluate_classifier(
+    balanced_metrics, balanced_model = evaluate_classifier(
         "Random Forest - class_weight=balanced",
         RandomForestClassifier(
             n_estimators=80,
@@ -392,11 +423,20 @@ def main() -> None:
     print_metrics(baseline_metrics)
     print_metrics(balanced_metrics)
 
+    evaluated_models = [
+        (baseline_metrics, baseline_model),
+        (balanced_metrics, balanced_model),
+    ]
+    best_metrics, best_model = select_best_model(evaluated_models, selected_metric="f1")
+    print(f"\nSelected best model by F1-score: {best_metrics['model']} ({best_metrics['f1']:.4f})")
+
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, MODEL_DIR / "fraud_model.pkl")
+    joblib.dump(best_model, MODEL_DIR / "best_model.pkl")
+    joblib.dump(best_model, MODEL_DIR / "fraud_model.pkl")
     joblib.dump(preprocessing_artifacts.columns, MODEL_DIR / "columns.pkl")
     joblib.dump(preprocessing_artifacts.scaler, MODEL_DIR / "scaler.pkl")
-    export_feature_importance(model, preprocessing_artifacts.columns)
+    export_feature_importance(best_model, preprocessing_artifacts.columns)
+    export_best_model_registry(best_metrics, best_model, preprocessing_artifacts.columns)
     export_clustering_results(x, y)
 
     metadata = {
@@ -410,13 +450,14 @@ def main() -> None:
         "target": TARGET,
         "model": {
             "type": "RandomForestClassifier",
-            "parameters": model.get_params(),
+            "parameters": best_model.get_params(),
         },
+        "best_model_registry": "ml/results/best_model_registry.json",
         "imbalance_handling": {
             "baseline_metrics": baseline_metrics,
             "balanced_metrics": balanced_metrics,
         },
-        "metrics": balanced_metrics,
+        "metrics": best_metrics,
     }
 
     with (MODEL_DIR / "training_metadata.json").open("w", encoding="utf-8") as metadata_file:
