@@ -75,7 +75,7 @@ public class PredictionsController : ControllerBase
         await CreatePredictionAlertAsync(prediction, result.FraudProbability, cancellationToken);
         await _systemLogService.LogAsync("Success", "prediction", $"Prediction PR-{prediction.Id} created with risk score {prediction.RiskScore}/100.", prediction.UserId, null, cancellationToken);
 
-        return Ok(ToResponse(prediction, result.FraudProbability, result.Confidence, result.Reasons));
+        return Ok(ToResponse(prediction, result.FraudProbability, result.Confidence, result.Reasons, result));
     }
 
     [HttpPost("predict-transaction/{transactionId:int}")]
@@ -135,6 +135,9 @@ public class PredictionsController : ControllerBase
             RiskLevel = prediction.RiskLevel,
             Status = transaction.Status,
             Confidence = prediction.Confidence,
+            ModelName = result.ModelName,
+            ModelTrainingDate = result.ModelTrainingDate,
+            PredictedClass = prediction.IsFraud ? "Fraud" : "Not fraud",
             Explanation = result.Reasons,
             CreatedAt = prediction.CreatedAt
         });
@@ -185,7 +188,7 @@ public class PredictionsController : ControllerBase
         return ToResponse(prediction, prediction.RiskScore / 100.0, Math.Max(prediction.RiskScore / 100.0, 1 - prediction.RiskScore / 100.0), ReadReasons(prediction.Explanation));
     }
 
-    private static PredictionResponse ToResponse(Prediction prediction, double fraudProbability, double confidence, string[] reasons)
+    private static PredictionResponse ToResponse(Prediction prediction, double fraudProbability, double confidence, string[] reasons, PythonPredictionResult? modelResult = null)
     {
         return new PredictionResponse
         {
@@ -208,8 +211,12 @@ public class PredictionsController : ControllerBase
             RiskScore = prediction.RiskScore,
             RiskLevel = prediction.RiskLevel,
             IsFraud = prediction.IsFraud,
+            PredictedClass = modelResult?.PredictedClass ?? (prediction.IsFraud ? "Fraud" : "Not fraud"),
             Confidence = prediction.Confidence == 0 ? confidence : prediction.Confidence,
             Reasons = reasons,
+            ExplanationFactors = modelResult?.ExplanationFactors.Length > 0 ? modelResult.ExplanationFactors : reasons,
+            ModelName = modelResult?.ModelName,
+            ModelTrainingDate = modelResult?.ModelTrainingDate,
             SuggestedAction = prediction.SuggestedAction,
             CreatedAt = prediction.CreatedAt
         };
@@ -258,7 +265,9 @@ public class PredictionsController : ControllerBase
                 MapStatus(riskScore),
                 reasons.Length == 0 ? ruleResult.Reasons : reasons,
                 SuggestedActionForScore(riskScore),
-                mlResult.Confidence);
+                mlResult.Confidence,
+                mlResult.ModelName,
+                mlResult.ModelTrainingDate);
         }
         catch (PredictionServiceUnavailableException)
         {
@@ -512,5 +521,5 @@ public class PredictionsController : ControllerBase
             .ToArray();
     }
 
-    private sealed record TransactionRiskResult(int RiskScore, string RiskLevel, string Status, string[] Reasons, string SuggestedAction, double Confidence);
+    private sealed record TransactionRiskResult(int RiskScore, string RiskLevel, string Status, string[] Reasons, string SuggestedAction, double Confidence, string? ModelName = null, string? ModelTrainingDate = null);
 }

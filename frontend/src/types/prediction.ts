@@ -24,9 +24,12 @@ export interface PredictionResult extends PredictionInput {
   riskScore: number;
   riskLevel: PredictionRisk;
   isFraud: boolean;
+  predictedClass?: string;
   confidence: number;
   reasons: string[];
-  modelName: string;
+  explanationFactors?: string[];
+  modelName?: string | null;
+  modelTrainingDate?: string | null;
   suggestedAction: string;
   createdAt: string;
 }
@@ -38,6 +41,9 @@ export interface TransactionPredictionResult {
   riskLevel: "Low" | "Medium" | "High";
   status: "safe" | "review" | "fraud";
   confidence: number;
+  modelName?: string | null;
+  modelTrainingDate?: string | null;
+  predictedClass?: string;
   explanation: string[];
   createdAt: string;
 }

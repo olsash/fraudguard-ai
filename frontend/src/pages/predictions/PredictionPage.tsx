@@ -380,7 +380,7 @@ function ResultPanel({ loading, result }: { loading: boolean; result: Prediction
 
   const status = getPredictionStatus(result);
   const tone = getStatusTone(status);
-  const factorGroups = groupAnalysisFactors(result.reasons, status);
+  const factorGroups = groupAnalysisFactors(getExplanationFactors(result), status);
 
   return (
     <div className={`glass rounded-2xl p-6 relative overflow-hidden ring-1 ${tone.ring}`}>
@@ -408,8 +408,12 @@ function ResultPanel({ loading, result }: { loading: boolean; result: Prediction
             <div className={`h-full rounded-full ${result.riskScore >= 70 ? "bg-destructive" : result.riskScore >= 40 ? "bg-warning" : "bg-success"}`} style={{ width: `${result.riskScore}%` }} />
           </div>
           <div className="grid grid-cols-2 gap-2 mt-4 text-center text-xs">
+            <Metric label="Probability" value={`${Math.round(result.fraudProbability * 100)}%`} />
             <Metric label="Confidence" value={`${Math.round(result.confidence * 100)}%`} />
+            <Metric label="Prediction" value={result.predictedClass ?? (result.isFraud ? "Fraud" : "Not fraud")} />
             <Metric label="Risk level" value={result.riskLevel} />
+            {result.modelName && <Metric label="Model" value={result.modelName} />}
+            {result.modelTrainingDate && <Metric label="Trained" value={formatDateTime(result.modelTrainingDate)} />}
           </div>
         </div>
         <div className="mt-5">
@@ -499,6 +503,10 @@ function groupAnalysisFactors(reasons: string[], status: AnalysisStatus) {
   }));
 }
 
+function getExplanationFactors(prediction: PredictionResult) {
+  return prediction.explanationFactors?.length ? prediction.explanationFactors : prediction.reasons;
+}
+
 function splitAnalysisReason(reason: string): [string, string] {
   const delimiter = reason.indexOf("|");
   if (delimiter === -1) {
@@ -586,7 +594,7 @@ function HistoryItem({ item, onSelect }: { item: PredictionResult; onSelect: (it
 function PredictionDetailsModal({ prediction, onClose }: { prediction: PredictionResult; onClose: () => void }) {
   const status = getPredictionStatus(prediction);
   const tone = getStatusTone(status);
-  const factorGroups = groupAnalysisFactors(prediction.reasons, status);
+  const factorGroups = groupAnalysisFactors(getExplanationFactors(prediction), status);
   const alertGenerated = status === "review" || status === "fraud";
   const title = prediction.transactionMerchant ?? (prediction.transactionId ? `Transaction #${prediction.transactionId}` : "Manual prediction");
 
@@ -645,8 +653,9 @@ function PredictionDetailsModal({ prediction, onClose }: { prediction: Predictio
               <div className="mt-4 grid sm:grid-cols-2 gap-3 text-sm">
                 <Metric label="Fraud probability" value={`${Math.round(prediction.fraudProbability * 100)}%`} />
                 <Metric label="Confidence" value={`${Math.round(prediction.confidence * 100)}%`} />
-                <Metric label="Prediction label" value={prediction.isFraud ? "Fraud" : "Not fraud"} />
-                <Metric label="Model used" value={prediction.modelName} />
+                <Metric label="Prediction label" value={prediction.predictedClass ?? (prediction.isFraud ? "Fraud" : "Not fraud")} />
+                {prediction.modelName && <Metric label="Model used" value={prediction.modelName} />}
+                {prediction.modelTrainingDate && <Metric label="Training date" value={formatDateTime(prediction.modelTrainingDate)} />}
               </div>
             </div>
           </DetailSection>

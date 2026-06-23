@@ -40,11 +40,17 @@ public class PredictionResponse
 
     public bool IsFraud { get; set; }
 
+    public string PredictedClass { get; set; } = string.Empty;
+
     public double Confidence { get; set; }
 
     public string[] Reasons { get; set; } = [];
 
-    public string ModelName { get; set; } = "FraudGuard Hybrid Risk Model";
+    public string[] ExplanationFactors { get; set; } = [];
+
+    public string? ModelName { get; set; }
+
+    public string? ModelTrainingDate { get; set; }
 
     public string SuggestedAction { get; set; } = string.Empty;
 
@@ -64,6 +70,12 @@ public class TransactionPredictionResponse
     public string Status { get; set; } = string.Empty;
 
     public double Confidence { get; set; }
+
+    public string? ModelName { get; set; }
+
+    public string? ModelTrainingDate { get; set; }
+
+    public string PredictedClass { get; set; } = string.Empty;
 
     public string[] Explanation { get; set; } = [];
 

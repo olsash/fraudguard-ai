@@ -36,39 +36,43 @@ class PredictionResponse(BaseModel):
     riskScore: int
     riskLevel: str
     isFraud: bool
+    predictedClass: str
     confidence: float
+    modelName: str | None = None
+    modelTrainingDate: str | None = None
     reasons: list[str]
+    explanationFactors: list[str]
     suggestedAction: str
 
 
 def load_artifacts():
-    model_path = resolve_best_model_path()
+    model_path, metadata = resolve_best_model_metadata()
     if not model_path.exists() or not COLUMNS_PATH.exists():
         raise HTTPException(status_code=503, detail="Model artifacts are not available. Run train_model.py first.")
 
     scaler = joblib.load(SCALER_PATH) if SCALER_PATH.exists() else None
-    return joblib.load(model_path), joblib.load(COLUMNS_PATH), scaler
+    return joblib.load(model_path), joblib.load(COLUMNS_PATH), scaler, metadata
 
 
-def resolve_best_model_path() -> Path:
+def resolve_best_model_metadata() -> tuple[Path, dict]:
     if not BEST_MODEL_REGISTRY_PATH.exists():
-        return MODEL_PATH
+        return MODEL_PATH, {}
 
     try:
         with BEST_MODEL_REGISTRY_PATH.open("r", encoding="utf-8") as file:
             registry = json.load(file)
     except (OSError, json.JSONDecodeError):
-        return MODEL_PATH
+        return MODEL_PATH, {}
 
     artifact = registry.get("modelArtifact")
     if not isinstance(artifact, str) or not artifact.strip():
-        return MODEL_PATH
+        return MODEL_PATH, registry
 
     artifact_path = Path(artifact)
     if artifact_path.is_absolute():
-        return artifact_path
+        return artifact_path, registry
 
-    return PROJECT_ROOT / artifact_path
+    return PROJECT_ROOT / artifact_path, registry
 
 
 def validate_prediction_input(request: PredictionRequest) -> None:
@@ -238,7 +242,7 @@ def health():
 @app.post("/predict", response_model=PredictionResponse)
 def predict(request: PredictionRequest):
     validate_prediction_input(request)
-    model, columns, scaler = load_artifacts()
+    model, columns, scaler, metadata = load_artifacts()
 
     row = {
         "type": request.transactionType,
@@ -260,13 +264,19 @@ def predict(request: PredictionRequest):
     rules_score, rule_reasons = rule_based_score(request)
     score = clamp_score(max(probability * 100, rules_score))
     level = risk_level(score)
+    is_fraud = score >= 51
+    reasons = build_reasons(request, ml_score, rules_score, rule_reasons, score)
 
     return PredictionResponse(
         fraudProbability=round(probability, 4),
         riskScore=score,
         riskLevel=level,
-        isFraud=score >= 51,
+        isFraud=is_fraud,
+        predictedClass="Fraud" if is_fraud else "Not fraud",
         confidence=round(max(probability, 1 - probability), 4),
-        reasons=build_reasons(request, ml_score, rules_score, rule_reasons, score),
+        modelName=metadata.get("modelName"),
+        modelTrainingDate=metadata.get("trainingDateUtc"),
+        reasons=reasons,
+        explanationFactors=reasons,
         suggestedAction=suggested_action(score),
     )
