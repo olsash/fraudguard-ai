@@ -8,15 +8,16 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from ml.paths import (
+    BEST_MODEL_REGISTRY_PATH,
+    COLUMNS_PATH,
+    COMPATIBILITY_MODEL_PATH,
+    SCALER_PATH,
+    resolve_repo_path,
+)
 from ml.preprocessing import preprocess_prediction_data
 
 
-ROOT = Path(__file__).resolve().parents[1]
-PROJECT_ROOT = ROOT.parent
-MODEL_PATH = ROOT / "models" / "fraud_model.pkl"
-BEST_MODEL_REGISTRY_PATH = ROOT / "results" / "best_model_registry.json"
-COLUMNS_PATH = ROOT / "models" / "columns.pkl"
-SCALER_PATH = ROOT / "models" / "scaler.pkl"
 TRANSACTION_TYPES = ["CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"]
 
 app = FastAPI(title="FraudGuard ML Prediction Service")
@@ -56,23 +57,19 @@ def load_artifacts():
 
 def resolve_best_model_metadata() -> tuple[Path, dict]:
     if not BEST_MODEL_REGISTRY_PATH.exists():
-        return MODEL_PATH, {}
+        return COMPATIBILITY_MODEL_PATH, {}
 
     try:
         with BEST_MODEL_REGISTRY_PATH.open("r", encoding="utf-8") as file:
             registry = json.load(file)
     except (OSError, json.JSONDecodeError):
-        return MODEL_PATH, {}
+        return COMPATIBILITY_MODEL_PATH, {}
 
     artifact = registry.get("modelArtifact")
     if not isinstance(artifact, str) or not artifact.strip():
-        return MODEL_PATH, registry
+        return COMPATIBILITY_MODEL_PATH, registry
 
-    artifact_path = Path(artifact)
-    if artifact_path.is_absolute():
-        return artifact_path, registry
-
-    return PROJECT_ROOT / artifact_path, registry
+    return resolve_repo_path(artifact), registry
 
 
 def validate_prediction_input(request: PredictionRequest) -> None:

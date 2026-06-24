@@ -26,13 +26,27 @@ from sklearn.metrics import (
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
+from ml.paths import (
+    BEST_MODEL_PATH,
+    BEST_MODEL_REGISTRY_PATH,
+    CLUSTERING_RESULTS_CSV_PATH,
+    CLUSTERING_RESULTS_JSON_PATH,
+    COLUMNS_PATH,
+    COMPATIBILITY_MODEL_PATH,
+    DATASET_PATH,
+    FEATURE_IMPORTANCE_CSV_PATH,
+    FEATURE_IMPORTANCE_JSON_PATH,
+    KMEANS_PCA_CLUSTERS_PATH,
+    KMEANS_PCA_TRUE_LABELS_PATH,
+    MODEL_DIR,
+    RESULTS_DIR,
+    SCALER_PATH,
+    TRAINING_METADATA_PATH,
+    repo_relative,
+)
 from ml.preprocessing import FEATURES, TARGET, preprocess_training_data, validate_dataset
 
 
-ROOT = Path(__file__).resolve().parent
-DATASET_PATH = ROOT / "dataset" / "fraud.csv"
-MODEL_DIR = ROOT / "models"
-RESULTS_DIR = ROOT / "results"
 RANDOM_SEED = 42
 MAX_NON_FRAUD_ROWS = 250_000
 NON_FRAUD_TO_FRAUD_RATIO = 20
@@ -155,11 +169,11 @@ def export_feature_importance(model, feature_columns: list[str]) -> None:
         "results": feature_importance.to_dict(orient="records"),
     }
 
-    with (RESULTS_DIR / "feature_importance_results.json").open("w", encoding="utf-8") as file:
+    with FEATURE_IMPORTANCE_JSON_PATH.open("w", encoding="utf-8") as file:
         json.dump(payload, file, indent=2, default=float)
 
-    feature_importance.to_csv(RESULTS_DIR / "feature_importance_results.csv", index=False)
-    print(f"Saved feature importance results to {RESULTS_DIR / 'feature_importance_results.json'}")
+    feature_importance.to_csv(FEATURE_IMPORTANCE_CSV_PATH, index=False)
+    print(f"Saved feature importance results to {FEATURE_IMPORTANCE_JSON_PATH}")
 
 
 def export_best_model_registry(best_metrics: dict, best_model, feature_columns: list[str]) -> None:
@@ -173,16 +187,16 @@ def export_best_model_registry(best_metrics: dict, best_model, feature_columns: 
         "selectedHyperparameters": best_model.get_params(),
         "trainingDateUtc": datetime.now(timezone.utc).isoformat(),
         "featureColumns": feature_columns,
-        "modelArtifact": "ml/models/best_model.pkl",
-        "compatibilityModelArtifact": "ml/models/fraud_model.pkl",
-        "columnsArtifact": "ml/models/columns.pkl",
-        "scalerArtifact": "ml/models/scaler.pkl",
+        "modelArtifact": repo_relative(BEST_MODEL_PATH),
+        "compatibilityModelArtifact": repo_relative(COMPATIBILITY_MODEL_PATH),
+        "columnsArtifact": repo_relative(COLUMNS_PATH),
+        "scalerArtifact": repo_relative(SCALER_PATH),
     }
 
-    with (RESULTS_DIR / "best_model_registry.json").open("w", encoding="utf-8") as file:
+    with BEST_MODEL_REGISTRY_PATH.open("w", encoding="utf-8") as file:
         json.dump(registry, file, indent=2, default=str)
 
-    print(f"Saved best model registry to {RESULTS_DIR / 'best_model_registry.json'}")
+    print(f"Saved best model registry to {BEST_MODEL_REGISTRY_PATH}")
 
 
 def export_clustering_results(features: pd.DataFrame, labels: pd.Series) -> None:
@@ -266,13 +280,13 @@ def export_clustering_results(features: pd.DataFrame, labels: pd.Series) -> None
         "selectionMetric": "silhouetteScore",
         "testedKValues": tested_k_values,
         "bestK": int(best_result["k"]),
-        "pcaClusterPlotPath": "ml/results/kmeans_pca_clusters.png",
-        "pcaTrueLabelPlotPath": "ml/results/kmeans_pca_true_labels.png",
+        "pcaClusterPlotPath": repo_relative(KMEANS_PCA_CLUSTERS_PATH),
+        "pcaTrueLabelPlotPath": repo_relative(KMEANS_PCA_TRUE_LABELS_PATH),
         "clusteringResults": results,
     }
 
-    json_path = RESULTS_DIR / "clustering_results.json"
-    csv_path = RESULTS_DIR / "clustering_results.csv"
+    json_path = CLUSTERING_RESULTS_JSON_PATH
+    csv_path = CLUSTERING_RESULTS_CSV_PATH
     with json_path.open("w", encoding="utf-8") as file:
         json.dump(payload, file, indent=2, default=float)
 
@@ -300,8 +314,8 @@ def export_pca_clustering_plots(
     if len(plot_data) > PCA_PLOT_SAMPLE_SIZE:
         plot_data = plot_data.sample(n=PCA_PLOT_SAMPLE_SIZE, random_state=RANDOM_SEED)
 
-    cluster_plot_path = RESULTS_DIR / "kmeans_pca_clusters.png"
-    true_label_plot_path = RESULTS_DIR / "kmeans_pca_true_labels.png"
+    cluster_plot_path = KMEANS_PCA_CLUSTERS_PATH
+    true_label_plot_path = KMEANS_PCA_TRUE_LABELS_PATH
     title_suffix = (
         f"k={best_result['k']}, init={best_result['initializationMethod']}, "
         f"n_init={best_result['nInit']}"
@@ -431,10 +445,10 @@ def main() -> None:
     print(f"\nSelected best model by F1-score: {best_metrics['model']} ({best_metrics['f1']:.4f})")
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    joblib.dump(best_model, MODEL_DIR / "best_model.pkl")
-    joblib.dump(best_model, MODEL_DIR / "fraud_model.pkl")
-    joblib.dump(preprocessing_artifacts.columns, MODEL_DIR / "columns.pkl")
-    joblib.dump(preprocessing_artifacts.scaler, MODEL_DIR / "scaler.pkl")
+    joblib.dump(best_model, BEST_MODEL_PATH)
+    joblib.dump(best_model, COMPATIBILITY_MODEL_PATH)
+    joblib.dump(preprocessing_artifacts.columns, COLUMNS_PATH)
+    joblib.dump(preprocessing_artifacts.scaler, SCALER_PATH)
     export_feature_importance(best_model, preprocessing_artifacts.columns)
     export_best_model_registry(best_metrics, best_model, preprocessing_artifacts.columns)
     export_clustering_results(x, y)
@@ -446,13 +460,13 @@ def main() -> None:
         "features": FEATURES,
         "encoded_columns": preprocessing_artifacts.columns,
         "scale_numeric_features": preprocessing_artifacts.scale_numeric,
-        "scaler_artifact": "ml/models/scaler.pkl",
+        "scaler_artifact": repo_relative(SCALER_PATH),
         "target": TARGET,
         "model": {
             "type": "RandomForestClassifier",
             "parameters": best_model.get_params(),
         },
-        "best_model_registry": "ml/results/best_model_registry.json",
+        "best_model_registry": repo_relative(BEST_MODEL_REGISTRY_PATH),
         "imbalance_handling": {
             "baseline_metrics": baseline_metrics,
             "balanced_metrics": balanced_metrics,
@@ -460,7 +474,7 @@ def main() -> None:
         "metrics": best_metrics,
     }
 
-    with (MODEL_DIR / "training_metadata.json").open("w", encoding="utf-8") as metadata_file:
+    with TRAINING_METADATA_PATH.open("w", encoding="utf-8") as metadata_file:
         json.dump(metadata, metadata_file, indent=2)
 
 

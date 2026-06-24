@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using FraudGuard.Api.Configuration;
 using FraudGuard.Api.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,10 +13,6 @@ namespace FraudGuard.Api.Controllers;
 [Route("api/admin/model-comparison")]
 public class AdminModelComparisonController : ControllerBase
 {
-    private const string JsonResultsRelativePath = "ml/results/model_comparison_results.json";
-    private const string CsvResultsRelativePath = "ml/results/model_comparison_results.csv";
-    private const string JsonClusteringResultsRelativePath = "ml/results/clustering_results.json";
-    private const string CsvClusteringResultsRelativePath = "ml/results/clustering_results.csv";
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -40,7 +37,7 @@ public class AdminModelComparisonController : ControllerBase
         {
             return NotFound(new
             {
-                message = "Model comparison results file was not found. Run the ML training or notebook export to create ml/results/model_comparison_results.json or ml/results/model_comparison_results.csv."
+                message = $"Model comparison results file was not found. Run the ML training or notebook export to create {MlResultPaths.ModelComparisonJson} or {MlResultPaths.ModelComparisonCsv}."
             });
         }
 
@@ -110,8 +107,11 @@ public class AdminModelComparisonController : ControllerBase
 
         while (directory is not null)
         {
-            yield return Path.Combine(directory.FullName, JsonResultsRelativePath);
-            yield return Path.Combine(directory.FullName, CsvResultsRelativePath);
+            foreach (var relativePath in MlResultPaths.ModelComparisonResults)
+            {
+                yield return Path.Combine(directory.FullName, relativePath);
+            }
+
             directory = directory.Parent;
         }
     }
@@ -122,8 +122,11 @@ public class AdminModelComparisonController : ControllerBase
 
         while (directory is not null)
         {
-            yield return Path.Combine(directory.FullName, JsonClusteringResultsRelativePath);
-            yield return Path.Combine(directory.FullName, CsvClusteringResultsRelativePath);
+            foreach (var relativePath in MlResultPaths.ClusteringResults)
+            {
+                yield return Path.Combine(directory.FullName, relativePath);
+            }
+
             directory = directory.Parent;
         }
     }
