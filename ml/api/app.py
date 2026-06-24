@@ -46,6 +46,14 @@ class PredictionResponse(BaseModel):
     suggestedAction: str
 
 
+class HealthResponse(BaseModel):
+    status: str
+    modelArtifactExists: bool
+    columnsArtifactExists: bool
+    scalerArtifactExists: bool
+    modelName: str | None = None
+
+
 def load_artifacts():
     model_path, metadata = resolve_best_model_metadata()
     if not model_path.exists() or not COLUMNS_PATH.exists():
@@ -231,9 +239,21 @@ def build_reasons(
     return reasons
 
 
-@app.get("/health")
+@app.get("/health", response_model=HealthResponse)
+@app.get("/api/health", response_model=HealthResponse)
 def health():
-    return {"status": "ok"}
+    model_path, metadata = resolve_best_model_metadata()
+    model_exists = model_path.exists()
+    columns_exists = COLUMNS_PATH.exists()
+    scaler_exists = SCALER_PATH.exists()
+
+    return HealthResponse(
+        status="ready" if model_exists and columns_exists else "degraded",
+        modelArtifactExists=model_exists,
+        columnsArtifactExists=columns_exists,
+        scalerArtifactExists=scaler_exists,
+        modelName=metadata.get("modelName"),
+    )
 
 
 @app.post("/predict", response_model=PredictionResponse)
