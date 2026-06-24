@@ -17,12 +17,18 @@ public class AdminController : ControllerBase
     private readonly AppDbContext _dbContext;
     private readonly PythonPredictionService _predictionService;
     private readonly ISystemLogService _systemLogService;
+    private readonly ILogger<AdminController> _logger;
 
-    public AdminController(AppDbContext dbContext, PythonPredictionService predictionService, ISystemLogService systemLogService)
+    public AdminController(
+        AppDbContext dbContext,
+        PythonPredictionService predictionService,
+        ISystemLogService systemLogService,
+        ILogger<AdminController> logger)
     {
         _dbContext = dbContext;
         _predictionService = predictionService;
         _systemLogService = systemLogService;
+        _logger = logger;
     }
 
     [HttpGet("transactions")]
@@ -579,6 +585,7 @@ public class AdminController : ControllerBase
         }
         catch (PredictionServiceUnavailableException)
         {
+            _logger.LogWarning("ML prediction service unavailable during admin analysis for transaction TX-{TransactionId}; using rule-based fallback.", transaction.Id);
             return ruleResult;
         }
     }

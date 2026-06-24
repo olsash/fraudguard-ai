@@ -1,14 +1,17 @@
 using FraudGuard.Api.DTOs;
+using System.Text.Json;
 
 namespace FraudGuard.Api.Services;
 
 public class PythonPredictionService
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<PythonPredictionService> _logger;
 
-    public PythonPredictionService(HttpClient httpClient)
+    public PythonPredictionService(HttpClient httpClient, ILogger<PythonPredictionService> logger)
     {
         _httpClient = httpClient;
+        _logger = logger;
     }
 
     public async Task<PythonPredictionResult> PredictAsync(CreatePredictionRequest request, CancellationToken cancellationToken)
@@ -19,18 +22,35 @@ public class PythonPredictionService
 
             if (!response.IsSuccessStatusCode)
             {
+                _logger.LogWarning(
+                    "ML prediction service returned {StatusCode} for transaction type {TransactionType}.",
+                    (int)response.StatusCode,
+                    request.TransactionType);
                 throw new PredictionServiceUnavailableException();
             }
 
             var result = await response.Content.ReadFromJsonAsync<PythonPredictionResult>(cancellationToken: cancellationToken);
-            return result ?? throw new PredictionServiceUnavailableException();
+            if (result is null)
+            {
+                _logger.LogWarning("ML prediction service returned an empty response body.");
+                throw new PredictionServiceUnavailableException();
+            }
+
+            return result;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger.LogWarning(ex, "Could not connect to the ML prediction service.");
             throw new PredictionServiceUnavailableException();
         }
-        catch (TaskCanceledException)
+        catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
+            _logger.LogWarning(ex, "Timed out while waiting for the ML prediction service.");
+            throw new PredictionServiceUnavailableException();
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "ML prediction service returned an invalid response payload.");
             throw new PredictionServiceUnavailableException();
         }
     }

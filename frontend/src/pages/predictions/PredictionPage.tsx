@@ -1,4 +1,5 @@
 import { Topbar } from "@/components/layout/Topbar";
+import { ApiError } from "@/services/api";
 import { predictionService } from "@/services/predictionService";
 import { transactionService } from "@/services/transactionService";
 import type { PredictionInput, PredictionResult, TransactionType } from "@/types/prediction";
@@ -103,7 +104,7 @@ export default function Predict() {
       setResult(refreshedHistory.find((item) => item.id === analysis.predictionId) ?? null);
       toast.success("Transaction analysis completed");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to analyze transaction.");
+      setError(formatPredictionError(err, "Unable to analyze transaction."));
     } finally {
       setLoading(false);
     }
@@ -131,7 +132,7 @@ export default function Predict() {
       setResult(prediction);
       setHistory(refreshedHistory);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to run advanced model test.");
+      setError(formatPredictionError(err, "Unable to run advanced model test."));
     } finally {
       setLoading(false);
     }
@@ -242,6 +243,14 @@ export default function Predict() {
       {selectedHistoryItem && <PredictionDetailsModal prediction={selectedHistoryItem} onClose={() => setSelectedHistoryItem(null)} />}
     </>
   );
+}
+
+function formatPredictionError(error: unknown, fallback: string) {
+  if (error instanceof ApiError && error.status === 503) {
+    return "Prediction service is currently unavailable.";
+  }
+
+  return error instanceof Error ? error.message : fallback;
 }
 
 function validateAdvancedRequest(form: PredictionForm): AdvancedValidationResult {

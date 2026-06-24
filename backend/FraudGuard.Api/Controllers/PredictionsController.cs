@@ -19,12 +19,18 @@ public class PredictionsController : ControllerBase
     private readonly AppDbContext _dbContext;
     private readonly PythonPredictionService _predictionService;
     private readonly ISystemLogService _systemLogService;
+    private readonly ILogger<PredictionsController> _logger;
 
-    public PredictionsController(AppDbContext dbContext, PythonPredictionService predictionService, ISystemLogService systemLogService)
+    public PredictionsController(
+        AppDbContext dbContext,
+        PythonPredictionService predictionService,
+        ISystemLogService systemLogService,
+        ILogger<PredictionsController> logger)
     {
         _dbContext = dbContext;
         _predictionService = predictionService;
         _systemLogService = systemLogService;
+        _logger = logger;
     }
 
     [HttpPost]
@@ -49,6 +55,7 @@ public class PredictionsController : ControllerBase
         }
         catch (PredictionServiceUnavailableException ex)
         {
+            _logger.LogWarning(ex, "Manual prediction request could not reach the ML prediction service for user {UserId}.", userId.Value);
             return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
         }
 
@@ -271,6 +278,7 @@ public class PredictionsController : ControllerBase
         }
         catch (PredictionServiceUnavailableException)
         {
+            _logger.LogWarning("ML prediction service unavailable while scoring transaction TX-{TransactionId}; using rule-based fallback.", transaction.Id);
             return ruleResult;
         }
     }
