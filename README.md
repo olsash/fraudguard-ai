@@ -248,6 +248,18 @@ Prediction endpoint:
 POST http://localhost:8000/predict
 ```
 
+Smoke test the prediction flow with one low-risk and one high-risk sample:
+
+```powershell
+python ml\smoke_test_prediction_api.py
+```
+
+Use a custom API URL if needed:
+
+```powershell
+python ml\smoke_test_prediction_api.py --base-url http://127.0.0.1:8000
+```
+
 Example prediction request:
 
 ```json
