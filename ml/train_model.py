@@ -164,6 +164,9 @@ def export_model_comparison_results(
     with MODEL_COMPARISON_JSON_PATH.open("w", encoding="utf-8") as file:
         json.dump(payload, file, indent=2, default=str)
 
+    with MODEL_COMPARISON_JSON_PATH.open("r", encoding="utf-8") as file:
+        json.load(file)
+
     comparison_rows = []
     for model in models:
         cm = model["confusionMatrix"]

@@ -9,7 +9,7 @@ public class ModelComparisonResultsDto
     public string TargetVariable { get; set; } = string.Empty;
     public string BestModelName { get; set; } = string.Empty;
     public string BestModelReason { get; set; } = string.Empty;
-    public Dictionary<string, JsonElement>? EvaluationSource { get; set; }
+    public JsonElement? EvaluationSource { get; set; }
     public List<ModelComparisonItemDto> Models { get; set; } = [];
     public List<ClusteringResultDto> ClusteringResults { get; set; } = [];
 }

@@ -44,7 +44,7 @@ export interface ModelComparisonResults {
   targetVariable: string;
   bestModelName: string;
   bestModelReason: string;
-  evaluationSource?: Record<string, unknown> | null;
+  evaluationSource?: unknown;
   models: ModelComparisonItem[];
   clusteringResults?: ClusteringResult[];
 }

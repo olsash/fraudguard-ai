@@ -1,28 +1,44 @@
 import { Topbar } from "@/components/layout/Topbar";
 import { adminModelComparisonService } from "@/services/adminModelComparisonService";
 import type { ClusteringResult, ModelComparisonItem, ModelComparisonResults } from "@/types/modelComparison";
-import { Award, BarChart3, Database, Eye, Loader2, Target, Trophy, X } from "lucide-react";
+import { Award, BarChart3, ChevronDown, ChevronUp, Database, Download, Eye, Loader2, RefreshCw, Search, Target, Trophy, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
+type SortKey = "modelName" | "modelType" | "accuracy" | "precision" | "recall" | "f1Score" | "rocAuc";
 
 export default function AdminModelComparisonPage() {
   const [results, setResults] = useState<ModelComparisonResults | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelComparisonItem | null>(null);
+  const [query, setQuery] = useState("");
+  const [expandedHyperparameters, setExpandedHyperparameters] = useState<Record<string, boolean>>({});
+  const [sort, setSort] = useState<{ key: SortKey; direction: "asc" | "desc" }>({ key: "f1Score", direction: "desc" });
 
-  const bestModel = useMemo(
-    () => results?.models.find((model) => isBestModel(model, results.bestModelName)),
-    [results],
+  const matchingModels = useMemo(
+    () => results ? filterModels(results.models, query) : [],
+    [query, results],
   );
-  const chartData = useMemo(() => results ? toChartData(results) : [], [results]);
+  const filteredModels = useMemo(
+    () => sortModels(matchingModels, sort.key, sort.direction),
+    [matchingModels, sort],
+  );
+  const bestModel = useMemo(
+    () => results ? bestModelForScope(matchingModels, results.bestModelName) : undefined,
+    [matchingModels, results],
+  );
+  const chartData = useMemo(() => results ? toChartData(filteredModels, results.bestModelName) : [], [filteredModels, results]);
+  const hasSearch = query.trim().length > 0;
 
   useEffect(() => {
     void loadResults();
   }, []);
 
   async function loadResults() {
-    setLoading(true);
+    setLoading(results === null);
+    setRefreshing(results !== null);
     setError(null);
 
     try {
@@ -31,7 +47,19 @@ export default function AdminModelComparisonPage() {
       setError(err instanceof Error ? err.message : "Unable to load model comparison results.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  }
+
+  function toggleSort(key: SortKey) {
+    setSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === "desc" ? "asc" : "desc",
+    }));
+  }
+
+  function toggleHyperparameters(modelName: string) {
+    setExpandedHyperparameters((current) => ({ ...current, [modelName]: !current[modelName] }));
   }
 
   return (
@@ -52,21 +80,55 @@ export default function AdminModelComparisonPage() {
           </div>
         </section>
 
-        {loading && <StatePanel title="Loading model comparison" message="Fetching evaluated model results from FraudGuard API." />}
+        {loading && <StatePanel title="Loading model comparison" message="Fetching evaluated model results from FraudGuard API." loading />}
         {!loading && error && <StatePanel title="Model comparison unavailable" message={error} destructive />}
         {!loading && !error && !results && <StatePanel title="No model comparison found" message="The API returned no model comparison payload." />}
 
         {!loading && !error && results && (
           <>
             <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-              <SummaryCard label="Dataset name" value={results.datasetName} icon={Database} />
-              <SummaryCard label="Problem type" value={results.problemType} icon={BarChart3} />
-              <SummaryCard label="Target variable" value={results.targetVariable} icon={Target} />
-              <SummaryCard label="Best model used for prediction" value={results.bestModelName} icon={Trophy} tone="best" />
+              <SummaryCard label={hasSearch ? "Matching models" : "Models tested"} value={`${matchingModels.length}${hasSearch ? ` / ${results.models.length}` : ""}`} icon={Database} />
+              <SummaryCard label={hasSearch ? "Best matching model" : "Best model"} value={bestModel?.modelName ?? "-"} icon={Trophy} tone="best" />
+              <SummaryCard label="Best F1-score" value={matchingModels.length ? formatScore(bestMetric(matchingModels, "f1Score")) : "-"} icon={BarChart3} />
+              <SummaryCard label="Best recall / ROC-AUC" value={matchingModels.length ? `${formatScore(bestMetric(matchingModels, "recall"))} / ${formatOptionalScore(bestMetric(matchingModels, "rocAuc"))}` : "-"} icon={Target} />
+            </section>
+
+            <section className="glass rounded-2xl p-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search models by name, type, status, or notes"
+                  className="h-10 w-full rounded-lg border border-border bg-secondary/40 pl-9 pr-10 text-sm outline-none focus:ring-1 focus:ring-primary/50"
+                />
+                {hasSearch && (
+                  <button
+                    onClick={() => setQuery("")}
+                    className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    aria-label="Clear model comparison search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <button onClick={() => void loadResults()} disabled={refreshing} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 glass hover:ring-1 hover:ring-primary/40 disabled:opacity-60">
+                  <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+                </button>
+                <button onClick={() => exportJson(results)} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 glass hover:ring-1 hover:ring-primary/40">
+                  <Download className="h-3.5 w-3.5" /> Export JSON
+                </button>
+                <button onClick={() => exportCsv(results.models)} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 glass hover:ring-1 hover:ring-primary/40">
+                  <Download className="h-3.5 w-3.5" /> Export CSV
+                </button>
+              </div>
             </section>
 
             {results.models.length === 0 ? (
               <StatePanel title="No chart data available" message="No evaluated models were returned for charting." />
+            ) : filteredModels.length === 0 ? (
+              <StatePanel title="No models match your search." message="Clear the search or try another model name, metric, status, note, or hyperparameter." />
             ) : (
               <section className="grid gap-4 xl:grid-cols-2">
                 <ChartCard title="F1 Score by model" subtitle="Best model highlighted">
@@ -109,19 +171,19 @@ export default function AdminModelComparisonPage() {
               <div className="px-5 py-3 border-b border-border flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-primary" />
                 <span className="text-sm font-display font-semibold">Classifier comparison results</span>
-                <span className="ml-auto text-xs text-muted-foreground">{results.models.length} models tested</span>
+                <span className="ml-auto text-xs text-muted-foreground">{filteredModels.length} of {results.models.length} models</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[1180px]">
                   <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
                     <tr>
-                      <Th>Model</Th>
-                      <Th>Type</Th>
-                      <Th>Accuracy</Th>
-                      <Th>Precision</Th>
-                      <Th>Recall</Th>
-                      <Th>F1 Score</Th>
-                      <Th>ROC AUC</Th>
+                      <Th sortable active={sort.key === "modelName"} direction={sort.direction} onClick={() => toggleSort("modelName")}>Model</Th>
+                      <Th sortable active={sort.key === "modelType"} direction={sort.direction} onClick={() => toggleSort("modelType")}>Type</Th>
+                      <Th sortable active={sort.key === "accuracy"} direction={sort.direction} onClick={() => toggleSort("accuracy")}>Accuracy</Th>
+                      <Th sortable active={sort.key === "precision"} direction={sort.direction} onClick={() => toggleSort("precision")}>Precision</Th>
+                      <Th sortable active={sort.key === "recall"} direction={sort.direction} onClick={() => toggleSort("recall")}>Recall</Th>
+                      <Th sortable active={sort.key === "f1Score"} direction={sort.direction} onClick={() => toggleSort("f1Score")}>F1 Score</Th>
+                      <Th sortable active={sort.key === "rocAuc"} direction={sort.direction} onClick={() => toggleSort("rocAuc")}>ROC AUC</Th>
                       <Th>Selected Hyperparameters</Th>
                       <Th>Avg Precision</Th>
                       <Th>TN</Th>
@@ -133,13 +195,14 @@ export default function AdminModelComparisonPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {results.models.length === 0 ? (
+                    {filteredModels.length === 0 ? (
                       <tr className="border-t border-border">
-                        <td colSpan={15} className="px-4 py-10 text-center text-muted-foreground">No model comparison results found.</td>
+                        <td colSpan={15} className="px-4 py-10 text-center text-muted-foreground">No models match your search.</td>
                       </tr>
-                    ) : results.models.map((model) => {
+                    ) : filteredModels.map((model) => {
                       const best = isBestModel(model, results.bestModelName);
                       const confusion = model.confusionMatrix;
+                      const expanded = Boolean(expandedHyperparameters[model.modelName]);
 
                       return (
                         <tr key={model.modelName} className={`border-t border-border hover:bg-secondary/40 ${best ? "bg-primary/5" : ""}`}>
@@ -156,7 +219,9 @@ export default function AdminModelComparisonPage() {
                           <Td>{formatScore(model.recall)}</Td>
                           <Td>{formatScore(model.f1Score)}</Td>
                           <Td>{model.rocAuc == null ? "-" : formatScore(model.rocAuc)}</Td>
-                          <Td><SelectedHyperparameters model={model} /></Td>
+                          <Td>
+                            <SelectedHyperparameters model={model} expanded={expanded} onToggle={() => toggleHyperparameters(model.modelName)} />
+                          </Td>
                           <Td>{model.averagePrecision == null ? "-" : formatScore(model.averagePrecision)}</Td>
                           <Td>{formatCount(confusion?.trueNegatives)}</Td>
                           <Td>{formatCount(confusion?.falsePositives)}</Td>
@@ -324,10 +389,10 @@ function ClusteringResultsSection({ clusteringResults }: { clusteringResults: Cl
   );
 }
 
-function SelectedHyperparameters({ model }: { model: ModelComparisonItem }) {
+function SelectedHyperparameters({ model, expanded, onToggle }: { model: ModelComparisonItem; expanded: boolean; onToggle: () => void }) {
   const rows = buildHyperparameterRows(model, "selected")
-    .filter((row) => row.value !== "Not documented")
-    .slice(0, 4);
+    .filter((row) => row.value !== "Not documented");
+  const visibleRows = expanded ? rows : rows.slice(0, 3);
 
   if (rows.length === 0) {
     return <span className="text-xs text-muted-foreground">Not documented</span>;
@@ -335,20 +400,26 @@ function SelectedHyperparameters({ model }: { model: ModelComparisonItem }) {
 
   return (
     <div className="max-w-xs space-y-1">
-      {rows.map((row) => (
+      {visibleRows.map((row) => (
         <div key={row.label} className="grid grid-cols-[88px_minmax(0,1fr)] gap-2 text-xs">
           <span className="text-muted-foreground truncate">{row.label}</span>
           <span className="font-mono break-words">{row.value}</span>
         </div>
       ))}
+      {rows.length > 3 && (
+        <button onClick={onToggle} className="mt-1 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-primary hover:text-primary/80">
+          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          {expanded ? "Collapse" : `Show ${rows.length - 3} more`}
+        </button>
+      )}
     </div>
   );
 }
 
-function StatePanel({ title, message, destructive }: { title: string; message: string; destructive?: boolean }) {
+function StatePanel({ title, message, destructive, loading }: { title: string; message: string; destructive?: boolean; loading?: boolean }) {
   return (
     <div className={`glass rounded-2xl p-10 text-center ${destructive ? "ring-1 ring-destructive/40" : ""}`}>
-      {!destructive && <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />}
+      {loading && <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />}
       <h2 className="mt-4 text-xl font-display font-semibold">{title}</h2>
       <p className="mt-2 text-sm text-muted-foreground">{message}</p>
     </div>
@@ -440,8 +511,29 @@ function HyperparameterList({ rows }: { rows: Array<{ label: string; value: stri
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
-  return <th className="text-left font-medium px-4 py-3">{children}</th>;
+function Th({
+  children,
+  sortable,
+  active,
+  direction,
+  onClick,
+}: {
+  children: React.ReactNode;
+  sortable?: boolean;
+  active?: boolean;
+  direction?: "asc" | "desc";
+  onClick?: () => void;
+}) {
+  return (
+    <th className="text-left font-medium px-4 py-3">
+      {sortable ? (
+        <button onClick={onClick} className="inline-flex items-center gap-1 hover:text-foreground">
+          {children}
+          <span className={active ? "text-primary" : "text-muted-foreground/50"}>{active ? (direction === "asc" ? "^" : "v") : "-"}</span>
+        </button>
+      ) : children}
+    </th>
+  );
 }
 
 function Td({ children }: { children: React.ReactNode }) {
@@ -450,6 +542,10 @@ function Td({ children }: { children: React.ReactNode }) {
 
 function formatScore(value: number) {
   return `${(value * 100).toFixed(2)}%`;
+}
+
+function formatOptionalScore(value?: number | null) {
+  return typeof value === "number" ? formatScore(value) : "-";
 }
 
 function formatPercentValue(value?: number) {
@@ -470,6 +566,83 @@ function formatNumberMetric(value?: number | null) {
 
 function isBestModel(model: ModelComparisonItem, bestModelName: string) {
   return Boolean(model.isBestModel) || model.status.toLowerCase() === "best model" || model.modelName.toLowerCase() === bestModelName.toLowerCase();
+}
+
+function bestModelForScope(models: ModelComparisonItem[], bestModelName: string) {
+  return models.find((model) => isBestModel(model, bestModelName))
+    ?? [...models].sort((left, right) => right.f1Score - left.f1Score)[0];
+}
+
+function bestMetric(models: ModelComparisonItem[], key: "f1Score" | "recall" | "rocAuc") {
+  return models.reduce<number | null>((best, model) => {
+    const value = model[key];
+    if (typeof value !== "number") {
+      return best;
+    }
+    return best === null || value > best ? value : best;
+  }, null) ?? 0;
+}
+
+function filterModels(models: ModelComparisonItem[], query: string) {
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) {
+    return models;
+  }
+
+  return models.filter((model) => {
+    const searchable = searchableModelText(model).toLowerCase();
+    return terms.every((term) => searchable.includes(term));
+  });
+}
+
+function sortModels(models: ModelComparisonItem[], key: SortKey, direction: "asc" | "desc") {
+  const multiplier = direction === "asc" ? 1 : -1;
+  return [...models].sort((left, right) => {
+    const leftValue = left[key];
+    const rightValue = right[key];
+
+    if (typeof leftValue === "number" || typeof rightValue === "number") {
+      return ((Number(leftValue ?? -Infinity)) - Number(rightValue ?? -Infinity)) * multiplier;
+    }
+
+    return String(leftValue ?? "").localeCompare(String(rightValue ?? "")) * multiplier;
+  });
+}
+
+function exportJson(results: ModelComparisonResults) {
+  downloadText("fraudguard-model-comparison.json", JSON.stringify(results, null, 2), "application/json");
+}
+
+function exportCsv(models: ModelComparisonItem[]) {
+  const headers = ["Model", "Type", "Accuracy", "Precision", "Recall", "F1 Score", "ROC AUC", "Status", "Best Model"];
+  const rows = models.map((model) => [
+    model.modelName,
+    model.modelType,
+    model.accuracy,
+    model.precision,
+    model.recall,
+    model.f1Score,
+    model.rocAuc ?? "",
+    model.status,
+    model.isBestModel ? "true" : "false",
+  ]);
+  const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
+  downloadText("fraudguard-model-comparison.csv", csv, "text/csv");
+}
+
+function csvCell(value: unknown) {
+  const text = String(value ?? "");
+  return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function downloadText(fileName: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function buildHyperparameterRows(model: ModelComparisonItem, group: "tested" | "selected") {
@@ -562,8 +735,33 @@ function buildResultExplanation(model: ModelComparisonItem) {
   return `${status} Recorded test metrics: accuracy ${formatScore(model.accuracy)}, precision ${formatScore(model.precision)}, recall ${formatScore(model.recall)}, F1 score ${formatScore(model.f1Score)}, ROC AUC ${model.rocAuc == null ? "Not documented" : formatScore(model.rocAuc)}, and average precision ${model.averagePrecision == null ? "Not documented" : formatScore(model.averagePrecision)}.${confusion}`;
 }
 
-function toChartData(results: ModelComparisonResults) {
-  return results.models.map((model) => ({
+function searchableModelText(model: ModelComparisonItem) {
+  const selectedRows = buildHyperparameterRows(model, "selected");
+  const testedRows = buildHyperparameterRows(model, "tested");
+  const confusion = model.confusionMatrix;
+
+  return [
+    model.modelName,
+    model.classifierName,
+    model.modelType,
+    model.status,
+    model.isBestModel ? "best selected best model" : "tested trained evaluated",
+    model.shortDescription,
+    buildResultExplanation(model),
+    model.accuracy != null ? `accuracy ${formatScore(model.accuracy)}` : "",
+    model.precision != null ? `precision ${formatScore(model.precision)}` : "",
+    model.recall != null ? `recall ${formatScore(model.recall)}` : "",
+    model.f1Score != null ? `f1 f1-score ${formatScore(model.f1Score)}` : "",
+    model.rocAuc != null ? `roc auc roc-auc ${formatScore(model.rocAuc)}` : "",
+    model.averagePrecision != null ? `average precision ${formatScore(model.averagePrecision)}` : "",
+    confusion ? `true negatives ${confusion.trueNegatives} false positives ${confusion.falsePositives} false negatives ${confusion.falseNegatives} true positives ${confusion.truePositives}` : "",
+    ...selectedRows.flatMap((row) => [row.label, row.value]),
+    ...testedRows.flatMap((row) => [row.label, row.value]),
+  ].filter(Boolean).join(" ");
+}
+
+function toChartData(models: ModelComparisonItem[], bestModelName: string) {
+  return models.map((model) => ({
     modelName: model.modelName,
     shortName: shortModelName(model.modelName),
     accuracy: toPercent(model.accuracy),
@@ -572,7 +770,7 @@ function toChartData(results: ModelComparisonResults) {
     f1Score: toPercent(model.f1Score),
     rocAuc: model.rocAuc == null ? null : toPercent(model.rocAuc),
     averagePrecision: model.averagePrecision == null ? null : toPercent(model.averagePrecision),
-    best: isBestModel(model, results.bestModelName),
+    best: isBestModel(model, bestModelName),
   }));
 }
 

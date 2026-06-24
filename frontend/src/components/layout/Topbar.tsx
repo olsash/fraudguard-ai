@@ -8,10 +8,15 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
           <h1 className="text-lg md:text-xl font-display font-semibold truncate">{title}</h1>
           {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle}</p>}
         </div>
-        <div className="hidden md:flex items-center gap-2 glass rounded-lg px-3 py-1.5 w-72">
+        <div className="hidden md:flex items-center gap-2 glass rounded-lg px-3 py-1.5 w-72 opacity-70" title="Use the search and filters inside each admin page.">
           <Search className="h-4 w-4 text-muted-foreground"/>
-          <input placeholder="Search transactions, users, alerts..." className="bg-transparent flex-1 text-sm outline-none placeholder:text-muted-foreground"/>
-          <kbd className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">Ctrl+K</kbd>
+          <input
+            disabled
+            aria-label="Global search is not enabled"
+            placeholder="Use page search and filters"
+            className="bg-transparent flex-1 cursor-not-allowed text-sm outline-none placeholder:text-muted-foreground"
+          />
+          <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">Page</span>
         </div>
         <button className="relative h-9 w-9 grid place-items-center rounded-lg glass hover:ring-1 hover:ring-primary/40">
           <Sparkles className="h-4 w-4 text-primary"/>

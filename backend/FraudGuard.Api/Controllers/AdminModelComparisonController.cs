@@ -62,7 +62,7 @@ public class AdminModelComparisonController : ControllerBase
         catch (JsonException ex)
         {
             _logger.LogError(ex, "Model comparison results file is invalid JSON: {ResultsPath}", resultsPath);
-            return StatusCode(StatusCodes.Status500InternalServerError, new
+            return UnprocessableEntity(new
             {
                 message = "Model comparison results file is invalid JSON."
             });
@@ -78,7 +78,7 @@ public class AdminModelComparisonController : ControllerBase
         catch (InvalidDataException ex)
         {
             _logger.LogError(ex, "Model comparison results file is invalid: {ResultsPath}", resultsPath);
-            return StatusCode(StatusCodes.Status500InternalServerError, new
+            return UnprocessableEntity(new
             {
                 message = ex.Message
             });
@@ -203,8 +203,8 @@ public class AdminModelComparisonController : ControllerBase
         }
         catch (Exception ex) when (ex is JsonException or IOException or InvalidDataException)
         {
-            _logger.LogError(ex, "Clustering results file could not be read: {ClusteringPath}", clusteringPath);
-            throw new InvalidDataException("Clustering results file exists but could not be read or parsed.");
+            _logger.LogWarning(ex, "Optional clustering results file could not be read: {ClusteringPath}", clusteringPath);
+            return [];
         }
     }
 
