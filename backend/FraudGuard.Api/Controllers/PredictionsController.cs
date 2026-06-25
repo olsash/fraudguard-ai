@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Globalization;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.DTOs;
@@ -169,6 +171,25 @@ public class PredictionsController : ControllerBase
         return Ok(predictions.Select(ToResponse));
     }
 
+    [HttpGet("my/export")]
+    public async Task<IActionResult> ExportMyHistory(CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId is null)
+        {
+            return Unauthorized(new { message = "Invalid token." });
+        }
+
+        var predictions = await _dbContext.Predictions
+            .AsNoTracking()
+            .Include(prediction => prediction.Transaction)
+            .Where(prediction => prediction.UserId == userId.Value)
+            .OrderByDescending(prediction => prediction.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return CsvFile(predictions, "prediction-history.csv");
+    }
+
     [Authorize(Roles = "Admin")]
     [HttpGet("admin")]
     public async Task<ActionResult<IEnumerable<PredictionResponse>>> Admin(CancellationToken cancellationToken)
@@ -180,6 +201,19 @@ public class PredictionsController : ControllerBase
             .ToListAsync(cancellationToken);
 
         return Ok(predictions.Select(ToResponse));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpGet("admin/export")]
+    public async Task<IActionResult> ExportAdminHistory(CancellationToken cancellationToken)
+    {
+        var predictions = await _dbContext.Predictions
+            .AsNoTracking()
+            .Include(prediction => prediction.Transaction)
+            .OrderByDescending(prediction => prediction.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return CsvFile(predictions, "admin-prediction-history.csv");
     }
 
     private int? GetCurrentUserId()
@@ -239,6 +273,50 @@ public class PredictionsController : ControllerBase
         {
             return string.IsNullOrWhiteSpace(explanation) ? [] : [explanation];
         }
+    }
+
+    private static FileContentResult CsvFile(IEnumerable<Prediction> predictions, string fileName)
+    {
+        var csv = BuildPredictionCsv(predictions);
+        return new FileContentResult(Encoding.UTF8.GetBytes(csv), "text/csv")
+        {
+            FileDownloadName = fileName
+        };
+    }
+
+    private static string BuildPredictionCsv(IEnumerable<Prediction> predictions)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("date,transaction_type,amount,prediction_result,risk_score,fraud_probability,explanation_factors");
+
+        foreach (var prediction in predictions)
+        {
+            var factors = ReadReasons(prediction.Explanation);
+            var row = new[]
+            {
+                prediction.CreatedAt.ToString("O"),
+                prediction.TransactionType,
+                prediction.Amount.ToString("0.00", CultureInfo.InvariantCulture),
+                prediction.IsFraud ? "Fraud" : "Not fraud",
+                prediction.RiskScore.ToString(CultureInfo.InvariantCulture),
+                (prediction.RiskScore / 100.0).ToString("0.####", CultureInfo.InvariantCulture),
+                string.Join(" | ", factors)
+            };
+
+            builder.AppendLine(string.Join(",", row.Select(EscapeCsv)));
+        }
+
+        return builder.ToString();
+    }
+
+    private static string EscapeCsv(string value)
+    {
+        if (value.Contains('"') || value.Contains(',') || value.Contains('\n') || value.Contains('\r'))
+        {
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        }
+
+        return value;
     }
 
     private async Task<TransactionRiskResult> ScoreTransactionAsync(Transaction transaction, CancellationToken cancellationToken)

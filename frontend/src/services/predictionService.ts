@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "@/services/api";
+import { apiDownload, apiGet, apiPost } from "@/services/api";
 import type { PredictionInput, PredictionResult, TransactionPredictionResult } from "@/types/prediction";
 
 export const predictionService = {
@@ -16,5 +16,13 @@ export const predictionService = {
 
   getAdminHistory(): Promise<PredictionResult[]> {
     return apiGet<PredictionResult[]>("/predictions/admin");
+  },
+
+  exportMyHistory(): Promise<Blob> {
+    return apiDownload("/predictions/my/export");
+  },
+
+  exportAdminHistory(): Promise<Blob> {
+    return apiDownload("/predictions/admin/export");
   },
 };

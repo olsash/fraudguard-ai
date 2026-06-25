@@ -1,4 +1,4 @@
-import { apiGet } from "@/services/api";
+import { apiDownload, apiGet } from "@/services/api";
 import type { AdminFilters, AdminPrediction, AdminPredictionDetail } from "@/types/admin";
 
 function toQuery(filters?: AdminFilters & { userId?: number }) {
@@ -24,5 +24,9 @@ export const adminPredictionService = {
 
   getPredictionById(id: number): Promise<AdminPredictionDetail> {
     return apiGet<AdminPredictionDetail>(`/admin/predictions/${id}`);
+  },
+
+  exportPredictions(filters?: AdminFilters & { userId?: number }): Promise<Blob> {
+    return apiDownload(`/admin/predictions/export${toQuery(filters)}`);
   },
 };

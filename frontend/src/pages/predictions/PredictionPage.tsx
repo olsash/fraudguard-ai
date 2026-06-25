@@ -10,6 +10,7 @@ import {
   Clock,
   Cpu,
   CreditCard,
+  Download,
   History,
   Loader2,
   ShieldCheck,
@@ -47,6 +48,7 @@ const advancedNumberFields: Array<{ key: Exclude<keyof PredictionForm, "transact
 export default function Predict() {
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [exportingHistory, setExportingHistory] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [history, setHistory] = useState<PredictionResult[]>([]);
@@ -79,6 +81,21 @@ export default function Predict() {
       setSelectedTransaction((current) => current ? rows.find((item) => item.id === current.id) ?? current : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load transactions.");
+    }
+  }
+
+  async function exportHistory() {
+    setExportingHistory(true);
+    setError(null);
+
+    try {
+      const file = await predictionService.exportMyHistory();
+      downloadBlob(file, `prediction-history-${new Date().toISOString().slice(0, 10)}.csv`);
+      toast.success("Prediction history exported");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to export prediction history.");
+    } finally {
+      setExportingHistory(false);
     }
   }
 
@@ -231,6 +248,8 @@ export default function Predict() {
           <HistoryPanel
             loading={historyLoading}
             history={history}
+            exporting={exportingHistory}
+            onExport={() => void exportHistory()}
             onSelect={(item) => {
               setSelectedHistoryItem(item);
               if (item.transactionId) {
@@ -251,6 +270,17 @@ function formatPredictionError(error: unknown, fallback: string) {
   }
 
   return error instanceof Error ? error.message : fallback;
+}
+
+function downloadBlob(file: Blob, fileName: string) {
+  const url = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function validateAdvancedRequest(form: PredictionForm): AdvancedValidationResult {
@@ -555,12 +585,35 @@ function Metric({ label, value }: { label: string; value: string }) {
   return <div className="glass rounded-lg p-2"><p className="text-[10px] text-muted-foreground">{label}</p><p className="font-semibold mt-0.5">{value}</p></div>;
 }
 
-function HistoryPanel({ loading, history, onSelect }: { loading: boolean; history: PredictionResult[]; onSelect: (item: PredictionResult) => void }) {
+function HistoryPanel({
+  loading,
+  history,
+  exporting,
+  onExport,
+  onSelect,
+}: {
+  loading: boolean;
+  history: PredictionResult[];
+  exporting: boolean;
+  onExport: () => void;
+  onSelect: (item: PredictionResult) => void;
+}) {
   return (
     <div className="glass rounded-2xl p-5">
       <div className="flex items-center justify-between">
         <p className="text-sm font-display font-semibold">Prediction history</p>
-        <History className="h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={loading || exporting || history.length === 0}
+            title="Export prediction history"
+            className="h-8 w-8 grid place-items-center rounded-lg glass hover:ring-1 hover:ring-primary/40 disabled:opacity-50"
+          >
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          </button>
+          <History className="h-4 w-4 text-muted-foreground" />
+        </div>
       </div>
       <div className="mt-4 space-y-3 max-h-[360px] overflow-y-auto pr-1">
         {loading ? (

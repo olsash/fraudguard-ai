@@ -3,7 +3,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { adminPredictionService } from "@/services/adminPredictionService";
 import type { AdminFilters, AdminPrediction, AdminPredictionDetail } from "@/types/admin";
 import type { TransactionStatus } from "@/types/transaction";
-import { AlertTriangle, BrainCircuit, ChevronRight, Gauge, Loader2, Search, ShieldCheck, ShieldQuestion, X } from "lucide-react";
+import { AlertTriangle, BrainCircuit, ChevronRight, Download, Gauge, Loader2, Search, ShieldCheck, ShieldQuestion, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { RiskBar, StatusBadge, Td, Th } from "@/pages/transactions/TransactionsPage";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ export default function AdminPredictionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AdminPredictionDetail | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const summary = useMemo(() => buildSummary(predictions), [predictions]);
 
@@ -50,6 +51,21 @@ export default function AdminPredictionsPage() {
     }
   }
 
+  async function exportPredictions() {
+    setExporting(true);
+    setError(null);
+
+    try {
+      const file = await adminPredictionService.exportPredictions(filters);
+      downloadBlob(file, `admin-prediction-history-${new Date().toISOString().slice(0, 10)}.csv`);
+      toast.success("Prediction history exported");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to export prediction history.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <>
       <Topbar title="Predictions" subtitle="Prediction history across the platform" />
@@ -62,7 +78,7 @@ export default function AdminPredictionsPage() {
           <StatCard label="Average Risk Score" value={`${summary.averageRisk}/100`} icon={Gauge} tone="primary" />
         </section>
 
-        <Toolbar filters={filters} onChange={setFilters} />
+        <Toolbar filters={filters} exporting={exporting} onExport={() => void exportPredictions()} onChange={setFilters} />
 
         {loading && <StatePanel title="Loading predictions" message="Fetching prediction history from FraudGuard API." />}
         {!loading && error && <StatePanel title="Predictions unavailable" message={error} destructive />}
@@ -102,7 +118,17 @@ export default function AdminPredictionsPage() {
   );
 }
 
-function Toolbar({ filters, onChange }: { filters: AdminFilters; onChange: (filters: AdminFilters) => void }) {
+function Toolbar({
+  filters,
+  exporting,
+  onExport,
+  onChange,
+}: {
+  filters: AdminFilters;
+  exporting: boolean;
+  onExport: () => void;
+  onChange: (filters: AdminFilters) => void;
+}) {
   return (
     <div className="glass rounded-2xl p-4 flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-2 glass rounded-lg px-3 py-2 flex-1 min-w-[240px]">
@@ -135,6 +161,15 @@ function Toolbar({ filters, onChange }: { filters: AdminFilters; onChange: (filt
         <option value="medium">Review risk</option>
         <option value="high">High risk</option>
       </select>
+      <button
+        type="button"
+        onClick={onExport}
+        disabled={exporting}
+        className="glass rounded-lg px-3 py-2 text-xs hover:ring-1 hover:ring-primary/40 disabled:opacity-60 inline-flex items-center gap-2"
+      >
+        {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        Export CSV
+      </button>
     </div>
   );
 }
@@ -216,6 +251,17 @@ function normalizedFactors(prediction: AdminPredictionDetail) {
   if (factors.length > 0) return factors;
 
   return ["No explanation factors were returned for this prediction."];
+}
+
+function downloadBlob(file: Blob, fileName: string) {
+  const url = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function buildSummary(predictions: AdminPrediction[]) {

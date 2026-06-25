@@ -70,3 +70,29 @@ export async function apiDelete<T>(path: string): Promise<T> {
     method: "DELETE",
   });
 }
+
+export async function apiDownload(path: string): Promise<Blob> {
+  const token = authService.getToken();
+  const headers = new Headers();
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${apiConfig.baseUrl}${path}`, { headers });
+
+  if (!response.ok) {
+    let message = `API request failed: ${response.status}`;
+
+    try {
+      const body = (await response.json()) as { message?: string };
+      message = body.message ?? message;
+    } catch {
+      // CSV export errors without JSON bodies use the status fallback.
+    }
+
+    throw new ApiError(response.status, message);
+  }
+
+  return response.blob();
+}

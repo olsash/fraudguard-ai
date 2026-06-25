@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.DTOs;
@@ -155,6 +157,28 @@ public class AdminController : ControllerBase
             .ToListAsync(cancellationToken);
 
         return Ok(predictions.Select(ToPredictionDto));
+    }
+
+    [HttpGet("predictions/export")]
+    public async Task<IActionResult> ExportPredictions(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] string? riskLevel,
+        [FromQuery] string? predictionResult,
+        [FromQuery] string? transactionType,
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        [FromQuery] int? userId,
+        CancellationToken cancellationToken)
+    {
+        var predictions = await ApplyPredictionFilters(BuildPredictionQuery(), search, status, riskLevel, predictionResult, transactionType, fromDate, toDate, userId)
+            .OrderByDescending(prediction => prediction.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return File(
+            Encoding.UTF8.GetBytes(BuildPredictionCsv(predictions)),
+            "text/csv",
+            "admin-prediction-history.csv");
     }
 
     [HttpGet("predictions/{id:int}")]
@@ -772,6 +796,41 @@ public class AdminController : ControllerBase
         {
             return string.IsNullOrWhiteSpace(explanation) ? [] : [explanation];
         }
+    }
+
+    private static string BuildPredictionCsv(IEnumerable<Prediction> predictions)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("date,user,transaction_type,amount,prediction_result,risk_score,fraud_probability,explanation_factors");
+
+        foreach (var prediction in predictions)
+        {
+            var row = new[]
+            {
+                prediction.CreatedAt.ToString("O"),
+                prediction.User?.FullName ?? $"User {prediction.UserId}",
+                prediction.TransactionType,
+                prediction.Amount.ToString("0.00", CultureInfo.InvariantCulture),
+                prediction.IsFraud ? "Fraud" : "Not fraud",
+                prediction.RiskScore.ToString(CultureInfo.InvariantCulture),
+                (prediction.RiskScore / 100.0).ToString("0.####", CultureInfo.InvariantCulture),
+                string.Join(" | ", ReadReasons(prediction.Explanation))
+            };
+
+            builder.AppendLine(string.Join(",", row.Select(EscapeCsv)));
+        }
+
+        return builder.ToString();
+    }
+
+    private static string EscapeCsv(string value)
+    {
+        if (value.Contains('"') || value.Contains(',') || value.Contains('\n') || value.Contains('\r'))
+        {
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        }
+
+        return value;
     }
 
     private static string BuildDecisionSummary(AdminPredictionDto prediction)
