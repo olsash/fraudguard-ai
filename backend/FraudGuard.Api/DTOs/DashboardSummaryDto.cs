@@ -6,6 +6,10 @@ public class DashboardSummaryDto
 
     public int TotalPredictions { get; set; }
 
+    public int FraudPredictions { get; set; }
+
+    public int NonFraudPredictions { get; set; }
+
     public int TotalTransactions { get; set; }
 
     public int PendingTransactions { get; set; }
@@ -19,6 +23,10 @@ public class DashboardSummaryDto
     public double AverageRiskScore { get; set; }
 
     public int HighestRiskScore { get; set; }
+
+    public int HighRiskAlerts { get; set; }
+
+    public string MostCommonTransactionType { get; set; } = "N/A";
 
     public RecentPredictionDto? LatestPrediction { get; set; }
 

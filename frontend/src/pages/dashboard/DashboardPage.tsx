@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   Brain,
   Gauge,
-  History,
   Loader2,
   Receipt,
   ShieldCheck,
@@ -97,12 +96,12 @@ function DashboardContent({ summary }: { summary: DashboardSummary }) {
       )}
 
       <section className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        <StatCard label="Total transactions" value={summary.totalTransactions.toLocaleString()} icon={Receipt} />
-        <StatCard label="Pending analysis" value={summary.pendingTransactions.toLocaleString()} icon={History} tone="primary" />
-        <StatCard label="Safe transactions" value={summary.safeTransactions.toLocaleString()} icon={ShieldCheck} tone="success" />
-        <StatCard label="Review" value={summary.reviewTransactions.toLocaleString()} icon={Gauge} tone="warning" />
-        <StatCard label="Fraud detected" value={summary.fraudTransactions.toLocaleString()} icon={AlertTriangle} tone="destructive" />
+        <StatCard label="Total predictions" value={summary.totalPredictions.toLocaleString()} icon={Brain} />
+        <StatCard label="Fraud predictions" value={summary.fraudPredictions.toLocaleString()} icon={AlertTriangle} tone="destructive" />
+        <StatCard label="Non-fraud predictions" value={summary.nonFraudPredictions.toLocaleString()} icon={ShieldCheck} tone="success" />
         <StatCard label="Average risk" value={`${summary.averageRiskScore}/100`} icon={Gauge} tone="warning" />
+        <StatCard label="High-risk alerts" value={summary.highRiskAlerts.toLocaleString()} icon={AlertTriangle} tone="destructive" />
+        <StatCard label="Common type" value={summary.mostCommonTransactionType} icon={Receipt} tone="primary" />
       </section>
 
       <section className="grid lg:grid-cols-3 gap-4">
@@ -111,7 +110,7 @@ function DashboardContent({ summary }: { summary: DashboardSummary }) {
         </Card>
 
         <Card title="Risk distribution" sub="Your prediction history" className="h-80">
-          <RiskDistributionChart data={summary.riskDistribution} total={summary.totalTransactions} />
+          <RiskDistributionChart data={summary.riskDistribution} total={summary.totalPredictions} />
         </Card>
       </section>
 
@@ -268,9 +267,9 @@ function RecentPredictions({ predictions }: { predictions: RecentPrediction[] })
 }
 
 function LiveInsights({ summary }: { summary: DashboardSummary }) {
-  const fraudRate = summary.totalTransactions === 0
+  const fraudRate = summary.totalPredictions === 0
     ? 0
-    : Math.round((summary.fraudTransactions / summary.totalTransactions) * 100);
+    : Math.round((summary.fraudPredictions / summary.totalPredictions) * 100);
 
   return (
     <div className="glass rounded-2xl p-5 relative overflow-hidden">
@@ -284,10 +283,10 @@ function LiveInsights({ summary }: { summary: DashboardSummary }) {
           </div>
         </div>
         <ul className="mt-4 space-y-3 text-sm">
-          <Insight text={`${fraudRate}% of your transactions are currently flagged as fraud.`} tone="destructive" />
-          <Insight text={`Average risk score is ${summary.averageRiskScore}/100 across ${summary.totalTransactions.toLocaleString()} transactions.`} tone="warning" />
+          <Insight text={`${fraudRate}% of stored predictions are currently flagged as fraud.`} tone="destructive" />
+          <Insight text={`Average risk score is ${summary.averageRiskScore}/100 across ${summary.totalPredictions.toLocaleString()} predictions.`} tone="warning" />
           <Insight text={`Highest risk case reached ${summary.highestRiskScore}/100.`} tone="primary" />
-          <Insight text={`${summary.safeTransactions.toLocaleString()} transactions were classified as safe.`} tone="success" />
+          <Insight text={`${summary.nonFraudPredictions.toLocaleString()} predictions were classified as non-fraud.`} tone="success" />
         </ul>
         <div className="mt-5 w-full glass rounded-lg py-2 text-sm flex items-center justify-center gap-2 text-muted-foreground">
           <Activity className="h-4 w-4 text-primary" /> Dashboard updates after each new prediction

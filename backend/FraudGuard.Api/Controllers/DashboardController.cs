@@ -34,29 +34,43 @@ public class DashboardController : ControllerBase
         var isAdmin = User.IsInRole("Admin");
         var predictionsQuery = _dbContext.Predictions.AsNoTracking();
         var transactionsQuery = _dbContext.Transactions.AsNoTracking();
+        var alertsQuery = _dbContext.FraudAlerts.AsNoTracking();
 
         if (!isAdmin)
         {
             predictionsQuery = predictionsQuery.Where(prediction => prediction.UserId == userId.Value);
             transactionsQuery = transactionsQuery.Where(transaction => transaction.UserId == userId.Value);
+            alertsQuery = alertsQuery.Where(alert => alert.UserId == userId.Value);
         }
 
         var totalPredictions = await predictionsQuery.CountAsync(cancellationToken);
+        var fraudPredictions = await predictionsQuery.CountAsync(prediction => prediction.IsFraud, cancellationToken);
+        var nonFraudPredictions = totalPredictions - fraudPredictions;
         var totalTransactions = await transactionsQuery.CountAsync(cancellationToken);
         var pendingTransactions = await transactionsQuery.CountAsync(transaction => transaction.Status == "pending", cancellationToken);
         var safeTransactions = await transactionsQuery.CountAsync(transaction => transaction.Status == "safe", cancellationToken);
         var reviewTransactions = await transactionsQuery.CountAsync(transaction => transaction.Status == "review", cancellationToken);
         var fraudTransactions = await transactionsQuery.CountAsync(transaction => transaction.Status == "fraud", cancellationToken);
-        var analyzedTransactionsQuery = transactionsQuery.Where(transaction => transaction.RiskScore.HasValue);
 
-        var hasAnalyzedTransactions = await analyzedTransactionsQuery.AnyAsync(cancellationToken);
-        var averageRiskScore = !hasAnalyzedTransactions
+        var hasPredictions = totalPredictions > 0;
+        var averageRiskScore = !hasPredictions
             ? 0
-            : await analyzedTransactionsQuery.AverageAsync(transaction => transaction.RiskScore!.Value, cancellationToken);
+            : await predictionsQuery.AverageAsync(prediction => prediction.RiskScore, cancellationToken);
 
-        var highestRiskScore = !hasAnalyzedTransactions
+        var highestRiskScore = !hasPredictions
             ? 0
-            : await analyzedTransactionsQuery.MaxAsync(transaction => transaction.RiskScore!.Value, cancellationToken);
+            : await predictionsQuery.MaxAsync(prediction => prediction.RiskScore, cancellationToken);
+
+        var highRiskAlerts = await alertsQuery.CountAsync(
+            alert => alert.RiskScore >= 70 || alert.Severity == "high" || alert.Severity == "critical",
+            cancellationToken);
+
+        var mostCommonTransactionType = await predictionsQuery
+            .GroupBy(prediction => prediction.TransactionType)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key)
+            .Select(group => group.Key)
+            .FirstOrDefaultAsync(cancellationToken) ?? "N/A";
 
         var latestPrediction = await predictionsQuery
             .OrderByDescending(prediction => prediction.CreatedAt)
@@ -95,28 +109,30 @@ public class DashboardController : ControllerBase
 
         var riskCounts = new Dictionary<string, int>
         {
-            ["Low"] = await analyzedTransactionsQuery.CountAsync(transaction => transaction.RiskScore < 40, cancellationToken),
-            ["Medium"] = await analyzedTransactionsQuery.CountAsync(transaction => transaction.RiskScore >= 40 && transaction.RiskScore < 70, cancellationToken),
-            ["High"] = await analyzedTransactionsQuery.CountAsync(transaction => transaction.RiskScore >= 70 && transaction.RiskScore < 90, cancellationToken),
-            ["Critical"] = await analyzedTransactionsQuery.CountAsync(transaction => transaction.RiskScore >= 90, cancellationToken)
+            ["Low"] = await predictionsQuery.CountAsync(prediction => prediction.RiskScore < 40, cancellationToken),
+            ["Medium"] = await predictionsQuery.CountAsync(prediction => prediction.RiskScore >= 40 && prediction.RiskScore < 70, cancellationToken),
+            ["High"] = await predictionsQuery.CountAsync(prediction => prediction.RiskScore >= 70 && prediction.RiskScore < 90, cancellationToken),
+            ["Critical"] = await predictionsQuery.CountAsync(prediction => prediction.RiskScore >= 90, cancellationToken)
         };
 
         var sevenDayStart = DateTime.UtcNow.Date.AddDays(-6);
-        var dailyCounts = await transactionsQuery
-            .Where(transaction => transaction.CreatedAt >= sevenDayStart)
-            .GroupBy(transaction => transaction.CreatedAt.Date)
+        var dailyCounts = await predictionsQuery
+            .Where(prediction => prediction.CreatedAt >= sevenDayStart)
+            .GroupBy(prediction => prediction.CreatedAt.Date)
             .Select(group => new
             {
                 Date = group.Key,
                 Total = group.Count(),
-                Safe = group.Count(transaction => transaction.Status == "safe"),
-                Fraud = group.Count(transaction => transaction.Status == "fraud")
+                Safe = group.Count(prediction => !prediction.IsFraud),
+                Fraud = group.Count(prediction => prediction.IsFraud)
             })
             .ToListAsync(cancellationToken);
 
         var summary = new DashboardSummaryDto
         {
             TotalPredictions = totalPredictions,
+            FraudPredictions = fraudPredictions,
+            NonFraudPredictions = nonFraudPredictions,
             TotalTransactions = totalTransactions,
             PendingTransactions = pendingTransactions,
             SafeTransactions = safeTransactions,
@@ -124,6 +140,8 @@ public class DashboardController : ControllerBase
             FraudTransactions = fraudTransactions,
             AverageRiskScore = Math.Round(averageRiskScore, 1),
             HighestRiskScore = highestRiskScore,
+            HighRiskAlerts = highRiskAlerts,
+            MostCommonTransactionType = mostCommonTransactionType,
             LatestPrediction = latestPrediction,
             RecentPredictions = recentPredictions,
             RiskDistribution = RiskLevels
@@ -153,8 +171,8 @@ public class DashboardController : ControllerBase
         if (isAdmin)
         {
             summary.TotalUsers = await _dbContext.Users.AsNoTracking().CountAsync(cancellationToken);
-            summary.HighRiskCases = await analyzedTransactionsQuery.CountAsync(transaction => transaction.RiskScore >= 70 && transaction.RiskScore < 90, cancellationToken);
-            summary.CriticalRiskCases = await analyzedTransactionsQuery.CountAsync(transaction => transaction.RiskScore >= 90, cancellationToken);
+            summary.HighRiskCases = await predictionsQuery.CountAsync(prediction => prediction.RiskScore >= 70 && prediction.RiskScore < 90, cancellationToken);
+            summary.CriticalRiskCases = await predictionsQuery.CountAsync(prediction => prediction.RiskScore >= 90, cancellationToken);
         }
 
         return Ok(summary);

@@ -90,15 +90,14 @@ function AdminDashboardContent({ summary }: { summary: DashboardSummary }) {
     <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Total users" value={(summary.totalUsers ?? 0).toLocaleString()} icon={Users} />
-        <StatCard label="Total transactions" value={summary.totalTransactions.toLocaleString()} icon={Receipt} tone="violet" />
-        <StatCard label="Pending analysis" value={summary.pendingTransactions.toLocaleString()} icon={Loader2} tone="primary" />
-        <StatCard label="Review" value={summary.reviewTransactions.toLocaleString()} icon={Gauge} tone="warning" />
-        <StatCard label="Fraud transactions" value={summary.fraudTransactions.toLocaleString()} icon={AlertTriangle} tone="destructive" />
-        <StatCard label="High risk cases" value={(summary.highRiskCases ?? 0).toLocaleString()} icon={ShieldAlert} tone="warning" />
+        <StatCard label="Total predictions" value={summary.totalPredictions.toLocaleString()} icon={Brain} tone="violet" />
+        <StatCard label="Fraud predictions" value={summary.fraudPredictions.toLocaleString()} icon={AlertTriangle} tone="destructive" />
+        <StatCard label="Non-fraud predictions" value={summary.nonFraudPredictions.toLocaleString()} icon={ShieldCheck} tone="success" />
+        <StatCard label="High-risk alerts" value={summary.highRiskAlerts.toLocaleString()} icon={ShieldAlert} tone="warning" />
         <StatCard label="Critical cases" value={(summary.criticalRiskCases ?? 0).toLocaleString()} icon={ShieldAlert} tone="destructive" />
         <StatCard label="Average risk" value={`${summary.averageRiskScore}/100`} icon={Gauge} tone="warning" />
         <StatCard label="Highest risk" value={`${summary.highestRiskScore}/100`} icon={Brain} tone="primary" />
-        <StatCard label="Safe transactions" value={summary.safeTransactions.toLocaleString()} icon={ShieldCheck} tone="success" />
+        <StatCard label="Common type" value={summary.mostCommonTransactionType} icon={Receipt} tone="primary" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4">
@@ -131,8 +130,8 @@ function AdminDashboardContent({ summary }: { summary: DashboardSummary }) {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
-        <Card title="Risk distribution" sub="All stored transactions" className="h-80">
-          <RiskDistribution data={summary.riskDistribution} total={summary.totalTransactions} />
+        <Card title="Risk distribution" sub="All stored predictions" className="h-80">
+          <RiskDistribution data={summary.riskDistribution} total={summary.totalPredictions} />
         </Card>
 
         <Card title="Safe vs fraud" sub="Last 7 days" className="h-80">
