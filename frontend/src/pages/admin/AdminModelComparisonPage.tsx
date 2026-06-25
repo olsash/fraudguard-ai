@@ -68,7 +68,7 @@ export default function AdminModelComparisonPage() {
         title="Machine Learning Model Comparison"
         subtitle="Notebook evaluation summary"
       />
-      <main className="flex-1 p-4 md:p-8 space-y-4">
+      <main className="flex-1 min-w-0 overflow-x-hidden p-4 md:p-8 space-y-4">
         <section className="glass rounded-2xl p-5">
           <div className="max-w-5xl space-y-2 text-sm text-muted-foreground leading-6">
             <p>
@@ -167,13 +167,13 @@ export default function AdminModelComparisonPage() {
 
             <ClusteringResultsSection clusteringResults={results.clusteringResults ?? []} />
 
-            <section className="glass rounded-2xl overflow-hidden">
+            <section className="glass max-w-full rounded-2xl overflow-hidden">
               <div className="px-5 py-3 border-b border-border flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-primary" />
                 <span className="text-sm font-display font-semibold">Classifier comparison results</span>
                 <span className="ml-auto text-xs text-muted-foreground">{filteredModels.length} of {results.models.length} models</span>
               </div>
-              <div className="overflow-x-auto">
+              <div className="scrollbar-thin max-w-full overflow-x-auto">
                 <table className="w-full text-sm min-w-[1180px]">
                   <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
                     <tr>
@@ -342,7 +342,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function ClusteringResultsSection({ clusteringResults }: { clusteringResults: ClusteringResult[] }) {
   return (
-    <section className="glass rounded-2xl overflow-hidden">
+    <section className="glass max-w-full rounded-2xl overflow-hidden">
       <div className="px-5 py-3 border-b border-border flex flex-wrap items-center gap-2">
         <BarChart3 className="h-4 w-4 text-primary" />
         <span className="text-sm font-display font-semibold">Clustering results</span>
@@ -356,7 +356,7 @@ function ClusteringResultsSection({ clusteringResults }: { clusteringResults: Cl
           No clustering results export was found in the ML results folder. Export `ml/results/clustering_results.json` or `ml/results/clustering_results.csv` to display these metrics.
         </div>
       ) : (
-        <div className="overflow-x-auto mt-4">
+        <div className="scrollbar-thin mt-4 max-w-full overflow-x-auto">
           <table className="w-full text-sm min-w-[820px]">
             <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
@@ -441,7 +441,7 @@ function ModelDetailsModal({ model, onClose }: { model: ModelComparisonItem; onC
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
-      <div onClick={(event) => event.stopPropagation()} className="glass-strong rounded-2xl max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
+      <div onClick={(event) => event.stopPropagation()} className="glass-strong scrollbar-thin max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-wider text-muted-foreground">Classifier details</p>

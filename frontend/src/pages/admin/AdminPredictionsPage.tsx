@@ -7,6 +7,7 @@ import { AlertTriangle, BrainCircuit, ChevronRight, Download, Gauge, Loader2, Se
 import { useEffect, useMemo, useState } from "react";
 import { RiskBar, StatusBadge, Td, Th } from "@/pages/transactions/TransactionsPage";
 import { toast } from "sonner";
+import { formatCurrency } from "@/utils/formatters";
 
 const transactionTypes = ["all", "CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"] as const;
 const emptyFilters: AdminFilters = { status: "all", riskLevel: "all", predictionResult: "all", transactionType: "all" };
@@ -69,7 +70,7 @@ export default function AdminPredictionsPage() {
   return (
     <>
       <Topbar title="Predictions" subtitle="Prediction history across the platform" />
-      <main className="flex-1 p-4 md:p-8 space-y-4">
+      <main className="flex-1 min-w-0 overflow-x-hidden p-4 md:p-8 space-y-4">
         <section className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <StatCard label="Total Predictions" value={summary.total.toLocaleString()} icon={BrainCircuit} />
           <StatCard label="Low Risk" value={summary.low.toLocaleString()} icon={ShieldCheck} tone="success" />
@@ -83,8 +84,8 @@ export default function AdminPredictionsPage() {
         {loading && <StatePanel title="Loading predictions" message="Fetching prediction history from FraudGuard API." />}
         {!loading && error && <StatePanel title="Predictions unavailable" message={error} destructive />}
         {!loading && !error && (
-          <div className="glass rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="glass max-w-full rounded-2xl overflow-hidden">
+            <div className="scrollbar-thin max-w-full overflow-x-auto">
               <table className="w-full text-sm min-w-[1180px]">
                 <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
                   <tr><Th>Prediction ID</Th><Th>User</Th><Th>Transaction</Th><Th>Type</Th><Th>Amount</Th><Th>Prediction Result</Th><Th>Risk</Th><Th>Score</Th><Th>Created</Th><Th /></tr>
@@ -143,19 +144,19 @@ function Toolbar({
           </button>
         ))}
       </div>
-      <select value={filters.predictionResult ?? "all"} onChange={(event) => onChange({ ...filters, predictionResult: event.target.value as AdminFilters["predictionResult"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+      <select value={filters.predictionResult ?? "all"} onChange={(event) => onChange({ ...filters, predictionResult: event.target.value as AdminFilters["predictionResult"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
         <option value="all">All results</option>
         <option value="fraud">Fraud</option>
         <option value="not_fraud">Not fraud</option>
       </select>
-      <select value={filters.transactionType ?? "all"} onChange={(event) => onChange({ ...filters, transactionType: event.target.value as AdminFilters["transactionType"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+      <select value={filters.transactionType ?? "all"} onChange={(event) => onChange({ ...filters, transactionType: event.target.value as AdminFilters["transactionType"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
         {transactionTypes.map((type) => (
           <option key={type} value={type}>{type === "all" ? "All types" : type}</option>
         ))}
       </select>
       <input type="date" value={filters.fromDate ?? ""} onChange={(e) => onChange({ ...filters, fromDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
       <input type="date" value={filters.toDate ?? ""} onChange={(e) => onChange({ ...filters, toDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
-      <select value={filters.riskLevel ?? "all"} onChange={(event) => onChange({ ...filters, riskLevel: event.target.value as AdminFilters["riskLevel"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+      <select value={filters.riskLevel ?? "all"} onChange={(event) => onChange({ ...filters, riskLevel: event.target.value as AdminFilters["riskLevel"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
         <option value="all">All risk</option>
         <option value="low">Low risk</option>
         <option value="medium">Review risk</option>
@@ -179,7 +180,7 @@ function PredictionModal({ prediction, onClose }: { prediction: AdminPredictionD
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
-      <div onClick={(event) => event.stopPropagation()} className="glass-strong rounded-2xl max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
+      <div onClick={(event) => event.stopPropagation()} className="glass-strong scrollbar-thin max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl p-6">
         <div className="mb-5 flex items-center justify-between">
           <div>
             <p className="text-xs text-muted-foreground">Prediction PR-{prediction.id}</p>
@@ -296,9 +297,6 @@ function DetailsLoading() {
   return <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4"><div className="glass rounded-2xl p-6 text-sm text-muted-foreground"><Loader2 className="mr-2 inline h-4 w-4 animate-spin text-primary" /> Loading details...</div></div>;
 }
 
-function formatCurrency(value: number, currency = "USD") {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 2 }).format(value ?? 0);
-}
 
 function formatExplanationFactor(reason: string) {
   const delimiter = reason.indexOf("|");

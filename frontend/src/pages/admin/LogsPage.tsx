@@ -114,7 +114,7 @@ export default function LogsPage() {
   return (
     <>
       <Topbar title="System Logs" subtitle="System activity logs" />
-      <main className="flex-1 p-4 md:p-8 space-y-4">
+      <main className="flex-1 min-w-0 overflow-x-hidden p-4 md:p-8 space-y-4">
         <Toolbar
           filters={filters}
           autoRefresh={autoRefresh}
@@ -125,7 +125,7 @@ export default function LogsPage() {
           onAutoRefreshChange={setAutoRefresh}
         />
 
-        <div className="glass rounded-2xl overflow-hidden">
+        <div className="glass max-w-full rounded-2xl overflow-hidden">
           <div className="px-5 py-3 border-b border-border flex items-center gap-2">
             <Activity className="h-4 w-4 text-primary" />
             <span className="text-sm font-display font-semibold">System activity logs</span>
@@ -137,7 +137,7 @@ export default function LogsPage() {
           {!loading && !error && logs.length === 0 && <StatePanel title="No system logs found." message="Try adjusting filters or generate activity in the app." />}
           {!loading && !error && logs.length > 0 && (
             <>
-              <div className="overflow-x-auto">
+              <div className="scrollbar-thin max-w-full overflow-x-auto">
                 <table className="w-full text-sm min-w-[1100px]">
                   <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
                     <tr>
@@ -205,10 +205,10 @@ function Toolbar({
         <Search className="h-4 w-4 text-muted-foreground" />
         <input value={filters.search ?? ""} onChange={(event) => onChange({ ...filters, search: event.target.value, page: 1 })} placeholder="Search message, user, path, IP..." className="flex-1 bg-transparent text-sm outline-none" />
       </div>
-      <select value={filters.level ?? "all"} onChange={(event) => onChange({ ...filters, level: event.target.value as SystemLogLevel, page: 1 })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+      <select value={filters.level ?? "all"} onChange={(event) => onChange({ ...filters, level: event.target.value as SystemLogLevel, page: 1 })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
         {levels.map((level) => <option key={level} value={level}>{level === "all" ? "All levels" : level}</option>)}
       </select>
-      <select value={filters.source ?? "all"} onChange={(event) => onChange({ ...filters, source: event.target.value as SystemLogSource, page: 1 })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+      <select value={filters.source ?? "all"} onChange={(event) => onChange({ ...filters, source: event.target.value as SystemLogSource, page: 1 })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
         {sources.map((source) => <option key={source} value={source}>{source === "all" ? "All sources" : sourceLabel(source)}</option>)}
       </select>
       <input type="date" value={filters.fromDate ?? ""} onChange={(event) => onChange({ ...filters, fromDate: event.target.value || undefined, page: 1 })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />

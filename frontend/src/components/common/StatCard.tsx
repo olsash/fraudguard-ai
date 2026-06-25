@@ -16,17 +16,17 @@ export function StatCard({
     destructive: "from-destructive/25 to-destructive/0 text-destructive",
   }[tone];
   const valueClass = valueSize === "compact"
-    ? "text-[clamp(1.1rem,0.98rem+0.42vw,1.45rem)]"
+    ? "text-[clamp(1.125rem,1rem+0.5vw,1.5rem)]"
     : "text-[clamp(1.45rem,1.15rem+0.7vw,1.875rem)]";
   const positive = (delta ?? 0) >= 0;
   return (
     <div className="glass rounded-2xl p-5 relative overflow-hidden group min-h-[132px]">
       <div className={`absolute -right-8 -top-8 h-28 w-28 rounded-full bg-gradient-to-br ${toneMap} blur-2xl opacity-50 group-hover:opacity-80 transition`} />
       <div className="relative flex h-full min-w-0 items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 pr-1">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">{label}</p>
+        <div className="min-w-0 flex-1 pr-2">
+          <p className="text-xs uppercase tracking-widest leading-snug text-muted-foreground">{label}</p>
           <p
-            className={`mt-2 whitespace-nowrap font-display font-semibold leading-tight ${valueClass}`}
+            className={`mt-2 break-words font-display font-semibold leading-tight ${valueClass}`}
             title={String(value)}
           >
             {value}
@@ -38,7 +38,7 @@ export function StatCard({
             </div>
           )}
         </div>
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-card/50">
+        <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl border border-border bg-card/50">
           <Icon className={`h-5 w-5 ${toneMap.split(" ").pop()}`} />
         </div>
       </div>

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { formatCurrency } from "@/utils/formatters";
 
 const severityClasses: Record<AlertSeverity, string> = {
   critical: "bg-destructive/20 text-destructive border-destructive/40",
@@ -110,13 +111,13 @@ export function AlertsWorkspace({ admin = false }: { admin?: boolean }) {
   const highRiskCount = alerts.filter((alert) => alert.severity === "high" || alert.severity === "critical" || alert.riskScore >= 70).length;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div className="grid grid-cols-2 gap-4">
         <Stat label="Total alerts" value={alerts.length} color="text-primary" />
         <Stat label="High risk alerts" value={highRiskCount} color="text-destructive" />
       </div>
 
-      <section className="glass rounded-2xl overflow-hidden">
+      <section className="glass max-w-full rounded-2xl overflow-hidden">
         <div className="p-5 border-b border-border space-y-4">
           <div className="flex items-center gap-3">
             <ShieldAlert className="h-5 w-5 text-destructive" />
@@ -270,11 +271,11 @@ function AlertRow({
                     event.stopPropagation();
                     onStatus?.(event.target.value as AlertStatus);
                   }}
-                  className="mt-0.5 flex-1 bg-transparent text-sm outline-none capitalize disabled:opacity-60"
+                  className="fg-select mt-0.5 flex-1 bg-transparent text-sm outline-none capitalize disabled:opacity-60"
                 >
-                  <option value="open" className="bg-card">Open</option>
-                  <option value="investigating" className="bg-card">Investigating</option>
-                  <option value="resolved" className="bg-card">Resolved</option>
+                  <option value="open">Open</option>
+                  <option value="investigating">Investigating</option>
+                  <option value="resolved">Resolved</option>
                 </select>
                 {updating && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
               </div>
@@ -303,7 +304,7 @@ function AlertDetailsModal({ alert, onClose }: { alert: FraudAlertRecord; onClos
   const highRisk = alert.riskScore >= 70 || alert.severity === "high" || alert.severity === "critical";
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-background/80 p-4 backdrop-blur-sm">
+    <div className="scrollbar-thin fixed inset-0 z-50 overflow-y-auto bg-background/80 p-4 backdrop-blur-sm">
       <div role="dialog" aria-modal="true" className="glass mx-auto my-8 w-full max-w-3xl rounded-2xl ring-1 ring-border">
         <div className="flex items-center justify-between border-b border-border p-5">
           <div>
@@ -406,8 +407,8 @@ function FilterSelect({
   return (
     <label className="glass rounded-lg px-3 py-2">
       <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-0.5 w-full bg-transparent text-sm outline-none capitalize">
-        {options.map((option) => <option key={option} value={option} className="bg-card capitalize">{option}</option>)}
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="fg-select mt-0.5 w-full bg-transparent text-sm outline-none capitalize">
+        {options.map((option) => <option key={option} value={option} className="capitalize">{option}</option>)}
       </select>
     </label>
   );
@@ -472,13 +473,6 @@ function DeleteDialog({
   );
 }
 
-function formatCurrency(value: number, currency = "USD") {
-  try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency: currency || "USD", maximumFractionDigits: 2 }).format(value ?? 0);
-  } catch {
-    return `${currency || "USD"} ${(value ?? 0).toFixed(2)}`;
-  }
-}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));

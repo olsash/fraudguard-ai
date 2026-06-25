@@ -30,9 +30,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   useRequireRole("user");
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex min-h-screen w-full max-w-full overflow-x-hidden">
       <AppSidebar variant="user" />
-      <div className="flex-1 min-w-0 flex flex-col">{children}</div>
+      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">{children}</div>
     </div>
   );
 }
@@ -41,9 +41,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
   useRequireRole("admin");
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex min-h-screen w-full max-w-full overflow-x-hidden">
       <AppSidebar variant="admin" />
-      <div className="flex-1 min-w-0 flex flex-col">{children}</div>
+      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">{children}</div>
     </div>
   );
 }

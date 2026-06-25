@@ -7,6 +7,7 @@ import { AlertTriangle, ChevronRight, Gauge, Loader2, Receipt, Search, ShieldChe
 import { useEffect, useMemo, useState } from "react";
 import { RiskBar, StatusBadge, Td, Th } from "@/pages/transactions/TransactionsPage";
 import { toast } from "sonner";
+import { formatCurrency } from "@/utils/formatters";
 
 const transactionTypes = ["all", "CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"] as const;
 const emptyFilters: AdminFilters = { status: "all", riskLevel: "all", transactionType: "all", fraudStatus: "all", sortBy: "date", sortDirection: "desc", page: 1, pageSize: 25 };
@@ -83,15 +84,15 @@ export default function AdminTransactionsPage() {
   return (
     <>
       <Topbar title="Transactions" subtitle="All transactions across the platform" />
-      <main className="flex-1 p-4 md:p-8 space-y-4">
-        <section className="grid grid-cols-2 lg:grid-cols-7 gap-4">
+      <main className="flex-1 min-w-0 overflow-x-hidden p-4 md:p-8 space-y-4">
+        <section className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-4">
           <StatCard label="Total Transactions" value={pageData.totalCount.toLocaleString()} icon={Receipt} />
           <StatCard label="Pending" value={summary.pending.toLocaleString()} icon={Loader2} tone="primary" />
           <StatCard label="Safe" value={summary.safe.toLocaleString()} icon={ShieldCheck} tone="success" />
           <StatCard label="Review" value={summary.review.toLocaleString()} icon={ShieldQuestion} tone="warning" />
           <StatCard label="Fraud" value={summary.fraud.toLocaleString()} icon={AlertTriangle} tone="destructive" />
-          <StatCard label="Total Amount" value={formatCurrency(summary.totalAmount)} icon={Wallet} tone="violet" />
-          <StatCard label="Average Risk" value={`${summary.averageRisk}/100`} icon={Gauge} tone="primary" />
+          <StatCard label="Total Amount" value={formatCurrency(summary.totalAmount)} icon={Wallet} tone="violet" valueSize="compact" />
+          <StatCard label="Average Risk" value={`${summary.averageRisk}/100`} icon={Gauge} tone="primary" valueSize="compact" />
         </section>
 
         <Toolbar filters={filters} onChange={updateFilters} />
@@ -99,8 +100,8 @@ export default function AdminTransactionsPage() {
         {loading && <StatePanel title="Loading transactions" message="Fetching platform transactions from FraudGuard API." />}
         {!loading && error && <StatePanel title="Transactions unavailable" message={error} destructive />}
         {!loading && !error && (
-          <div className="glass rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="glass max-w-full rounded-2xl overflow-hidden">
+            <div className="scrollbar-thin max-w-full overflow-x-auto">
               <table className="w-full text-sm min-w-[1240px]">
                 <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
                   <tr><Th>ID</Th><Th>Prediction</Th><Th>Merchant</Th><Th>User</Th><Th>Type</Th><Th>Country</Th><Th>Amount</Th><Th>Risk</Th><Th>Score</Th><Th>Status</Th><Th>Date</Th><Th>Actions</Th></tr>
@@ -175,12 +176,12 @@ function Toolbar({ filters, onChange }: { filters: AdminFilters; onChange: (filt
           </button>
         ))}
       </div>
-      <select value={filters.transactionType ?? "all"} onChange={(event) => onChange({ ...filters, transactionType: event.target.value as AdminFilters["transactionType"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+      <select value={filters.transactionType ?? "all"} onChange={(event) => onChange({ ...filters, transactionType: event.target.value as AdminFilters["transactionType"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
         {transactionTypes.map((type) => (
           <option key={type} value={type}>{type === "all" ? "All types" : type}</option>
         ))}
       </select>
-      <select value={filters.fraudStatus ?? "all"} onChange={(event) => onChange({ ...filters, fraudStatus: event.target.value as AdminFilters["fraudStatus"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+      <select value={filters.fraudStatus ?? "all"} onChange={(event) => onChange({ ...filters, fraudStatus: event.target.value as AdminFilters["fraudStatus"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
         <option value="all">All fraud status</option>
         <option value="fraud">Fraud only</option>
         <option value="not_fraud">Not fraud</option>
@@ -189,22 +190,22 @@ function Toolbar({ filters, onChange }: { filters: AdminFilters; onChange: (filt
       <input type="number" min="0" step="0.01" value={filters.maxAmount ?? ""} onChange={(e) => onChange({ ...filters, maxAmount: e.target.value || undefined })} placeholder="Max amount" className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none w-28" />
       <input type="date" value={filters.fromDate ?? ""} onChange={(e) => onChange({ ...filters, fromDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
       <input type="date" value={filters.toDate ?? ""} onChange={(e) => onChange({ ...filters, toDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
-      <select value={filters.riskLevel ?? "all"} onChange={(event) => onChange({ ...filters, riskLevel: event.target.value as AdminFilters["riskLevel"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+      <select value={filters.riskLevel ?? "all"} onChange={(event) => onChange({ ...filters, riskLevel: event.target.value as AdminFilters["riskLevel"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
         <option value="all">All risk</option>
         <option value="low">Low risk</option>
         <option value="medium">Medium risk</option>
         <option value="high">High risk</option>
       </select>
-      <select value={filters.sortBy ?? "date"} onChange={(event) => onChange({ ...filters, sortBy: event.target.value as AdminFilters["sortBy"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+      <select value={filters.sortBy ?? "date"} onChange={(event) => onChange({ ...filters, sortBy: event.target.value as AdminFilters["sortBy"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
         <option value="date">Sort by date</option>
         <option value="amount">Sort by amount</option>
         <option value="riskScore">Sort by risk</option>
       </select>
-      <select value={filters.sortDirection ?? "desc"} onChange={(event) => onChange({ ...filters, sortDirection: event.target.value as AdminFilters["sortDirection"] })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+      <select value={filters.sortDirection ?? "desc"} onChange={(event) => onChange({ ...filters, sortDirection: event.target.value as AdminFilters["sortDirection"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
         <option value="desc">Descending</option>
         <option value="asc">Ascending</option>
       </select>
-      <select value={filters.pageSize ?? 25} onChange={(event) => onChange({ ...filters, pageSize: Number(event.target.value) })} className="glass rounded-lg px-3 py-2 text-xs bg-background outline-none">
+      <select value={filters.pageSize ?? 25} onChange={(event) => onChange({ ...filters, pageSize: Number(event.target.value) })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
         <option value={10}>10 / page</option>
         <option value={25}>25 / page</option>
         <option value={50}>50 / page</option>
@@ -237,7 +238,7 @@ function Pagination({ pageData, onPageChange }: { pageData: AdminPagedResult<Adm
 function AdminTransactionModal({ transaction, analyzing, onClose, onAnalyze }: { transaction: AdminTransactionDetail; analyzing: boolean; onClose: () => void; onAnalyze: () => void }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
-      <div onClick={(event) => event.stopPropagation()} className="glass-strong rounded-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
+      <div onClick={(event) => event.stopPropagation()} className="glass-strong scrollbar-thin max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl p-6">
         <div className="mb-5 flex items-center justify-between">
           <div>
             <p className="text-xs text-muted-foreground">Transaction TX-{transaction.id}</p>
@@ -347,9 +348,6 @@ function DetailsLoading() {
   return <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm grid place-items-center p-4"><div className="glass rounded-2xl p-6 text-sm text-muted-foreground"><Loader2 className="mr-2 inline h-4 w-4 animate-spin text-primary" /> Loading details...</div></div>;
 }
 
-function formatCurrency(value: number, currency = "USD") {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 2 }).format(value ?? 0);
-}
 
 function formatExplanationFactor(reason: string) {
   const delimiter = reason.indexOf("|");

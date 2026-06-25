@@ -67,7 +67,7 @@ export function makeTx(i: number) {
     category: categories[i % categories.length],
     country: countries[i % countries.length],
     amount,
-    currency: "USD",
+    currency: "EUR",
     time: new Date(Date.now() - i * 1000 * 60 * (Math.random() * 30 + 5)).toISOString(),
     risk: fraud ? Math.round(70 + Math.random() * 30) : Math.round(Math.random() * 60),
     status: fraud ? "fraud" : Math.random() < 0.08 ? "review" : "safe",

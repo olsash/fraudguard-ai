@@ -5,13 +5,14 @@ import type { CreateTransactionInput, Transaction, TransactionFilters, Transacti
 import { ChevronRight, Download, Loader2, Plus, Search, Sparkles, X } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { formatCurrency } from "@/utils/formatters";
 
 const initialForm = {
   merchant: "",
   category: "",
   country: "",
   amount: "",
-  currency: "USD",
+  currency: "EUR",
   transactionType: "PAYMENT",
   description: "",
 };
@@ -91,7 +92,7 @@ export default function TxPage() {
       category: form.category,
       country: form.country,
       amount,
-      currency: form.currency || "USD",
+      currency: form.currency || "EUR",
       transactionType: form.transactionType,
       description: form.description || null,
     };
@@ -158,14 +159,14 @@ export default function TxPage() {
   return (
     <>
       <Topbar title="Transactions" subtitle={summaryText} />
-      <main className="flex-1 p-4 md:p-8 space-y-4">
+      <main className="flex-1 min-w-0 overflow-x-hidden p-4 md:p-8 space-y-4">
         <Toolbar filters={filters} onChange={setFilters} onCreate={() => setShowCreate(true)} onExport={exportCsv} />
 
         {loading && <StatePanel title="Loading transactions" message="Fetching transactions from FraudGuard API." />}
         {!loading && error && <StatePanel title="Transactions unavailable" message={error} destructive />}
         {!loading && !error && (
-          <div className="glass rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="glass max-w-full rounded-2xl overflow-hidden">
+            <div className="scrollbar-thin max-w-full overflow-x-auto">
               <table className="w-full text-sm min-w-[980px]">
                 <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
                   <tr>
@@ -354,7 +355,7 @@ function CreateTransactionModal({ form, saving, onChange, onClose, onSubmit }: {
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
-      <div onClick={(event) => event.stopPropagation()} className="glass-strong rounded-2xl max-w-lg w-full p-6">
+      <div onClick={(event) => event.stopPropagation()} className="glass-strong scrollbar-thin max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6">
         <div className="mb-5 flex items-center justify-between">
           <p className="font-display font-semibold text-lg">{title}</p>
           <button onClick={onClose} className="h-8 w-8 grid place-items-center rounded-lg hover:bg-secondary"><X className="h-4 w-4" /></button>
@@ -423,7 +424,7 @@ function SearchableSelect({
         className="mt-1 w-full glass rounded-lg px-3 py-2.5 text-sm bg-background/60 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/60"
       />
       {open && (
-        <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto glass-strong rounded-lg border border-border bg-card/95 shadow-xl backdrop-blur-xl">
+        <div className="scrollbar-thin absolute z-50 mt-1 max-h-60 w-full overflow-y-auto glass-strong rounded-lg border border-border bg-card/95 pr-1 shadow-xl backdrop-blur-xl">
           {filtered.length === 0 ? (
             <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
           ) : filtered.map((option) => (
@@ -455,7 +456,7 @@ function Select({ label, value, options, onChange }: { label: string; value: str
   return (
     <label className="block">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full cursor-pointer glass rounded-lg px-3 py-2.5 text-sm bg-background text-foreground outline-none focus:ring-1 focus:ring-primary/60">
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="fg-select mt-1 w-full cursor-pointer glass rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/60">
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
     </label>
@@ -476,9 +477,6 @@ function StatePanel({ title, message, destructive }: { title: string; message: s
   );
 }
 
-function formatCurrency(value: number, currency = "USD") {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 2 }).format(value ?? 0);
-}
 
 function formatExplanationFactor(reason: string) {
   const delimiter = reason.indexOf("|");

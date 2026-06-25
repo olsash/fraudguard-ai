@@ -5,6 +5,7 @@ import { ChevronRight, Eye, Loader2, Pencil, Search, Trash2, UserPlus, X } from 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { RiskBar, Td, Th } from "@/pages/transactions/TransactionsPage";
+import { formatCurrency } from "@/utils/formatters";
 
 const blankForm = {
   fullName: "",
@@ -151,7 +152,7 @@ export default function UsersPage() {
   return (
     <>
       <Topbar title="Users Management" subtitle={`${rows.length} of ${users.length} users`} />
-      <main className="flex-1 p-4 md:p-8 space-y-4">
+      <main className="flex-1 min-w-0 overflow-x-hidden p-4 md:p-8 space-y-4">
         <div className="glass rounded-2xl p-4 flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 glass rounded-lg px-3 py-2 flex-1 min-w-[240px]">
             <Search className="h-4 w-4 text-muted-foreground" />
@@ -167,8 +168,8 @@ export default function UsersPage() {
         {loading && <StatePanel icon={Loader2} title="Loading users" message="Fetching registered users from FraudGuard API." spin />}
         {!loading && error && <StatePanel title="Users unavailable" message={error} destructive />}
         {!loading && !error && (
-          <div className="glass rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="glass max-w-full rounded-2xl overflow-hidden">
+            <div className="scrollbar-thin max-w-full overflow-x-auto">
               <table className="w-full text-sm min-w-[1120px]">
                 <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
                   <tr>
@@ -330,7 +331,7 @@ function DetailsModal({ loading, details, onClose }: { loading: boolean; details
           </div>
           <div>
             <p className="text-sm font-display font-semibold">Recent predictions</p>
-            <div className="mt-3 space-y-2 max-h-56 overflow-y-auto pr-1">
+            <div className="scrollbar-thin mt-3 max-h-56 space-y-2 overflow-y-auto pr-3">
               {details.recentPredictions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No predictions available yet.</p>
               ) : details.recentPredictions.map((prediction) => (
@@ -368,7 +369,7 @@ function DeleteDialog({ user, onCancel, onConfirm }: { user: AdminUser; onCancel
 function Modal({ title, children, onClose, wide }: { title: string; children: React.ReactNode; onClose: () => void; wide?: boolean }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
-      <div onClick={(event) => event.stopPropagation()} className={`glass-strong rounded-2xl w-full p-6 ${wide ? "max-w-3xl" : "max-w-lg"}`}>
+      <div onClick={(event) => event.stopPropagation()} className={`glass-strong scrollbar-thin max-h-[90vh] w-full overflow-y-auto rounded-2xl p-6 ${wide ? "max-w-3xl" : "max-w-lg"}`}>
         <div className="mb-5 flex items-center justify-between">
           <p className="font-display font-semibold text-lg">{title}</p>
           <button onClick={onClose} className="h-8 w-8 grid place-items-center rounded-lg hover:bg-secondary"><X className="h-4 w-4" /></button>
@@ -399,7 +400,7 @@ function Select({ label, value, options, onChange }: { label: string; value: str
   return (
     <label className="block">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full glass rounded-lg px-3 py-2.5 text-sm bg-background outline-none">
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="fg-select mt-1 w-full glass rounded-lg px-3 py-2.5 text-sm outline-none">
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
     </label>
@@ -445,6 +446,3 @@ function formatDateTime(value: string) {
   return new Date(value).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
-}

@@ -122,7 +122,7 @@ function HeroVisual() {
         <AlertTriangle className="h-4 w-4 text-destructive"/>
         <div>
           <p className="text-xs text-muted-foreground">Fraud flagged</p>
-              <p className="text-sm font-semibold">TX-9F2A - $3,420</p>
+              <p className="text-sm font-semibold">TX-9F2A - €3,420</p>
         </div>
       </FloatCard>
       <FloatCard className="bottom-20 left-0" delay="2s">

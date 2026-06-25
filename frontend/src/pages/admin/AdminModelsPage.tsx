@@ -84,7 +84,7 @@ export default function AdminModels() {
   return (
     <>
       <Topbar title="AI Models" subtitle="Deploy, retrain and monitor models in production" />
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 pb-10">
+      <main className="scrollbar-thin flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-4 md:p-8 space-y-4 pb-10">
         {loading && <StatePanel title="Loading AI models" message="Fetching model registry from FraudGuard ML service." spin />}
         {!loading && error && <StatePanel title="AI model service unavailable" message={error} destructive />}
         {!loading && !error && models.length === 0 && <StatePanel title="No models registered" message="Run the ML service to initialize the model registry." />}

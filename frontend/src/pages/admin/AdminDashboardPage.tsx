@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { formatCurrency } from "@/utils/formatters";
 import {
   Area,
   AreaChart,
@@ -231,10 +232,3 @@ function toChartData(points: PredictionChartPoint[]) {
   }));
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value);
-}

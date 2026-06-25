@@ -10,6 +10,7 @@ import type {
   TransactionType,
 } from "@/types/prediction";
 import type { Transaction } from "@/types/transaction";
+import { formatCurrency } from "@/utils/formatters";
 import {
   AlertTriangle,
   ChevronDown,
@@ -200,7 +201,7 @@ export default function Predict() {
         title="Fraud Analysis"
         subtitle="Analyze saved transactions and monitor risk decisions"
       />
-      <main className="flex-1 p-4 md:p-8 grid lg:grid-cols-5 gap-6">
+      <main className="grid min-w-0 flex-1 gap-6 overflow-x-hidden p-4 md:p-8 lg:grid-cols-5">
         <section className="lg:col-span-3 space-y-5">
           <div className="glass rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-6">
@@ -500,7 +501,7 @@ function TransactionPicker({
             value={selectedId}
             onChange={(event) => onChange(event.target.value)}
             disabled={loading || Boolean(error) || transactions.length === 0}
-            className="mt-1 w-full glass rounded-lg px-3 py-3 text-sm bg-background outline-none disabled:opacity-60"
+            className="fg-select mt-1 w-full glass rounded-lg px-3 py-3 text-sm outline-none disabled:opacity-60"
           >
             <option value="">{loading ? "Loading transactions..." : "Select transaction"}</option>
             {transactions.map((transaction) => (
@@ -665,10 +666,10 @@ function Select({
           required
           value={value}
           onChange={(event) => onChange(event.target.value as TransactionType)}
-          className="flex-1 bg-transparent text-sm outline-none appearance-none"
+          className="fg-select flex-1 bg-transparent text-sm outline-none appearance-none"
         >
           {options.map((option) => (
-            <option key={option} value={option} className="bg-card">
+            <option key={option} value={option}>
               {option}
             </option>
           ))}
@@ -793,7 +794,7 @@ function ResultPanel({
                 "Amount",
                 formatCurrency(
                   result.amount,
-                  result.transactionCurrency ?? selectedTransaction?.currency ?? "USD",
+                  result.transactionCurrency ?? selectedTransaction?.currency ?? "EUR",
                 ),
               ],
               ["Type", result.transactionType],
@@ -1111,13 +1112,13 @@ function HistoryPanel({
   onSelect: (item: PredictionResult) => void;
 }) {
   return (
-    <div className="glass rounded-2xl p-5">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="glass flex min-h-0 flex-col overflow-hidden rounded-2xl p-5">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-sm font-display font-semibold">Prediction history</p>
           <p className="text-[11px] text-muted-foreground">Analyzed results only</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={onRefresh}
@@ -1142,7 +1143,7 @@ function HistoryPanel({
           </button>
         </div>
       </div>
-      <div className="mt-4 space-y-3 max-h-[360px] overflow-y-auto pr-1">
+      <div className="scrollbar-thin mt-4 max-h-[360px] space-y-3 overflow-y-auto overflow-x-hidden pr-3">
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading history...
@@ -1184,17 +1185,17 @@ function HistoryItem({
   return (
     <button
       onClick={() => onSelect(item)}
-      className="w-full text-left rounded-lg border border-border/50 bg-background/30 p-3 hover:bg-secondary/30"
+      className="w-full min-w-0 text-left rounded-lg border border-border/50 bg-background/30 p-3 hover:bg-secondary/30"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold">{title}</p>
-          <p className="text-xs text-muted-foreground">
-            {formatCurrency(item.amount, item.transactionCurrency ?? "USD")} -{" "}
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold" title={title}>{title}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {formatCurrency(item.amount, item.transactionCurrency ?? "EUR")} -{" "}
             {formatStatus(status)}
           </p>
         </div>
-        <div className="text-right">
+        <div className="shrink-0 text-right">
           <p
             className={
               item.isFraud
@@ -1207,7 +1208,7 @@ function HistoryItem({
           <p className="text-xs text-muted-foreground">{item.riskLevel}</p>
         </div>
       </div>
-      <div className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
+      <div className="mt-2 flex min-w-0 items-center gap-1 truncate text-[11px] text-muted-foreground">
         <Clock className="h-3 w-3" /> {new Date(item.createdAt).toLocaleString()}
       </div>
     </button>
@@ -1230,7 +1231,7 @@ function PredictionDetailsModal({
     (prediction.transactionId ? `Transaction #${prediction.transactionId}` : "Manual prediction");
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-background/80 p-4 backdrop-blur-sm">
+    <div className="scrollbar-thin fixed inset-0 z-50 overflow-y-auto bg-background/80 p-4 backdrop-blur-sm">
       <div
         role="dialog"
         aria-modal="true"
@@ -1264,34 +1265,34 @@ function PredictionDetailsModal({
                 ["Transaction Type", prediction.transactionType],
                 [
                   "Amount",
-                  formatCurrency(prediction.amount, prediction.transactionCurrency ?? "USD"),
+                  formatCurrency(prediction.amount, prediction.transactionCurrency ?? "EUR"),
                 ],
                 [
                   "Old Origin Balance",
                   formatCurrency(
                     prediction.oldBalanceOrigin,
-                    prediction.transactionCurrency ?? "USD",
+                    prediction.transactionCurrency ?? "EUR",
                   ),
                 ],
                 [
                   "New Origin Balance",
                   formatCurrency(
                     prediction.newBalanceOrigin,
-                    prediction.transactionCurrency ?? "USD",
+                    prediction.transactionCurrency ?? "EUR",
                   ),
                 ],
                 [
                   "Old Destination Balance",
                   formatCurrency(
                     prediction.oldBalanceDestination,
-                    prediction.transactionCurrency ?? "USD",
+                    prediction.transactionCurrency ?? "EUR",
                   ),
                 ],
                 [
                   "New Destination Balance",
                   formatCurrency(
                     prediction.newBalanceDestination,
-                    prediction.transactionCurrency ?? "USD",
+                    prediction.transactionCurrency ?? "EUR",
                   ),
                 ],
               ]}
@@ -1304,7 +1305,7 @@ function PredictionDetailsModal({
                 ["Merchant", prediction.transactionMerchant ?? "Manual prediction"],
                 ["Country", prediction.transactionCountry ?? "Not linked"],
                 ["Category", prediction.transactionCategory ?? "Not linked"],
-                ["Currency", prediction.transactionCurrency ?? "USD"],
+                ["Currency", prediction.transactionCurrency ?? "EUR"],
                 [
                   "Transaction Date",
                   formatDateTime(prediction.transactionCreatedAt ?? prediction.createdAt),
@@ -1488,12 +1489,4 @@ function formatDateTime(value: string) {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value));
-}
-
-function formatCurrency(value: number, currency = "USD") {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(value);
 }

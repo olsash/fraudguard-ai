@@ -143,6 +143,12 @@
 
 @layer base {
   * { border-color: var(--color-border); }
+  html {
+    max-width: 100%;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--primary) 38%, var(--border)) transparent;
+  }
   html, body { font-family: var(--font-sans); }
   body {
     background-color: var(--color-background);
@@ -152,6 +158,48 @@
       radial-gradient(at 85% 10%, oklch(0.7 0.2 200 / 0.12) 0px, transparent 50%);
     background-attachment: fixed;
     min-height: 100vh;
+    max-width: 100%;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--primary) 38%, var(--border)) transparent;
+  }
+  body > div {
+    max-width: 100%;
+  }
+  main {
+    min-width: 0;
+    max-width: 100%;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--primary) 38%, var(--border)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--primary) 34%, var(--border));
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--primary) 55%, var(--border));
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  select {
+    color-scheme: dark;
+  }
+  select option {
+    color: var(--foreground);
+    background-color: var(--popover);
   }
   h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
 }
@@ -189,6 +237,30 @@
     background-size: 200% 100%;
     animation: var(--animate-shimmer);
   }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--primary) 35%, var(--border)) transparent;
+  }
   .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
-  .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--primary) 35%, var(--border));
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--primary) 55%, var(--border));
+    background-clip: content-box;
+  }
+  .fg-select {
+    min-width: 0;
+    color: var(--foreground);
+    background-color: color-mix(in oklab, var(--card) 78%, transparent);
+    color-scheme: dark;
+  }
+  .fg-select option {
+    color: var(--foreground);
+    background-color: var(--popover);
+  }
 }

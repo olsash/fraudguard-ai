@@ -18,6 +18,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { formatCurrency } from "@/utils/formatters";
 import {
   Area,
   AreaChart,
@@ -440,13 +441,6 @@ function toChartData(points: PredictionChartPoint[]) {
   }));
 }
 
-function formatCurrency(value: number, currency = "USD") {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString(undefined, {
