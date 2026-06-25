@@ -43,6 +43,8 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         Assert.True(body.RiskScore >= 0);
         Assert.True(body.FraudProbability >= 0);
         Assert.Equal("Random Forest - test", body.ModelName);
+        Assert.Contains(body.RiskBreakdown, factor => factor.Factor == "High transaction amount");
+        Assert.Contains(body.RiskBreakdown, factor => factor.Factor == "Transfer or cash-out transaction type");
     }
 
     [Fact]
@@ -128,6 +130,17 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         public double FraudProbability { get; set; }
 
         public string? ModelName { get; set; }
+
+        public RiskBreakdownFactorBody[] RiskBreakdown { get; set; } = [];
+    }
+
+    private sealed class RiskBreakdownFactorBody
+    {
+        public string Factor { get; set; } = string.Empty;
+
+        public string Impact { get; set; } = string.Empty;
+
+        public string Explanation { get; set; } = string.Empty;
     }
 
     private sealed class ErrorResponse
@@ -237,6 +250,21 @@ public sealed class FakeMlPredictionHandler : HttpMessageHandler
             modelTrainingDate = "2026-01-01T00:00:00Z",
             reasons = new[] { "Model Signals|Test model returned a high fraud probability." },
             explanationFactors = new[] { "Model Signals|Test model returned a high fraud probability." },
+            riskBreakdown = new[]
+            {
+                new
+                {
+                    factor = "High transaction amount",
+                    impact = "Risk",
+                    explanation = "Amount is above the high-value threshold."
+                },
+                new
+                {
+                    factor = "Transfer or cash-out transaction type",
+                    impact = "Risk",
+                    explanation = "TRANSFER is treated as fraud-sensitive."
+                }
+            },
             suggestedAction = "Manual review required"
         };
 

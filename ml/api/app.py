@@ -43,6 +43,7 @@ class PredictionResponse(BaseModel):
     modelTrainingDate: str | None = None
     reasons: list[str]
     explanationFactors: list[str]
+    riskBreakdown: list[dict[str, str]]
     suggestedAction: str
 
 
@@ -181,6 +182,90 @@ def build_input_factors(request: PredictionRequest) -> list[str]:
     return factors
 
 
+def build_risk_breakdown(request: PredictionRequest) -> list[dict[str, str]]:
+    origin_delta = request.oldBalanceOrigin - request.newBalanceOrigin
+    destination_delta = request.newBalanceDestination - request.oldBalanceDestination
+    sensitive_type = request.transactionType in {"TRANSFER", "CASH_OUT"}
+
+    high_amount = request.amount >= 100000
+    if request.amount >= 1000000:
+        amount_explanation = f"Amount is {format_amount(request.amount)}, above the very-high-value threshold."
+        amount_impact = "High risk"
+    elif high_amount:
+        amount_explanation = f"Amount is {format_amount(request.amount)}, above the high-value threshold."
+        amount_impact = "Risk"
+    else:
+        amount_explanation = f"Amount is {format_amount(request.amount)}, below the high-value threshold."
+        amount_impact = "Neutral"
+
+    if sensitive_type:
+        type_explanation = f"{request.transactionType} is treated as fraud-sensitive because money leaves or moves between accounts."
+        type_impact = "Risk"
+    else:
+        type_explanation = f"{request.transactionType} is not one of the higher-risk transfer or cash-out types."
+        type_impact = "Protective"
+
+    if origin_delta <= 0 and request.amount > 0:
+        origin_explanation = "Origin balance did not decrease even though the transaction amount is positive."
+        origin_impact = "Risk"
+    elif request.amount > 0 and abs(origin_delta - request.amount) > request.amount * 0.25:
+        origin_explanation = (
+            f"Origin balance dropped by {format_amount(origin_delta)}, which differs from the amount by more than 25%."
+        )
+        origin_impact = "Risk"
+    else:
+        origin_explanation = f"Origin balance dropped by {format_amount(origin_delta)}, broadly matching the amount."
+        origin_impact = "Protective"
+
+    if destination_delta < 0:
+        destination_explanation = "Destination balance decreased during a transaction that should move funds in."
+        destination_impact = "Risk"
+    elif request.amount > 0 and destination_delta == 0:
+        destination_explanation = "Destination balance did not change despite a positive transaction amount."
+        destination_impact = "Risk"
+    elif request.oldBalanceDestination == 0 and request.amount >= 100000:
+        destination_explanation = "Destination started at zero and received a high-value amount."
+        destination_impact = "Risk"
+    else:
+        destination_explanation = f"Destination balance changed by {format_amount(destination_delta)}, consistent with receiving funds."
+        destination_impact = "Protective"
+
+    if request.newBalanceOrigin == 0 or request.newBalanceDestination == 0:
+        zero_explanation = "At least one account has a zero balance after the transaction."
+        zero_impact = "Risk"
+    else:
+        zero_explanation = "Neither account has a zero balance after the transaction."
+        zero_impact = "Protective"
+
+    return [
+        {
+            "factor": "High transaction amount",
+            "impact": amount_impact,
+            "explanation": amount_explanation,
+        },
+        {
+            "factor": "Transfer or cash-out transaction type",
+            "impact": type_impact,
+            "explanation": type_explanation,
+        },
+        {
+            "factor": "Origin account balance drop",
+            "impact": origin_impact,
+            "explanation": origin_explanation,
+        },
+        {
+            "factor": "Destination account balance behavior",
+            "impact": destination_impact,
+            "explanation": destination_explanation,
+        },
+        {
+            "factor": "Zero balance after transaction",
+            "impact": zero_impact,
+            "explanation": zero_explanation,
+        },
+    ]
+
+
 def rule_based_score(request: PredictionRequest) -> tuple[int, list[str]]:
     score = 0
     reasons: list[str] = []
@@ -295,5 +380,6 @@ def predict(request: PredictionRequest):
         modelTrainingDate=metadata.get("trainingDateUtc"),
         reasons=reasons,
         explanationFactors=reasons,
+        riskBreakdown=build_risk_breakdown(request),
         suggestedAction=suggested_action(score),
     )

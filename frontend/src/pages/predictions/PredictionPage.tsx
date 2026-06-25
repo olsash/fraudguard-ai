@@ -2,7 +2,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { ApiError } from "@/services/api";
 import { predictionService } from "@/services/predictionService";
 import { transactionService } from "@/services/transactionService";
-import type { PredictionInput, PredictionResult, TransactionType } from "@/types/prediction";
+import type { PredictionInput, PredictionResult, RiskBreakdownFactor, TransactionType } from "@/types/prediction";
 import type { Transaction } from "@/types/transaction";
 import {
   AlertTriangle,
@@ -456,7 +456,11 @@ function ResultPanel({ loading, result }: { loading: boolean; result: Prediction
           </div>
         </div>
         <div className="mt-5">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Why This Score?</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Transaction Risk Breakdown</p>
+          <RiskBreakdownList factors={getRiskBreakdown(result)} />
+        </div>
+        <div className="mt-5">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">Supporting Signals</p>
           <div className="space-y-4">
             {factorGroups.map((group) => (
               <div key={group.title}>
@@ -544,6 +548,95 @@ function groupAnalysisFactors(reasons: string[], status: AnalysisStatus) {
 
 function getExplanationFactors(prediction: PredictionResult) {
   return prediction.explanationFactors?.length ? prediction.explanationFactors : prediction.reasons;
+}
+
+function getRiskBreakdown(prediction: PredictionResult) {
+  return prediction.riskBreakdown?.length ? prediction.riskBreakdown : buildLocalRiskBreakdown(prediction);
+}
+
+function buildLocalRiskBreakdown(prediction: PredictionInput): RiskBreakdownFactor[] {
+  const amount = prediction.amount;
+  const originDelta = prediction.oldBalanceOrigin - prediction.newBalanceOrigin;
+  const destinationDelta = prediction.newBalanceDestination - prediction.oldBalanceDestination;
+  const sensitiveType = prediction.transactionType === "TRANSFER" || prediction.transactionType === "CASH_OUT";
+
+  return [
+    {
+      factor: "High transaction amount",
+      impact: amount >= 1_000_000 ? "High risk" : amount >= 100_000 ? "Risk" : "Neutral",
+      explanation: amount >= 1_000_000
+        ? `Amount is ${formatCurrency(amount)}, above the very-high-value threshold.`
+        : amount >= 100_000
+          ? `Amount is ${formatCurrency(amount)}, above the high-value threshold.`
+          : `Amount is ${formatCurrency(amount)}, below the high-value threshold.`,
+    },
+    {
+      factor: "Transfer or cash-out transaction type",
+      impact: sensitiveType ? "Risk" : "Protective",
+      explanation: sensitiveType
+        ? `${prediction.transactionType} is treated as fraud-sensitive because money leaves or moves between accounts.`
+        : `${prediction.transactionType} is not one of the higher-risk transfer or cash-out types.`,
+    },
+    {
+      factor: "Origin account balance drop",
+      impact: originDelta <= 0 && amount > 0 ? "Risk" : amount > 0 && Math.abs(originDelta - amount) > amount * 0.25 ? "Risk" : "Protective",
+      explanation: originDelta <= 0 && amount > 0
+        ? "Origin balance did not decrease even though the transaction amount is positive."
+        : amount > 0 && Math.abs(originDelta - amount) > amount * 0.25
+          ? `Origin balance dropped by ${formatCurrency(originDelta)}, which differs from the amount by more than 25%.`
+          : `Origin balance dropped by ${formatCurrency(originDelta)}, broadly matching the amount.`,
+    },
+    {
+      factor: "Destination account balance behavior",
+      impact: destinationDelta < 0 || (amount > 0 && destinationDelta === 0) || (prediction.oldBalanceDestination === 0 && amount >= 100_000) ? "Risk" : "Protective",
+      explanation: destinationDelta < 0
+        ? "Destination balance decreased during a transaction that should move funds in."
+        : amount > 0 && destinationDelta === 0
+          ? "Destination balance did not change despite a positive transaction amount."
+          : prediction.oldBalanceDestination === 0 && amount >= 100_000
+            ? "Destination started at zero and received a high-value amount."
+            : `Destination balance changed by ${formatCurrency(destinationDelta)}, consistent with receiving funds.`,
+    },
+    {
+      factor: "Zero balance after transaction",
+      impact: prediction.newBalanceOrigin === 0 || prediction.newBalanceDestination === 0 ? "Risk" : "Protective",
+      explanation: prediction.newBalanceOrigin === 0 || prediction.newBalanceDestination === 0
+        ? "At least one account has a zero balance after the transaction."
+        : "Neither account has a zero balance after the transaction.",
+    },
+  ];
+}
+
+function RiskBreakdownList({ factors }: { factors: RiskBreakdownFactor[] }) {
+  return (
+    <div className="space-y-2">
+      {factors.map((factor) => {
+        const tone = getBreakdownTone(factor.impact);
+        return (
+          <div key={factor.factor} className="rounded-lg border border-border/50 bg-background/30 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-semibold">{factor.factor}</p>
+              <span className={`shrink-0 rounded-md px-2 py-1 text-[10px] uppercase tracking-wider ${tone.badge}`}>{factor.impact}</span>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">{factor.explanation}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function getBreakdownTone(impact: string) {
+  const normalized = impact.toLowerCase();
+  if (normalized.includes("risk")) {
+    return { badge: "bg-destructive/15 text-destructive" };
+  }
+
+  if (normalized.includes("protective")) {
+    return { badge: "bg-success/15 text-success" };
+  }
+
+  return { badge: "bg-secondary text-muted-foreground" };
 }
 
 function splitAnalysisReason(reason: string): [string, string] {
@@ -722,7 +815,11 @@ function PredictionDetailsModal({ prediction, onClose }: { prediction: Predictio
             </div>
           </DetailSection>
 
-          <DetailSection title="Why This Prediction?">
+          <DetailSection title="Transaction Risk Breakdown">
+            <RiskBreakdownList factors={getRiskBreakdown(prediction)} />
+          </DetailSection>
+
+          <DetailSection title="Supporting Signals">
             <div className="space-y-4">
               {factorGroups.map((group) => (
                 <div key={group.title}>

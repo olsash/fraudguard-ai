@@ -256,6 +256,7 @@ public class PredictionsController : ControllerBase
             Confidence = prediction.Confidence == 0 ? confidence : prediction.Confidence,
             Reasons = reasons,
             ExplanationFactors = modelResult?.ExplanationFactors.Length > 0 ? modelResult.ExplanationFactors : reasons,
+            RiskBreakdown = modelResult?.RiskBreakdown.Length > 0 ? modelResult.RiskBreakdown : BuildRiskBreakdown(prediction),
             ModelName = modelResult?.ModelName,
             ModelTrainingDate = modelResult?.ModelTrainingDate,
             SuggestedAction = prediction.SuggestedAction,
@@ -273,6 +274,112 @@ public class PredictionsController : ControllerBase
         {
             return string.IsNullOrWhiteSpace(explanation) ? [] : [explanation];
         }
+    }
+
+    private static RiskBreakdownFactor[] BuildRiskBreakdown(Prediction prediction)
+    {
+        var originDelta = prediction.OldBalanceOrigin - prediction.NewBalanceOrigin;
+        var destinationDelta = prediction.NewBalanceDestination - prediction.OldBalanceDestination;
+        var normalizedType = NormalizeTransactionType(prediction.TransactionType);
+        var sensitiveType = normalizedType is "TRANSFER" or "CASH_OUT";
+
+        var amountImpact = prediction.Amount >= 1_000_000
+            ? "High risk"
+            : prediction.Amount >= 100_000 ? "Risk" : "Neutral";
+        var amountExplanation = prediction.Amount >= 1_000_000
+            ? $"Amount is {FormatMoney(prediction.Amount)}, above the very-high-value threshold."
+            : prediction.Amount >= 100_000
+                ? $"Amount is {FormatMoney(prediction.Amount)}, above the high-value threshold."
+                : $"Amount is {FormatMoney(prediction.Amount)}, below the high-value threshold.";
+
+        var typeImpact = sensitiveType ? "Risk" : "Protective";
+        var typeExplanation = sensitiveType
+            ? $"{normalizedType} is treated as fraud-sensitive because money leaves or moves between accounts."
+            : $"{normalizedType} is not one of the higher-risk transfer or cash-out types.";
+
+        string originImpact;
+        string originExplanation;
+        if (originDelta <= 0 && prediction.Amount > 0)
+        {
+            originImpact = "Risk";
+            originExplanation = "Origin balance did not decrease even though the transaction amount is positive.";
+        }
+        else if (prediction.Amount > 0 && Math.Abs(originDelta - prediction.Amount) > prediction.Amount * 0.25m)
+        {
+            originImpact = "Risk";
+            originExplanation = $"Origin balance dropped by {FormatMoney(originDelta)}, which differs from the amount by more than 25%.";
+        }
+        else
+        {
+            originImpact = "Protective";
+            originExplanation = $"Origin balance dropped by {FormatMoney(originDelta)}, broadly matching the amount.";
+        }
+
+        string destinationImpact;
+        string destinationExplanation;
+        if (destinationDelta < 0)
+        {
+            destinationImpact = "Risk";
+            destinationExplanation = "Destination balance decreased during a transaction that should move funds in.";
+        }
+        else if (prediction.Amount > 0 && destinationDelta == 0)
+        {
+            destinationImpact = "Risk";
+            destinationExplanation = "Destination balance did not change despite a positive transaction amount.";
+        }
+        else if (prediction.OldBalanceDestination == 0 && prediction.Amount >= 100_000)
+        {
+            destinationImpact = "Risk";
+            destinationExplanation = "Destination started at zero and received a high-value amount.";
+        }
+        else
+        {
+            destinationImpact = "Protective";
+            destinationExplanation = $"Destination balance changed by {FormatMoney(destinationDelta)}, consistent with receiving funds.";
+        }
+
+        var hasZeroBalanceAfter = prediction.NewBalanceOrigin == 0 || prediction.NewBalanceDestination == 0;
+
+        return
+        [
+            new()
+            {
+                Factor = "High transaction amount",
+                Impact = amountImpact,
+                Explanation = amountExplanation
+            },
+            new()
+            {
+                Factor = "Transfer or cash-out transaction type",
+                Impact = typeImpact,
+                Explanation = typeExplanation
+            },
+            new()
+            {
+                Factor = "Origin account balance drop",
+                Impact = originImpact,
+                Explanation = originExplanation
+            },
+            new()
+            {
+                Factor = "Destination account balance behavior",
+                Impact = destinationImpact,
+                Explanation = destinationExplanation
+            },
+            new()
+            {
+                Factor = "Zero balance after transaction",
+                Impact = hasZeroBalanceAfter ? "Risk" : "Protective",
+                Explanation = hasZeroBalanceAfter
+                    ? "At least one account has a zero balance after the transaction."
+                    : "Neither account has a zero balance after the transaction."
+            }
+        ];
+    }
+
+    private static string FormatMoney(decimal value)
+    {
+        return value.ToString("N2", CultureInfo.InvariantCulture);
     }
 
     private static FileContentResult CsvFile(IEnumerable<Prediction> predictions, string fileName)

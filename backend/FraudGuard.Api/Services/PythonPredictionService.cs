@@ -78,6 +78,8 @@ public class PythonPredictionResult
 
     public string[] ExplanationFactors { get; set; } = [];
 
+    public RiskBreakdownFactor[] RiskBreakdown { get; set; } = [];
+
     public string SuggestedAction { get; set; } = string.Empty;
 }
 

@@ -48,6 +48,8 @@ public class PredictionResponse
 
     public string[] ExplanationFactors { get; set; } = [];
 
+    public RiskBreakdownFactor[] RiskBreakdown { get; set; } = [];
+
     public string? ModelName { get; set; }
 
     public string? ModelTrainingDate { get; set; }
@@ -55,6 +57,15 @@ public class PredictionResponse
     public string SuggestedAction { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
+}
+
+public class RiskBreakdownFactor
+{
+    public string Factor { get; set; } = string.Empty;
+
+    public string Impact { get; set; } = string.Empty;
+
+    public string Explanation { get; set; } = string.Empty;
 }
 
 public class TransactionPredictionResponse

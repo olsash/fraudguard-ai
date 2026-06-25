@@ -10,6 +10,12 @@ export interface PredictionInput {
   newBalanceDestination: number;
 }
 
+export interface RiskBreakdownFactor {
+  factor: string;
+  impact: "High risk" | "Risk" | "Neutral" | "Protective" | string;
+  explanation: string;
+}
+
 export interface PredictionResult extends PredictionInput {
   id: number;
   userId: number;
@@ -28,6 +34,7 @@ export interface PredictionResult extends PredictionInput {
   confidence: number;
   reasons: string[];
   explanationFactors?: string[];
+  riskBreakdown?: RiskBreakdownFactor[];
   modelName?: string | null;
   modelTrainingDate?: string | null;
   suggestedAction: string;
