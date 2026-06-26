@@ -8,6 +8,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import sklearn
 from sklearn.cluster import KMeans
@@ -41,6 +42,9 @@ from ml.paths import (
     MODEL_DIR,
     RESULTS_DIR,
     SCALER_PATH,
+    SHAP_FEATURE_IMPORTANCE_CSV_PATH,
+    SHAP_FEATURE_IMPORTANCE_JSON_PATH,
+    SHAP_FEATURE_IMPORTANCE_PLOT_PATH,
     TRAINING_METADATA_PATH,
     repo_relative,
 )
@@ -57,6 +61,7 @@ CLUSTERING_N_INIT_VALUES = [10]
 CLUSTERING_SAMPLE_SIZE = 50_000
 CLUSTERING_SILHOUETTE_SAMPLE_SIZE = 10_000
 PCA_PLOT_SAMPLE_SIZE = 10_000
+SHAP_SAMPLE_SIZE = 1_000
 
 
 def print_class_distribution(labels: pd.Series, title: str) -> None:
@@ -176,7 +181,121 @@ def export_feature_importance(model, feature_columns: list[str]) -> None:
     print(f"Saved feature importance results to {FEATURE_IMPORTANCE_JSON_PATH}")
 
 
-def export_best_model_registry(best_metrics: dict, best_model, feature_columns: list[str]) -> None:
+def export_shap_feature_importance(
+    model,
+    model_name: str,
+    x_sample_source: pd.DataFrame,
+    feature_columns: list[str],
+) -> dict | None:
+    if model.__class__.__name__ != "RandomForestClassifier":
+        print(f"Skipping SHAP export: {model.__class__.__name__} is not configured for TreeExplainer export.")
+        return None
+
+    try:
+        import shap
+    except ImportError:
+        print("Skipping SHAP export: shap is not installed in the active environment.")
+        return None
+
+    if x_sample_source.empty:
+        print("Skipping SHAP export: no feature rows are available.")
+        return None
+
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    sample_size = min(SHAP_SAMPLE_SIZE, len(x_sample_source))
+    shap_sample = x_sample_source.sample(n=sample_size, random_state=RANDOM_SEED)
+
+    try:
+        explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(shap_sample)
+        shap_values_for_fraud = select_positive_class_shap_values(shap_values)
+    except Exception as exc:
+        print(f"Skipping SHAP export: SHAP could not explain the selected model ({exc}).")
+        return None
+
+    mean_abs_shap = np.abs(shap_values_for_fraud).mean(axis=0)
+    if len(mean_abs_shap) != len(feature_columns):
+        print(
+            "Skipping SHAP export: SHAP feature count "
+            f"({len(mean_abs_shap)}) does not match encoded feature columns ({len(feature_columns)})."
+        )
+        return None
+
+    shap_importance = (
+        pd.DataFrame(
+            {
+                "featureName": feature_columns,
+                "meanAbsoluteShapValue": mean_abs_shap,
+            }
+        )
+        .sort_values(by="meanAbsoluteShapValue", ascending=False)
+        .reset_index(drop=True)
+    )
+
+    payload = {
+        "source": "ml/train_model.py",
+        "modelName": model_name,
+        "modelType": model.__class__.__name__,
+        "method": "shap.TreeExplainer",
+        "targetClass": "fraud",
+        "sampleSize": int(sample_size),
+        "randomSeed": RANDOM_SEED,
+        "results": shap_importance.to_dict(orient="records"),
+    }
+
+    with SHAP_FEATURE_IMPORTANCE_JSON_PATH.open("w", encoding="utf-8") as file:
+        json.dump(payload, file, indent=2, default=float)
+
+    shap_importance.to_csv(SHAP_FEATURE_IMPORTANCE_CSV_PATH, index=False)
+    save_shap_feature_importance_plot(shap_importance)
+    print(f"Saved SHAP feature importance results to {SHAP_FEATURE_IMPORTANCE_JSON_PATH}")
+    return {
+        "json": repo_relative(SHAP_FEATURE_IMPORTANCE_JSON_PATH),
+        "csv": repo_relative(SHAP_FEATURE_IMPORTANCE_CSV_PATH),
+        "plot": repo_relative(SHAP_FEATURE_IMPORTANCE_PLOT_PATH),
+        "sampleSize": int(sample_size),
+    }
+
+
+def select_positive_class_shap_values(shap_values):
+    if isinstance(shap_values, list):
+        if len(shap_values) < 2:
+            raise ValueError("expected SHAP values for at least two classes")
+        return np.asarray(shap_values[1])
+
+    shap_array = np.asarray(shap_values)
+    if shap_array.ndim == 3:
+        if shap_array.shape[2] >= 2:
+            return shap_array[:, :, 1]
+        if shap_array.shape[0] >= 2:
+            return shap_array[1]
+        raise ValueError("expected a binary-class SHAP array")
+
+    if shap_array.ndim != 2:
+        raise ValueError(f"expected a 2D SHAP array, got shape {shap_array.shape}")
+
+    return shap_array
+
+
+def save_shap_feature_importance_plot(shap_importance: pd.DataFrame) -> None:
+    plot_data = shap_importance.head(15).sort_values(by="meanAbsoluteShapValue")
+    fig, ax = plt.subplots(figsize=(9, 6))
+    ax.barh(plot_data["featureName"], plot_data["meanAbsoluteShapValue"], color="#2563eb")
+    ax.set_title("Global SHAP Feature Importance for Fraud Prediction")
+    ax.set_xlabel("Mean absolute SHAP value")
+    ax.set_ylabel("Feature")
+    ax.grid(axis="x", alpha=0.2)
+    fig.tight_layout()
+    fig.savefig(SHAP_FEATURE_IMPORTANCE_PLOT_PATH, dpi=150)
+    plt.close(fig)
+
+
+def export_best_model_registry(
+    best_metrics: dict,
+    best_model,
+    feature_columns: list[str],
+    shap_artifacts: dict | None,
+) -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     selected_metric = "f1"
     registry = {
@@ -191,6 +310,7 @@ def export_best_model_registry(best_metrics: dict, best_model, feature_columns: 
         "compatibilityModelArtifact": repo_relative(COMPATIBILITY_MODEL_PATH),
         "columnsArtifact": repo_relative(COLUMNS_PATH),
         "scalerArtifact": repo_relative(SCALER_PATH),
+        "shapFeatureImportance": shap_artifacts,
     }
 
     with BEST_MODEL_REGISTRY_PATH.open("w", encoding="utf-8") as file:
@@ -450,7 +570,13 @@ def main() -> None:
     joblib.dump(preprocessing_artifacts.columns, COLUMNS_PATH)
     joblib.dump(preprocessing_artifacts.scaler, SCALER_PATH)
     export_feature_importance(best_model, preprocessing_artifacts.columns)
-    export_best_model_registry(best_metrics, best_model, preprocessing_artifacts.columns)
+    shap_artifacts = export_shap_feature_importance(
+        best_model,
+        best_metrics["model"],
+        x_test,
+        preprocessing_artifacts.columns,
+    )
+    export_best_model_registry(best_metrics, best_model, preprocessing_artifacts.columns, shap_artifacts)
     export_clustering_results(x, y)
 
     metadata = {
@@ -467,6 +593,7 @@ def main() -> None:
             "parameters": best_model.get_params(),
         },
         "best_model_registry": repo_relative(BEST_MODEL_REGISTRY_PATH),
+        "shap_feature_importance": shap_artifacts,
         "imbalance_handling": {
             "baseline_metrics": baseline_metrics,
             "balanced_metrics": balanced_metrics,

@@ -1,0 +1,51 @@
+{
+  "source": "ml/train_model.py",
+  "modelName": "Random Forest - baseline without class_weight",
+  "modelType": "RandomForestClassifier",
+  "method": "shap.TreeExplainer",
+  "targetClass": "fraud",
+  "sampleSize": 1000,
+  "randomSeed": 42,
+  "results": [
+    {
+      "featureName": "oldbalanceOrg",
+      "meanAbsoluteShapValue": 0.0458067229737398
+    },
+    {
+      "featureName": "newbalanceOrig",
+      "meanAbsoluteShapValue": 0.03582327468006889
+    },
+    {
+      "featureName": "newbalanceDest",
+      "meanAbsoluteShapValue": 0.020091573373192218
+    },
+    {
+      "featureName": "type_TRANSFER",
+      "meanAbsoluteShapValue": 0.017617193944217836
+    },
+    {
+      "featureName": "amount",
+      "meanAbsoluteShapValue": 0.013989567586953936
+    },
+    {
+      "featureName": "oldbalanceDest",
+      "meanAbsoluteShapValue": 0.012369063890365748
+    },
+    {
+      "featureName": "type_CASH_OUT",
+      "meanAbsoluteShapValue": 0.011632807318642935
+    },
+    {
+      "featureName": "type_PAYMENT",
+      "meanAbsoluteShapValue": 0.0116186217539071
+    },
+    {
+      "featureName": "type_CASH_IN",
+      "meanAbsoluteShapValue": 0.0034912673157103196
+    },
+    {
+      "featureName": "type_DEBIT",
+      "meanAbsoluteShapValue": 2.2809302605780455e-05
+    }
+  ]
+}
