@@ -16,10 +16,10 @@ From the repository root on Windows:
 Copy-Item C:\path\to\your\fraud.csv ml\dataset\fraud.csv
 ```
 
-The training script reads this file:
+The retraining command reads this file:
 
 ```powershell
-python ml\train_model.py
+python retrain_models.py
 ```
 
 Do not commit `fraud.csv` or force-add it with Git. The root `.gitignore` keeps the full dataset ignored.

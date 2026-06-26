@@ -40,6 +40,8 @@ from ml.paths import (
     KMEANS_PCA_CLUSTERS_PATH,
     KMEANS_PCA_TRUE_LABELS_PATH,
     MODEL_DIR,
+    MODEL_COMPARISON_CSV_PATH,
+    MODEL_COMPARISON_JSON_PATH,
     RESULTS_DIR,
     SCALER_PATH,
     SHAP_FEATURE_IMPORTANCE_CSV_PATH,
@@ -81,7 +83,9 @@ def print_class_distribution(labels: pd.Series, title: str) -> None:
 
 
 def evaluate_classifier(model_name: str, model, x_train, y_train, x_test, y_test) -> tuple[dict, object]:
+    print(f"Training classifier: {model_name}")
     model.fit(x_train, y_train)
+    print(f"Evaluating classifier: {model_name}")
     predictions = model.predict(x_test)
     cm = confusion_matrix(y_test, predictions, labels=[0, 1])
     tn, fp, fn, tp = cm.ravel()
@@ -128,6 +132,93 @@ def print_metrics(metrics: dict) -> None:
             [cm["false_negatives"], cm["true_positives"]],
         ]
     )
+
+
+def export_model_comparison_results(
+    evaluated_models: list[tuple[dict, object]],
+    best_metrics: dict,
+) -> None:
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    models = [
+        build_model_comparison_item(metrics, model, metrics["model"] == best_metrics["model"])
+        for metrics, model in evaluated_models
+    ]
+    payload = {
+        "datasetName": "PaySim-style online payment fraud dataset",
+        "problemType": "Binary classification",
+        "targetVariable": TARGET,
+        "bestModelName": best_metrics["model"],
+        "bestModelReason": (
+            f"{best_metrics['model']} was selected by the retraining command because it had the "
+            f"highest F1-score ({best_metrics['f1']:.4f}) among the trained classifiers."
+        ),
+        "evaluationSource": {
+            "source": "ml/train_model.py",
+            "datasetPath": repo_relative(DATASET_PATH),
+            "randomSeed": RANDOM_SEED,
+            "selectionMetric": "f1",
+        },
+        "models": models,
+    }
+
+    with MODEL_COMPARISON_JSON_PATH.open("w", encoding="utf-8") as file:
+        json.dump(payload, file, indent=2, default=str)
+
+    comparison_rows = []
+    for model in models:
+        cm = model["confusionMatrix"]
+        comparison_rows.append(
+            {
+                "modelName": model["modelName"],
+                "modelType": model["modelType"],
+                "accuracy": model["accuracy"],
+                "precision": model["precision"],
+                "recall": model["recall"],
+                "f1Score": model["f1Score"],
+                "rocAuc": model["rocAuc"],
+                "trueNegatives": cm["trueNegatives"],
+                "falsePositives": cm["falsePositives"],
+                "falseNegatives": cm["falseNegatives"],
+                "truePositives": cm["truePositives"],
+                "status": model["status"],
+                "isBestModel": model["isBestModel"],
+                "selectedHyperparameters": json.dumps(model["hyperparameters"]["selected"], default=str),
+            }
+        )
+
+    pd.DataFrame(comparison_rows).to_csv(MODEL_COMPARISON_CSV_PATH, index=False)
+    print(f"Saved model comparison results to {MODEL_COMPARISON_JSON_PATH}")
+    print(f"Saved model comparison CSV to {MODEL_COMPARISON_CSV_PATH}")
+
+
+def build_model_comparison_item(metrics: dict, model, is_best_model: bool) -> dict:
+    cm = metrics["confusion_matrix"]
+    return {
+        "modelName": metrics["model"],
+        "modelType": model.__class__.__name__,
+        "accuracy": metrics["accuracy"],
+        "precision": metrics["precision"],
+        "recall": metrics["recall"],
+        "f1Score": metrics["f1"],
+        "rocAuc": metrics.get("roc_auc"),
+        "confusionMatrix": {
+            "trueNegatives": cm["true_negatives"],
+            "falsePositives": cm["false_positives"],
+            "falseNegatives": cm["false_negatives"],
+            "truePositives": cm["true_positives"],
+        },
+        "status": "Best Model" if is_best_model else "Tested",
+        "shortDescription": (
+            "Selected by the retraining command as the best available classifier."
+            if is_best_model
+            else "Evaluated by the retraining command for comparison with the selected model."
+        ),
+        "isBestModel": is_best_model,
+        "hyperparameters": {
+            "tested": {},
+            "selected": model.get_params(),
+        },
+    }
 
 
 def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
@@ -500,9 +591,12 @@ def load_dataset() -> pd.DataFrame:
 
 
 def main() -> None:
+    print("Starting FraudGuard ML retraining pipeline.")
+    print("[1/8] Loading dataset.")
     data = load_dataset()
     print_class_distribution(data[TARGET], "Original class distribution:")
 
+    print("[2/8] Preparing class-balanced training sample.")
     fraud = data[data[TARGET] == 1]
     non_fraud = data[data[TARGET] == 0]
     non_fraud_rows = min(len(non_fraud), max(MAX_NON_FRAUD_ROWS, len(fraud) * NON_FRAUD_TO_FRAUD_RATIO))
@@ -512,11 +606,13 @@ def main() -> None:
         data = pd.concat([fraud, non_fraud], ignore_index=True).sample(frac=1, random_state=RANDOM_SEED)
         print_class_distribution(data[TARGET], "\nTraining sample class distribution:")
 
+    print("[3/8] Preprocessing data.")
     x, y, preprocessing_artifacts = preprocess_training_data(
         data,
         scale_numeric=SCALE_NUMERIC_FEATURES,
     )
 
+    print("[4/8] Splitting train/test data.")
     x_train, x_test, y_train, y_test = train_test_split(
         x,
         y,
@@ -525,6 +621,7 @@ def main() -> None:
         stratify=y if y.nunique() > 1 else None,
     )
 
+    print("[5/8] Training and evaluating classifiers.")
     baseline_metrics, baseline_model = evaluate_classifier(
         "Random Forest - baseline without class_weight",
         RandomForestClassifier(
@@ -564,12 +661,20 @@ def main() -> None:
     best_metrics, best_model = select_best_model(evaluated_models, selected_metric="f1")
     print(f"\nSelected best model by F1-score: {best_metrics['model']} ({best_metrics['f1']:.4f})")
 
+    print("[6/8] Saving best model, scaler, columns, and comparison results.")
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(best_model, BEST_MODEL_PATH)
     joblib.dump(best_model, COMPATIBILITY_MODEL_PATH)
     joblib.dump(preprocessing_artifacts.columns, COLUMNS_PATH)
     joblib.dump(preprocessing_artifacts.scaler, SCALER_PATH)
+    print(f"Saved best model artifact to {BEST_MODEL_PATH}")
+    print(f"Saved compatibility model artifact to {COMPATIBILITY_MODEL_PATH}")
+    print(f"Saved encoded columns to {COLUMNS_PATH}")
+    print(f"Saved scaler artifact to {SCALER_PATH}")
+    export_model_comparison_results(evaluated_models, best_metrics)
     export_feature_importance(best_model, preprocessing_artifacts.columns)
+
+    print("[7/8] Exporting optional explainability and clustering results.")
     shap_artifacts = export_shap_feature_importance(
         best_model,
         best_metrics["model"],
@@ -579,6 +684,7 @@ def main() -> None:
     export_best_model_registry(best_metrics, best_model, preprocessing_artifacts.columns, shap_artifacts)
     export_clustering_results(x, y)
 
+    print("[8/8] Writing training metadata.")
     metadata = {
         "random_seed": RANDOM_SEED,
         "dataset": dataset_metadata(),
@@ -603,6 +709,9 @@ def main() -> None:
 
     with TRAINING_METADATA_PATH.open("w", encoding="utf-8") as metadata_file:
         json.dump(metadata, metadata_file, indent=2)
+
+    print(f"Saved training metadata to {TRAINING_METADATA_PATH}")
+    print("FraudGuard ML retraining pipeline completed successfully.")
 
 
 if __name__ == "__main__":
