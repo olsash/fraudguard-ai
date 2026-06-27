@@ -15,7 +15,7 @@ from ml.paths import (
     SCALER_PATH,
     resolve_repo_path,
 )
-from ml.preprocessing import preprocess_prediction_data
+from ml.preprocessing import preprocess_prediction_data, validate_encoded_columns
 
 
 TRANSACTION_TYPES = ["CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"]
@@ -58,10 +58,47 @@ class HealthResponse(BaseModel):
 def load_artifacts():
     model_path, metadata = resolve_best_model_metadata()
     if not model_path.exists() or not COLUMNS_PATH.exists():
-        raise HTTPException(status_code=503, detail="Model artifacts are not available. Run train_model.py first.")
+        raise HTTPException(status_code=503, detail="Model artifacts are not available. Run python retrain_models.py first.")
 
     scaler = joblib.load(SCALER_PATH) if SCALER_PATH.exists() else None
-    return joblib.load(model_path), joblib.load(COLUMNS_PATH), scaler, metadata
+    model = joblib.load(model_path)
+    columns = load_encoded_columns()
+    validate_model_feature_alignment(model, columns)
+    return model, columns, scaler, metadata
+
+
+def load_encoded_columns() -> list[str]:
+    try:
+        columns = joblib.load(COLUMNS_PATH)
+        return validate_encoded_columns(columns)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Saved columns artifact is invalid: {exc}",
+        ) from exc
+
+
+def validate_model_feature_alignment(model, columns: list[str]) -> None:
+    expected_feature_count = getattr(model, "n_features_in_", None)
+    if expected_feature_count is not None and int(expected_feature_count) != len(columns):
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Model artifact and saved columns artifact do not match: "
+                f"model expects {expected_feature_count} features but columns artifact has {len(columns)}. "
+                "Run python retrain_models.py to regenerate model artifacts together."
+            ),
+        )
+
+    model_feature_names = getattr(model, "feature_names_in_", None)
+    if model_feature_names is not None and list(model_feature_names) != columns:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Model artifact and saved columns artifact have different feature names or order. "
+                "Run python retrain_models.py to regenerate model artifacts together."
+            ),
+        )
 
 
 def resolve_best_model_metadata() -> tuple[Path, dict]:
@@ -354,12 +391,18 @@ def predict(request: PredictionRequest):
         "oldbalanceDest": request.oldBalanceDestination,
         "newbalanceDest": request.newBalanceDestination,
     }
-    frame = preprocess_prediction_data(
-        pd.DataFrame([row]),
-        columns=columns,
-        scaler=scaler,
-        scale_numeric=scaler is not None,
-    )
+    try:
+        frame = preprocess_prediction_data(
+            pd.DataFrame([row]),
+            columns=columns,
+            scaler=scaler,
+            scale_numeric=scaler is not None,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Prediction input does not match training feature schema: {exc}",
+        ) from exc
 
     probability = float(model.predict_proba(frame)[0][1])
     ml_score = clamp_score(probability * 100)
