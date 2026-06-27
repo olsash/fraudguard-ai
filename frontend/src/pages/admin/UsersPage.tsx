@@ -1,3 +1,4 @@
+import { FraudSelect } from "@/components/common/FraudSelect";
 import { Topbar } from "@/components/layout/Topbar";
 import { adminUserService } from "@/services/adminUserService";
 import type { AdminUser, AdminUserDetails, AdminUserRole, AdminUserStatus, CreateAdminUserInput, UpdateAdminUserInput } from "@/types/adminUser";
@@ -400,9 +401,15 @@ function Select({ label, value, options, onChange }: { label: string; value: str
   return (
     <label className="block">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="fg-select mt-1 w-full glass rounded-lg px-3 py-2.5 text-sm outline-none">
-        {options.map((option) => <option key={option} value={option}>{option}</option>)}
-      </select>
+      <div className="mt-1">
+        <FraudSelect
+          value={value}
+          onValueChange={onChange}
+          options={options.map((option) => ({ value: option, label: option }))}
+          ariaLabel={label}
+          triggerClassName="min-h-10 w-full px-3 py-2.5 text-sm"
+        />
+      </div>
     </label>
   );
 }

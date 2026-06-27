@@ -1,3 +1,4 @@
+import { FraudSelect } from "@/components/common/FraudSelect";
 import { Topbar } from "@/components/layout/Topbar";
 import { ApiError } from "@/services/api";
 import { adminLogService, type SystemLog, type SystemLogFilters, type SystemLogLevel, type SystemLogSource } from "@/services/adminLogService";
@@ -205,12 +206,20 @@ function Toolbar({
         <Search className="h-4 w-4 text-muted-foreground" />
         <input value={filters.search ?? ""} onChange={(event) => onChange({ ...filters, search: event.target.value, page: 1 })} placeholder="Search message, user, path, IP..." className="flex-1 bg-transparent text-sm outline-none" />
       </div>
-      <select value={filters.level ?? "all"} onChange={(event) => onChange({ ...filters, level: event.target.value as SystemLogLevel, page: 1 })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
-        {levels.map((level) => <option key={level} value={level}>{level === "all" ? "All levels" : level}</option>)}
-      </select>
-      <select value={filters.source ?? "all"} onChange={(event) => onChange({ ...filters, source: event.target.value as SystemLogSource, page: 1 })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
-        {sources.map((source) => <option key={source} value={source}>{source === "all" ? "All sources" : sourceLabel(source)}</option>)}
-      </select>
+      <FraudSelect
+        value={filters.level ?? "all"}
+        onValueChange={(value) => onChange({ ...filters, level: value as SystemLogLevel, page: 1 })}
+        options={levels.map((level) => ({ value: level, label: level === "all" ? "All levels" : level }))}
+        ariaLabel="Log level"
+        triggerClassName="h-9 min-h-9 w-[125px] px-3 py-2 text-xs"
+      />
+      <FraudSelect
+        value={filters.source ?? "all"}
+        onValueChange={(value) => onChange({ ...filters, source: value as SystemLogSource, page: 1 })}
+        options={sources.map((source) => ({ value: source, label: source === "all" ? "All sources" : sourceLabel(source) }))}
+        ariaLabel="Log source"
+        triggerClassName="h-9 min-h-9 w-[135px] px-3 py-2 text-xs"
+      />
       <input type="date" value={filters.fromDate ?? ""} onChange={(event) => onChange({ ...filters, fromDate: event.target.value || undefined, page: 1 })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
       <input type="date" value={filters.toDate ?? ""} onChange={(event) => onChange({ ...filters, toDate: event.target.value || undefined, page: 1 })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
       <button onClick={onRefresh} disabled={refreshing} className="inline-flex items-center gap-2 glass rounded-lg px-3 py-2 text-xs hover:ring-1 hover:ring-primary/40 disabled:opacity-60">

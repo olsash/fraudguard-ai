@@ -1,4 +1,5 @@
 import { StatCard } from "@/components/common/StatCard";
+import { FraudSelect } from "@/components/common/FraudSelect";
 import { Topbar } from "@/components/layout/Topbar";
 import { adminPredictionService } from "@/services/adminPredictionService";
 import type { AdminFilters, AdminPrediction, AdminPredictionDetail } from "@/types/admin";
@@ -144,24 +145,38 @@ function Toolbar({
           </button>
         ))}
       </div>
-      <select value={filters.predictionResult ?? "all"} onChange={(event) => onChange({ ...filters, predictionResult: event.target.value as AdminFilters["predictionResult"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
-        <option value="all">All results</option>
-        <option value="fraud">Fraud</option>
-        <option value="not_fraud">Not fraud</option>
-      </select>
-      <select value={filters.transactionType ?? "all"} onChange={(event) => onChange({ ...filters, transactionType: event.target.value as AdminFilters["transactionType"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
-        {transactionTypes.map((type) => (
-          <option key={type} value={type}>{type === "all" ? "All types" : type}</option>
-        ))}
-      </select>
+      <FraudSelect
+        value={filters.predictionResult ?? "all"}
+        onValueChange={(value) => onChange({ ...filters, predictionResult: value as AdminFilters["predictionResult"] })}
+        options={[
+          { value: "all", label: "All results" },
+          { value: "fraud", label: "Fraud" },
+          { value: "not_fraud", label: "Not fraud" },
+        ]}
+        ariaLabel="Prediction result"
+        triggerClassName="h-9 min-h-9 w-[135px] px-3 py-2 text-xs"
+      />
+      <FraudSelect
+        value={filters.transactionType ?? "all"}
+        onValueChange={(value) => onChange({ ...filters, transactionType: value as AdminFilters["transactionType"] })}
+        options={transactionTypes.map((type) => ({ value: type, label: type === "all" ? "All types" : type }))}
+        ariaLabel="Transaction type"
+        triggerClassName="h-9 min-h-9 w-[140px] px-3 py-2 text-xs"
+      />
       <input type="date" value={filters.fromDate ?? ""} onChange={(e) => onChange({ ...filters, fromDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
       <input type="date" value={filters.toDate ?? ""} onChange={(e) => onChange({ ...filters, toDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
-      <select value={filters.riskLevel ?? "all"} onChange={(event) => onChange({ ...filters, riskLevel: event.target.value as AdminFilters["riskLevel"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
-        <option value="all">All risk</option>
-        <option value="low">Low risk</option>
-        <option value="medium">Review risk</option>
-        <option value="high">High risk</option>
-      </select>
+      <FraudSelect
+        value={filters.riskLevel ?? "all"}
+        onValueChange={(value) => onChange({ ...filters, riskLevel: value as AdminFilters["riskLevel"] })}
+        options={[
+          { value: "all", label: "All risk" },
+          { value: "low", label: "Low risk" },
+          { value: "medium", label: "Review risk" },
+          { value: "high", label: "High risk" },
+        ]}
+        ariaLabel="Risk level"
+        triggerClassName="h-9 min-h-9 w-[130px] px-3 py-2 text-xs"
+      />
       <button
         type="button"
         onClick={onExport}

@@ -1,3 +1,4 @@
+import { FraudSelect } from "@/components/common/FraudSelect";
 import { Topbar } from "@/components/layout/Topbar";
 import { predictionService } from "@/services/predictionService";
 import { transactionService } from "@/services/transactionService";
@@ -424,7 +425,7 @@ function SearchableSelect({
         className="mt-1 w-full glass rounded-lg px-3 py-2.5 text-sm bg-background/60 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/60"
       />
       {open && (
-        <div className="scrollbar-thin absolute z-50 mt-1 max-h-60 w-full overflow-y-auto glass-strong rounded-lg border border-border bg-card/95 pr-1 shadow-xl backdrop-blur-xl">
+        <div className="scrollbar-thin absolute z-[80] mt-2 max-h-60 w-full overflow-y-auto rounded-xl border border-border/80 bg-popover/95 p-1 pr-2 shadow-[0_24px_70px_-32px_black,0_0_0_1px_rgba(255,255,255,0.03)_inset] backdrop-blur-xl">
           {filtered.length === 0 ? (
             <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
           ) : filtered.map((option) => (
@@ -437,10 +438,10 @@ function SearchableSelect({
                 setQuery("");
                 setOpen(false);
               }}
-              className={`block w-full cursor-pointer select-none px-3 py-2 text-left text-sm no-underline outline-none transition-none
+              className={`block w-full cursor-pointer select-none truncate rounded-lg px-3 py-2 text-left text-sm no-underline outline-none transition-colors
                 ${option === value
                   ? "bg-primary/15 text-primary hover:bg-primary/20 hover:text-primary focus:bg-primary/20 focus:text-primary"
-                  : "text-foreground hover:bg-secondary/70 hover:text-foreground focus:bg-secondary/70 focus:text-foreground"
+                  : "text-foreground hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary"
                 }`}
             >
               {option}
@@ -456,9 +457,15 @@ function Select({ label, value, options, onChange }: { label: string; value: str
   return (
     <label className="block">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="fg-select mt-1 w-full cursor-pointer glass rounded-lg px-3 py-2.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/60">
-        {options.map((option) => <option key={option} value={option}>{option}</option>)}
-      </select>
+      <div className="mt-1">
+        <FraudSelect
+          value={value}
+          onValueChange={onChange}
+          options={options.map((option) => ({ value: option, label: option }))}
+          ariaLabel={label}
+          triggerClassName="min-h-10 w-full px-3 py-2.5 text-sm"
+        />
+      </div>
     </label>
   );
 }

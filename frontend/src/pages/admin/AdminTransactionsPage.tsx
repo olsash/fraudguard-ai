@@ -1,4 +1,5 @@
 import { StatCard } from "@/components/common/StatCard";
+import { FraudSelect } from "@/components/common/FraudSelect";
 import { Topbar } from "@/components/layout/Topbar";
 import { adminTransactionService } from "@/services/adminTransactionService";
 import type { AdminFilters, AdminPagedResult, AdminTransaction, AdminTransactionDetail } from "@/types/admin";
@@ -176,41 +177,73 @@ function Toolbar({ filters, onChange }: { filters: AdminFilters; onChange: (filt
           </button>
         ))}
       </div>
-      <select value={filters.transactionType ?? "all"} onChange={(event) => onChange({ ...filters, transactionType: event.target.value as AdminFilters["transactionType"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
-        {transactionTypes.map((type) => (
-          <option key={type} value={type}>{type === "all" ? "All types" : type}</option>
-        ))}
-      </select>
-      <select value={filters.fraudStatus ?? "all"} onChange={(event) => onChange({ ...filters, fraudStatus: event.target.value as AdminFilters["fraudStatus"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
-        <option value="all">All fraud status</option>
-        <option value="fraud">Fraud only</option>
-        <option value="not_fraud">Not fraud</option>
-      </select>
+      <FraudSelect
+        value={filters.transactionType ?? "all"}
+        onValueChange={(value) => onChange({ ...filters, transactionType: value as AdminFilters["transactionType"] })}
+        options={transactionTypes.map((type) => ({ value: type, label: type === "all" ? "All types" : type }))}
+        ariaLabel="Transaction type"
+        triggerClassName="h-9 min-h-9 w-[140px] px-3 py-2 text-xs"
+      />
+      <FraudSelect
+        value={filters.fraudStatus ?? "all"}
+        onValueChange={(value) => onChange({ ...filters, fraudStatus: value as AdminFilters["fraudStatus"] })}
+        options={[
+          { value: "all", label: "All fraud status" },
+          { value: "fraud", label: "Fraud only" },
+          { value: "not_fraud", label: "Not fraud" },
+        ]}
+        ariaLabel="Fraud status"
+        triggerClassName="h-9 min-h-9 w-[160px] px-3 py-2 text-xs"
+      />
       <input type="number" min="0" step="0.01" value={filters.minAmount ?? ""} onChange={(e) => onChange({ ...filters, minAmount: e.target.value || undefined })} placeholder="Min amount" className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none w-28" />
       <input type="number" min="0" step="0.01" value={filters.maxAmount ?? ""} onChange={(e) => onChange({ ...filters, maxAmount: e.target.value || undefined })} placeholder="Max amount" className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none w-28" />
       <input type="date" value={filters.fromDate ?? ""} onChange={(e) => onChange({ ...filters, fromDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
       <input type="date" value={filters.toDate ?? ""} onChange={(e) => onChange({ ...filters, toDate: e.target.value || undefined })} className="glass rounded-lg px-3 py-2 text-xs bg-transparent outline-none" />
-      <select value={filters.riskLevel ?? "all"} onChange={(event) => onChange({ ...filters, riskLevel: event.target.value as AdminFilters["riskLevel"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
-        <option value="all">All risk</option>
-        <option value="low">Low risk</option>
-        <option value="medium">Medium risk</option>
-        <option value="high">High risk</option>
-      </select>
-      <select value={filters.sortBy ?? "date"} onChange={(event) => onChange({ ...filters, sortBy: event.target.value as AdminFilters["sortBy"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
-        <option value="date">Sort by date</option>
-        <option value="amount">Sort by amount</option>
-        <option value="riskScore">Sort by risk</option>
-      </select>
-      <select value={filters.sortDirection ?? "desc"} onChange={(event) => onChange({ ...filters, sortDirection: event.target.value as AdminFilters["sortDirection"] })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
-        <option value="desc">Descending</option>
-        <option value="asc">Ascending</option>
-      </select>
-      <select value={filters.pageSize ?? 25} onChange={(event) => onChange({ ...filters, pageSize: Number(event.target.value) })} className="fg-select glass rounded-lg px-3 py-2 text-xs outline-none">
-        <option value={10}>10 / page</option>
-        <option value={25}>25 / page</option>
-        <option value={50}>50 / page</option>
-        <option value={100}>100 / page</option>
-      </select>
+      <FraudSelect
+        value={filters.riskLevel ?? "all"}
+        onValueChange={(value) => onChange({ ...filters, riskLevel: value as AdminFilters["riskLevel"] })}
+        options={[
+          { value: "all", label: "All risk" },
+          { value: "low", label: "Low risk" },
+          { value: "medium", label: "Medium risk" },
+          { value: "high", label: "High risk" },
+        ]}
+        ariaLabel="Risk level"
+        triggerClassName="h-9 min-h-9 w-[130px] px-3 py-2 text-xs"
+      />
+      <FraudSelect
+        value={filters.sortBy ?? "date"}
+        onValueChange={(value) => onChange({ ...filters, sortBy: value as AdminFilters["sortBy"] })}
+        options={[
+          { value: "date", label: "Sort by date" },
+          { value: "amount", label: "Sort by amount" },
+          { value: "riskScore", label: "Sort by risk" },
+        ]}
+        ariaLabel="Sort by"
+        triggerClassName="h-9 min-h-9 w-[140px] px-3 py-2 text-xs"
+      />
+      <FraudSelect
+        value={filters.sortDirection ?? "desc"}
+        onValueChange={(value) => onChange({ ...filters, sortDirection: value as AdminFilters["sortDirection"] })}
+        options={[
+          { value: "desc", label: "Descending" },
+          { value: "asc", label: "Ascending" },
+        ]}
+        ariaLabel="Sort direction"
+        triggerClassName="h-9 min-h-9 w-[135px] px-3 py-2 text-xs"
+      />
+      <FraudSelect
+        value={filters.pageSize ?? 25}
+        onValueChange={(value) => onChange({ ...filters, pageSize: Number(value) })}
+        options={[
+          { value: 10, label: "10 / page" },
+          { value: 25, label: "25 / page" },
+          { value: 50, label: "50 / page" },
+          { value: 100, label: "100 / page" },
+        ]}
+        ariaLabel="Rows per page"
+        triggerClassName="h-9 min-h-9 w-[120px] px-3 py-2 text-xs"
+      />
     </div>
   );
 }

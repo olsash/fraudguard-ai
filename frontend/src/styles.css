@@ -253,14 +253,4 @@
     background: color-mix(in oklab, var(--primary) 55%, var(--border));
     background-clip: content-box;
   }
-  .fg-select {
-    min-width: 0;
-    color: var(--foreground);
-    background-color: color-mix(in oklab, var(--card) 78%, transparent);
-    color-scheme: dark;
-  }
-  .fg-select option {
-    color: var(--foreground);
-    background-color: var(--popover);
-  }
 }

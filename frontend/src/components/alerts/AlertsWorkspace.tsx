@@ -1,3 +1,4 @@
+import { FraudSelect } from "@/components/common/FraudSelect";
 import { alertService } from "@/services/alertService";
 import type { AlertSeverity, AlertStatus, FraudAlertRecord } from "@/types/alertApi";
 import {
@@ -262,21 +263,20 @@ function AlertRow({
             )}
             <label className="glass min-w-40 rounded-lg px-3 py-2">
               <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">Update status</span>
-              <div className="flex items-center gap-2">
-                <select
+              <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
+                <FraudSelect
                   value={alert.status}
                   disabled={updating}
-                  onClick={(event) => event.stopPropagation()}
-                  onChange={(event) => {
-                    event.stopPropagation();
-                    onStatus?.(event.target.value as AlertStatus);
-                  }}
-                  className="fg-select mt-0.5 flex-1 bg-transparent text-sm outline-none capitalize disabled:opacity-60"
-                >
-                  <option value="open">Open</option>
-                  <option value="investigating">Investigating</option>
-                  <option value="resolved">Resolved</option>
-                </select>
+                  onValueChange={(value) => onStatus?.(value as AlertStatus)}
+                  options={[
+                    { value: "open", label: "Open" },
+                    { value: "investigating", label: "Investigating" },
+                    { value: "resolved", label: "Resolved" },
+                  ]}
+                  ariaLabel="Update alert status"
+                  triggerClassName="mt-0.5 h-8 min-h-8 flex-1 border-0 bg-transparent px-0 py-0 text-sm capitalize shadow-none hover:border-0 hover:bg-transparent focus:ring-0"
+                  contentClassName="z-[110]"
+                />
                 {updating && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
               </div>
             </label>
@@ -407,9 +407,16 @@ function FilterSelect({
   return (
     <label className="glass rounded-lg px-3 py-2">
       <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="fg-select mt-0.5 w-full bg-transparent text-sm outline-none capitalize">
-        {options.map((option) => <option key={option} value={option} className="capitalize">{option}</option>)}
-      </select>
+      <div className="mt-0.5">
+        <FraudSelect
+          value={value}
+          onValueChange={onChange}
+          options={options.map((option) => ({ value: option, label: option }))}
+          ariaLabel={label}
+          triggerClassName="h-8 min-h-8 border-0 bg-transparent px-0 py-0 text-sm capitalize shadow-none hover:border-0 hover:bg-transparent focus:ring-0"
+          contentClassName="z-[110]"
+        />
+      </div>
     </label>
   );
 }

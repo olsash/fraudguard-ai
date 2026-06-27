@@ -1,4 +1,5 @@
 import { Topbar } from "@/components/layout/Topbar";
+import { FraudSelect } from "@/components/common/FraudSelect";
 import { ApiError } from "@/services/api";
 import { predictionService } from "@/services/predictionService";
 import { transactionService } from "@/services/transactionService";
@@ -497,19 +498,21 @@ function TransactionPicker({
       <div className="flex items-end gap-3">
         <label className="block flex-1">
           <span className="text-xs text-muted-foreground">Choose existing transaction</span>
-          <select
-            value={selectedId}
-            onChange={(event) => onChange(event.target.value)}
-            disabled={loading || Boolean(error) || transactions.length === 0}
-            className="fg-select mt-1 w-full glass rounded-lg px-3 py-3 text-sm outline-none disabled:opacity-60"
-          >
-            <option value="">{loading ? "Loading transactions..." : "Select transaction"}</option>
-            {transactions.map((transaction) => (
-              <option key={transaction.id} value={transaction.id}>
-                {formatTransactionOption(transaction)}
-              </option>
-            ))}
-          </select>
+          <div className="mt-1">
+            <FraudSelect
+              value={selectedId}
+              onValueChange={onChange}
+              disabled={loading || Boolean(error) || transactions.length === 0}
+              placeholder={loading ? "Loading transactions..." : "Select transaction"}
+              ariaLabel="Select transaction"
+              triggerClassName="min-h-12 w-full px-3 py-3 text-sm"
+              contentClassName="max-h-80"
+              options={transactions.map((transaction) => {
+                const label = formatTransactionOption(transaction);
+                return { value: transaction.id, label, title: label };
+              })}
+            />
+          </div>
         </label>
         {error && (
           <button
@@ -660,20 +663,16 @@ function Select({
   return (
     <label className="block">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <div className="mt-1 flex items-center glass rounded-lg px-3 py-2.5">
+      <div className="mt-1 flex items-center gap-2 glass rounded-lg px-3 py-2.5">
         {Icon && <Icon className="h-4 w-4 text-muted-foreground mr-2" />}
-        <select
-          required
+        <FraudSelect
           value={value}
-          onChange={(event) => onChange(event.target.value as TransactionType)}
-          className="fg-select flex-1 bg-transparent text-sm outline-none appearance-none"
-        >
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+          onValueChange={(nextValue) => onChange(nextValue as TransactionType)}
+          options={options.map((option) => ({ value: option, label: option }))}
+          ariaLabel={label}
+          triggerClassName="h-8 min-h-8 flex-1 border-0 bg-transparent px-0 py-0 text-sm shadow-none hover:border-0 hover:bg-transparent focus:ring-0"
+          contentClassName="z-[110]"
+        />
       </div>
     </label>
   );
