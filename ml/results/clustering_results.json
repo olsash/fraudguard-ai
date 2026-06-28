@@ -1,0 +1,144 @@
+{
+  "datasetName": "Fraud transaction dataset",
+  "targetVariableUsedForTraining": false,
+  "targetVariableUsedForEvaluation": "isFraud",
+  "sampleSize": 8000,
+  "generatedAt": "2026-06-28T23:27:19.676282+00:00",
+  "bestConfiguration": {
+    "nClusters": 10,
+    "init": "random",
+    "nInit": 10,
+    "inertia": 7680.343520007353,
+    "silhouetteScore": 0.8058660888873481,
+    "adjustedRandIndex": 0.00027201867272625996,
+    "maxClusterFraudRate": 0.010309278350515464
+  },
+  "results": [
+    {
+      "nClusters": 10,
+      "init": "random",
+      "nInit": 10,
+      "inertia": 7680.343520007353,
+      "silhouetteScore": 0.8058660888873481,
+      "adjustedRandIndex": 0.00027201867272625996,
+      "maxClusterFraudRate": 0.010309278350515464
+    },
+    {
+      "nClusters": 10,
+      "init": "k-means++",
+      "nInit": 10,
+      "inertia": 7602.277550696689,
+      "silhouetteScore": 0.7995211367889778,
+      "adjustedRandIndex": 0.00029329323371114915,
+      "maxClusterFraudRate": 0.058823529411764705
+    },
+    {
+      "nClusters": 8,
+      "init": "random",
+      "nInit": 10,
+      "inertia": 11503.565109895559,
+      "silhouetteScore": 0.789867878413768,
+      "adjustedRandIndex": 0.0003336915823581904,
+      "maxClusterFraudRate": 0.00487012987012987
+    },
+    {
+      "nClusters": 8,
+      "init": "k-means++",
+      "nInit": 10,
+      "inertia": 11503.565109895559,
+      "silhouetteScore": 0.789867878413768,
+      "adjustedRandIndex": 0.0003336915823581904,
+      "maxClusterFraudRate": 0.00487012987012987
+    },
+    {
+      "nClusters": 6,
+      "init": "random",
+      "nInit": 10,
+      "inertia": 24646.72748775084,
+      "silhouetteScore": 0.7269924161501867,
+      "adjustedRandIndex": 0.0004057566984959854,
+      "maxClusterFraudRate": 0.006211180124223602
+    },
+    {
+      "nClusters": 6,
+      "init": "k-means++",
+      "nInit": 10,
+      "inertia": 24646.72748775084,
+      "silhouetteScore": 0.7269924161501867,
+      "adjustedRandIndex": 0.0004057566984959854,
+      "maxClusterFraudRate": 0.006211180124223602
+    },
+    {
+      "nClusters": 5,
+      "init": "random",
+      "nInit": 10,
+      "inertia": 34019.90811854953,
+      "silhouetteScore": 0.7167645474443531,
+      "adjustedRandIndex": 0.00040398403517544906,
+      "maxClusterFraudRate": 0.006172839506172839
+    },
+    {
+      "nClusters": 5,
+      "init": "k-means++",
+      "nInit": 10,
+      "inertia": 32795.44546433223,
+      "silhouetteScore": 0.7033966348258514,
+      "adjustedRandIndex": 0.0004420651764899499,
+      "maxClusterFraudRate": 0.006211180124223602
+    },
+    {
+      "nClusters": 4,
+      "init": "random",
+      "nInit": 10,
+      "inertia": 42168.626095130916,
+      "silhouetteScore": 0.693289880535079,
+      "adjustedRandIndex": 0.00044027468317132235,
+      "maxClusterFraudRate": 0.006172839506172839
+    },
+    {
+      "nClusters": 4,
+      "init": "k-means++",
+      "nInit": 10,
+      "inertia": 42168.626095130916,
+      "silhouetteScore": 0.693289880535079,
+      "adjustedRandIndex": 0.00044027468317132235,
+      "maxClusterFraudRate": 0.006172839506172839
+    },
+    {
+      "nClusters": 3,
+      "init": "k-means++",
+      "nInit": 10,
+      "inertia": 52276.40172978996,
+      "silhouetteScore": 0.5846806839118253,
+      "adjustedRandIndex": -0.0003694809937733357,
+      "maxClusterFraudRate": 0.0026642984014209592
+    },
+    {
+      "nClusters": 3,
+      "init": "random",
+      "nInit": 10,
+      "inertia": 52245.17069286738,
+      "silhouetteScore": 0.5683827679278128,
+      "adjustedRandIndex": -0.0004095051952972169,
+      "maxClusterFraudRate": 0.0026223776223776225
+    },
+    {
+      "nClusters": 2,
+      "init": "k-means++",
+      "nInit": 10,
+      "inertia": 65030.224355167666,
+      "silhouetteScore": 0.46104428132266406,
+      "adjustedRandIndex": -0.0009792760586008816,
+      "maxClusterFraudRate": 0.0014488087572440437
+    },
+    {
+      "nClusters": 2,
+      "init": "random",
+      "nInit": 10,
+      "inertia": 65030.224355167666,
+      "silhouetteScore": 0.46104428132266406,
+      "adjustedRandIndex": -0.0009792760586008816,
+      "maxClusterFraudRate": 0.0014488087572440437
+    }
+  ]
+}

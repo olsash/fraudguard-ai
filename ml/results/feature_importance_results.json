@@ -1,68 +1,48 @@
 {
-  "source": "ml/models/fraud_model.pkl",
-  "modelName": "Random Forest",
-  "modelType": "RandomForestClassifier",
-  "modelParameters": {
-    "bootstrap": true,
-    "ccp_alpha": 0.0,
-    "class_weight": "balanced",
-    "criterion": "gini",
-    "max_depth": 10,
-    "max_features": "sqrt",
-    "max_leaf_nodes": null,
-    "max_samples": null,
-    "min_impurity_decrease": 0.0,
-    "min_samples_leaf": 1,
-    "min_samples_split": 2,
-    "min_weight_fraction_leaf": 0.0,
-    "monotonic_cst": null,
-    "n_estimators": 80,
-    "n_jobs": -1,
-    "oob_score": false,
-    "random_state": 42,
-    "verbose": 0,
-    "warm_start": false
-  },
+  "datasetName": "Fraud transaction dataset",
+  "targetVariable": "isFraud",
+  "source": "Random Forest feature_importances_",
+  "generatedAt": "2026-06-28T23:26:59.395162+00:00",
   "results": [
     {
-      "featureName": "oldbalanceOrg",
-      "importance": 0.31782009338560785
+      "feature": "oldbalanceOrg",
+      "importance": 0.3150354028170083
     },
     {
-      "featureName": "amount",
-      "importance": 0.17880468110066036
+      "feature": "amount",
+      "importance": 0.24302048344979466
     },
     {
-      "featureName": "newbalanceOrig",
-      "importance": 0.16068927931594518
+      "feature": "newbalanceOrig",
+      "importance": 0.09856895558821471
     },
     {
-      "featureName": "type_TRANSFER",
-      "importance": 0.07759869376761623
+      "feature": "newbalanceDest",
+      "importance": 0.08215447123341872
     },
     {
-      "featureName": "type_PAYMENT",
-      "importance": 0.07339572616588849
+      "feature": "oldbalanceDest",
+      "importance": 0.06799887242449776
     },
     {
-      "featureName": "oldbalanceDest",
-      "importance": 0.05737568007183541
+      "feature": "type_TRANSFER",
+      "importance": 0.06760716767418733
     },
     {
-      "featureName": "newbalanceDest",
-      "importance": 0.04770684109368452
+      "feature": "type_PAYMENT",
+      "importance": 0.052869367761259
     },
     {
-      "featureName": "type_CASH_IN",
-      "importance": 0.046897957899554685
+      "feature": "type_CASH_IN",
+      "importance": 0.03633975291857545
     },
     {
-      "featureName": "type_CASH_OUT",
-      "importance": 0.03931811105258003
+      "feature": "type_CASH_OUT",
+      "importance": 0.03629457357975573
     },
     {
-      "featureName": "type_DEBIT",
-      "importance": 0.0003929361466272127
+      "feature": "type_DEBIT",
+      "importance": 0.0001109525532885017
     }
   ]
 }

@@ -1,116 +1,109 @@
 {
-  "datasetName": "PaySim-style online payment fraud dataset",
+  "datasetName": "Fraud transaction dataset",
+  "datasetPath": "ml/dataset/fraud.csv",
   "problemType": "Binary classification",
   "targetVariable": "isFraud",
+  "sampleSize": 50000,
+  "testSize": 10000,
   "bestModelName": "Random Forest",
-  "bestModelReason": "Random Forest was selected because it had the strongest F1-score in the main classifier comparison, perfect precision on the recorded test split, strong recall, and a practical balance of interpretability, robustness, and computational efficiency for fraud detection.",
-  "evaluationSource": {
-    "notebookPath": "ml/notebooks/fraud_detection_ml_experiments.ipynb",
-    "sampleSize": 50000,
-    "randomSeed": 42,
-    "selectionMetric": "F1-score",
-    "notes": "Metrics, confusion matrix values, and average precision values were exported from real model predictions."
-  },
+  "bestModelReason": "Random Forest achieved the strongest held-out F1-score while maintaining a practical balance between precision and recall for the rare fraud class.",
+  "evaluationSource": "ml/notebooks/fraud_detection_ml_experiments.ipynb",
+  "generatedAt": "2026-06-28T23:26:59.337924+00:00",
   "models": [
     {
       "modelName": "Logistic Regression",
-      "modelType": "LogisticRegression",
-      "accuracy": 0.9467,
-      "precision": 0.023853211009174313,
-      "recall": 0.9285714285714286,
-      "f1Score": 0.046511627906976744,
-      "rocAuc": 0.9245372092357873,
+      "modelType": "Linear classifier",
+      "accuracy": 0.9496,
+      "precision": 0.025145067698259187,
+      "recall": 1.0,
+      "f1Score": 0.04905660377358491,
+      "rocAuc": 0.9938612503947439,
       "confusionMatrix": {
-        "trueNegatives": 9454,
-        "falsePositives": 532,
-        "falseNegatives": 1,
+        "trueNegatives": 9483,
+        "falsePositives": 504,
+        "falseNegatives": 0,
         "truePositives": 13
       },
       "status": "Tested",
-      "shortDescription": "Fast and interpretable linear baseline, but the recorded run produced very low precision, making it risky as a standalone fraud alert model.",
+      "shortDescription": "Interpretable baseline classifier with balanced class weights.",
+      "isBestModel": false,
       "hyperparameters": {
         "tested": {
-          "C": [
-            0.1,
-            1,
-            10
+          "model__C": [
+            1.0,
+            10.0
           ],
-          "solver": [
+          "model__solver": [
             "liblinear"
           ]
         },
         "selected": {
-          "C": 10,
-          "solver": "liblinear",
-          "class_weight": "balanced",
-          "max_iter": 1000
+          "model__C": 10.0,
+          "model__solver": "liblinear"
         }
       },
-      "averagePrecision": 0.7258720932426341
+      "cvBestF1": 0.051546873267779215
     },
     {
       "modelName": "KNN",
-      "modelType": "KNeighborsClassifier",
-      "accuracy": 0.9994,
-      "precision": 0.9,
-      "recall": 0.6428571428571429,
-      "f1Score": 0.75,
-      "rocAuc": 0.8569497296214702,
+      "modelType": "Instance-based classifier",
+      "accuracy": 0.9992,
+      "precision": 0.8571428571428571,
+      "recall": 0.46153846153846156,
+      "f1Score": 0.6,
+      "rocAuc": 0.73052660766689,
       "confusionMatrix": {
-        "trueNegatives": 9985,
+        "trueNegatives": 9986,
         "falsePositives": 1,
-        "falseNegatives": 5,
-        "truePositives": 9
+        "falseNegatives": 7,
+        "truePositives": 6
       },
       "status": "Tested",
-      "shortDescription": "Simple distance-based classifier with strong precision in the recorded split, but less suitable for production scale because prediction cost grows with stored training data.",
+      "shortDescription": "Distance-based classifier for local transaction similarity.",
+      "isBestModel": false,
       "hyperparameters": {
         "tested": {
-          "n_neighbors": [
+          "model__n_neighbors": [
             3,
-            5,
-            7
+            5
           ],
-          "weights": [
-            "uniform",
+          "model__weights": [
             "distance"
           ]
         },
         "selected": {
-          "n_neighbors": 3,
-          "weights": "distance"
+          "model__n_neighbors": 3,
+          "model__weights": "distance"
         }
       },
-      "averagePrecision": 0.6956380952380953
+      "cvBestF1": 0.5917948717948719
     },
     {
       "modelName": "Decision Tree",
-      "modelType": "DecisionTreeClassifier",
-      "accuracy": 0.9993,
-      "precision": 0.7692307692307693,
-      "recall": 0.7142857142857143,
-      "f1Score": 0.7407407407407407,
-      "rocAuc": 0.856992646848445,
+      "modelType": "Tree classifier",
+      "accuracy": 0.9991,
+      "precision": 0.7,
+      "recall": 0.5384615384615384,
+      "f1Score": 0.6086956521739131,
+      "rocAuc": 0.7690805739769392,
       "confusionMatrix": {
-        "trueNegatives": 9983,
+        "trueNegatives": 9984,
         "falsePositives": 3,
-        "falseNegatives": 4,
-        "truePositives": 10
+        "falseNegatives": 6,
+        "truePositives": 7
       },
       "status": "Tested",
-      "shortDescription": "Interpretable and fast tree model, but more prone to overfitting and less stable than the Random Forest ensemble.",
+      "shortDescription": "Rule-based classifier that captures non-linear thresholds.",
+      "isBestModel": false,
       "hyperparameters": {
         "tested": {
           "max_depth": [
-            5,
             10,
-            15,
-            null
+            15
           ],
           "min_samples_split": [
             2,
-            5,
-            10
+            5
           ],
           "criterion": [
             "gini",
@@ -118,41 +111,39 @@
           ]
         },
         "selected": {
-          "criterion": "entropy",
+          "criterion": "gini",
           "max_depth": 15,
-          "min_samples_split": 2,
-          "class_weight": "balanced",
-          "random_state": 42
+          "min_samples_split": 2
         }
       },
-      "averagePrecision": 0.5498505494505495
+      "cvBestF1": 0.6205885083078065
     },
     {
       "modelName": "Random Forest",
-      "modelType": "RandomForestClassifier",
-      "accuracy": 0.9997,
+      "modelType": "Ensemble classifier",
+      "accuracy": 0.9994,
       "precision": 1.0,
-      "recall": 0.7857142857142857,
-      "f1Score": 0.88,
-      "rocAuc": 0.9269548796887072,
+      "recall": 0.5384615384615384,
+      "f1Score": 0.7,
+      "rocAuc": 0.995740616647796,
       "confusionMatrix": {
-        "trueNegatives": 9986,
+        "trueNegatives": 9987,
         "falsePositives": 0,
-        "falseNegatives": 3,
-        "truePositives": 11
+        "falseNegatives": 6,
+        "truePositives": 7
       },
       "status": "Best Model",
-      "shortDescription": "Recommended deployment candidate with the best F1-score in the main comparison, no false positives in the recorded test split, and support for feature importance and SHAP explanations.",
+      "shortDescription": "Tree ensemble that reduces variance and models non-linear interactions.",
+      "isBestModel": true,
       "hyperparameters": {
         "tested": {
           "n_estimators": [
-            50,
+            80,
             100
           ],
           "max_depth": [
             10,
-            20,
-            null
+            20
           ],
           "min_samples_split": [
             2,
@@ -160,65 +151,60 @@
           ]
         },
         "selected": {
-          "n_estimators": 100,
-          "max_depth": 20,
+          "max_depth": 10,
           "min_samples_split": 5,
-          "class_weight": "balanced",
-          "random_state": 42
+          "n_estimators": 80
         }
       },
-      "averagePrecision": 0.792826728110599
+      "cvBestF1": 0.7619731800766284
     },
     {
       "modelName": "Neural Network",
-      "modelType": "MLPClassifier",
-      "accuracy": 0.9996,
+      "modelType": "Neural network classifier",
+      "accuracy": 0.9988,
       "precision": 1.0,
-      "recall": 0.7142857142857143,
-      "f1Score": 0.8333333333333334,
-      "rocAuc": 0.9720394266258476,
+      "recall": 0.07692307692307693,
+      "f1Score": 0.14285714285714285,
+      "rocAuc": 0.8991689195954743,
       "confusionMatrix": {
-        "trueNegatives": 9986,
+        "trueNegatives": 9987,
         "falsePositives": 0,
-        "falseNegatives": 4,
-        "truePositives": 10
+        "falseNegatives": 12,
+        "truePositives": 1
       },
       "status": "Tested",
-      "shortDescription": "Strong nonlinear MLP candidate with the highest ROC-AUC in the recorded comparison, but harder to explain and requiring more tuning, calibration, and monitoring.",
+      "shortDescription": "Multilayer perceptron for non-linear decision boundaries.",
+      "isBestModel": false,
       "hyperparameters": {
         "tested": {
-          "hidden_layer_sizes": [
+          "model__hidden_layer_sizes": [
             [
               32
-            ],
-            [
-              64
             ],
             [
               64,
               32
             ]
           ],
-          "activation": [
+          "model__activation": [
             "relu",
             "tanh"
           ],
-          "learning_rate_init": [
+          "model__learning_rate_init": [
             0.001,
             0.01
           ]
         },
         "selected": {
-          "hidden_layer_sizes": [
+          "model__activation": "tanh",
+          "model__hidden_layer_sizes": [
+            64,
             32
           ],
-          "activation": "tanh",
-          "learning_rate_init": 0.01,
-          "max_iter": 300,
-          "random_state": 42
+          "model__learning_rate_init": 0.01
         }
       },
-      "averagePrecision": 0.7890983035862841
+      "cvBestF1": 0.7051282051282052
     }
   ]
 }

@@ -1,0 +1,6 @@
+modelName,trueNegatives,falsePositives,falseNegatives,truePositives
+Logistic Regression,9483,504,0,13
+KNN,9986,1,7,6
+Decision Tree,9984,3,6,7
+Random Forest,9987,0,6,7
+Neural Network,9987,0,12,1

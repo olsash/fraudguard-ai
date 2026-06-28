@@ -1,0 +1,42 @@
+{
+  "datasetName": "Fraud transaction dataset",
+  "targetVariable": "isFraud",
+  "generatedAt": "2026-06-28T23:26:59.342271+00:00",
+  "matrices": [
+    {
+      "modelName": "Logistic Regression",
+      "trueNegatives": 9483,
+      "falsePositives": 504,
+      "falseNegatives": 0,
+      "truePositives": 13
+    },
+    {
+      "modelName": "KNN",
+      "trueNegatives": 9986,
+      "falsePositives": 1,
+      "falseNegatives": 7,
+      "truePositives": 6
+    },
+    {
+      "modelName": "Decision Tree",
+      "trueNegatives": 9984,
+      "falsePositives": 3,
+      "falseNegatives": 6,
+      "truePositives": 7
+    },
+    {
+      "modelName": "Random Forest",
+      "trueNegatives": 9987,
+      "falsePositives": 0,
+      "falseNegatives": 6,
+      "truePositives": 7
+    },
+    {
+      "modelName": "Neural Network",
+      "trueNegatives": 9987,
+      "falsePositives": 0,
+      "falseNegatives": 12,
+      "truePositives": 1
+    }
+  ]
+}
