@@ -1,51 +1,90 @@
-﻿import { Topbar } from "@/components/layout/Topbar";
-import { GraduationCap, BookOpen, Users, Calendar, Github } from "lucide-react";
+import { Topbar } from "@/components/layout/Topbar";
+import { BrainCircuit, Database, GraduationCap, Layers, type LucideIcon } from "lucide-react";
 
 export default function Thesis() {
   return (
     <>
-      <Topbar title="Research" subtitle="Bachelor thesis - context, methodology, results"/>
+      <Topbar title="Research" subtitle="FraudGuard-AI methodology, system scope, and results" />
       <main className="flex-1 p-4 md:p-8 space-y-6">
         <div className="glass rounded-3xl p-8 relative overflow-hidden">
-          <div className="absolute inset-0 bg-mesh opacity-60"/>
+          <div className="absolute inset-0 bg-mesh opacity-60" />
           <div className="relative max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full glass px-3 py-1 text-xs">
-              <GraduationCap className="h-3 w-3 text-primary"/> Bachelor Thesis - 2026
+              <GraduationCap className="h-3 w-3 text-primary" /> FraudGuard-AI Machine Learning Project
             </div>
             <h1 className="mt-4 text-3xl md:text-4xl font-display font-semibold">
-              Credit Card Fraud Detection System using <span className="text-gradient">Machine Learning Techniques</span>
+              Online Payment Fraud Detection using <span className="text-gradient">Machine Learning</span>
             </h1>
             <p className="mt-4 text-muted-foreground">
-              This research investigates the application of supervised machine learning to detect fraudulent credit card
-              transactions in real time. We benchmark six algorithms across precision, recall, and F1, and ship a full-stack
-              prototype that integrates the best-performing model into a production-style fintech workspace.
+              FraudGuard-AI studies supervised and unsupervised machine learning for detecting fraudulent online payment
+              transactions. The implemented system combines a scikit-learn experiment workflow, a Python FastAPI
+              prediction service, an ASP.NET Core Web API, and a React/Vite dashboard for prediction, history, alerts,
+              reports, and administrative review.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Meta icon={Users} label="Author" value="Sara Amrani"/>
-              <Meta icon={BookOpen} label="Supervisor" value="Prof. K. El Mansouri"/>
-              <Meta icon={Calendar} label="Defense" value="June 2026"/>
-              <Meta icon={Github} label="Repo" value="github.com/sentinelai/thesis"/>
+              <Meta icon={Database} label="Dataset" value="ml/dataset/fraud.csv" />
+              <Meta icon={BrainCircuit} label="Models" value="LR, KNN, DT, RF, MLPClassifier" />
+              <Meta icon={Layers} label="Clustering" value="KMeans with PCA" />
             </div>
           </div>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-4">
-          <Block title="Problem statement" body="Credit card fraud causes over $32B in annual losses worldwide. Traditional rule-based systems cannot keep pace with adversarial behavior; intelligent, adaptive systems are required."/>
-          <Block title="Research questions" body="(1) Which ML algorithms perform best on highly imbalanced fraud datasets? (2) How can class imbalance be mitigated? (3) Can the model run in real time within a web environment?"/>
-          <Block title="Contributions" body="A comparative study of 6 ML models; a SMOTE + feature-engineering pipeline; a production-grade .NET + React prototype integrating the trained model."/>
+          <Block
+            title="Problem statement"
+            body="Online payment fraud is a real-world classification problem where legitimate and fraudulent transactions must be separated from transaction type, amount, and balance movement features."
+          />
+          <Block
+            title="Research questions"
+            body="Which scikit-learn classifiers perform best on the fraud transaction dataset, how does feature selection affect performance, and what can KMeans clustering reveal about transaction group structure?"
+          />
+          <Block
+            title="Contributions"
+            body="The project compares Logistic Regression, KNN, Decision Tree, Random Forest, and MLPClassifier; exports metrics and artifacts; and integrates prediction workflows into the full-stack application."
+          />
         </div>
 
         <div className="grid lg:grid-cols-2 gap-4">
-          <Block title="Methodology" body="CRISP-DM phases were followed: data understanding, preparation, modeling, evaluation, deployment. Models were trained with 5-fold CV and grid search on a SMOTE-balanced dataset of 284,807 transactions."/>
-          <Block title="Results" body="The Neural Network reached 99.41% accuracy, 98.7% precision and 97.9% recall - outperforming Random Forest (98.92%), SVM (97.65%) and the baseline models. Confusion matrix and ROC curves are available in the AI Models page."/>
+          <Block
+            title="Methodology"
+            body="The notebook loads ml/dataset/fraud.csv, preprocesses transaction features, applies stratified train/test splitting, handles imbalance with class-weighted models where supported, runs SelectKBest, tunes models with GridSearchCV, and evaluates confusion matrices and classification metrics."
+          />
+          <Block
+            title="Results"
+            body="The exported model comparison results select Random Forest by held-out F1-score in the current notebook run. The admin model comparison page reads the generated JSON/CSV files for accuracy, precision, recall, F1-score, ROC-AUC, and confusion matrices."
+          />
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-4">
+          <Block
+            title="Implemented system"
+            body="Authenticated users can create transactions, request fraud predictions, review prediction history, and inspect alerts and reports generated by the application workflows."
+          />
+          <Block
+            title="Admin review"
+            body="Administrators can review users, transactions, prediction history, alerts, logs, dashboard metrics, and model comparison exports from the ASP.NET Core backend."
+          />
+          <Block
+            title="Visual analysis"
+            body="Reports and model comparison pages show charts and exported ML artifacts, including feature importance, confusion matrices, KMeans clustering results, and PCA visualizations when available."
+          />
         </div>
 
         <div className="glass rounded-2xl p-6">
           <p className="font-display font-semibold">Tech stack</p>
           <div className="mt-3 grid md:grid-cols-3 gap-3 text-sm">
-            <div><p className="text-xs text-muted-foreground">Frontend</p><p>React - TanStack Start - Tailwind v4 - Recharts</p></div>
-            <div><p className="text-xs text-muted-foreground">Backend</p><p>ASP.NET Core Web API - JWT auth - MySQL</p></div>
-            <div><p className="text-xs text-muted-foreground">Machine Learning</p><p>Python - Pandas - NumPy - Scikit-learn - TensorFlow / Keras</p></div>
+            <div>
+              <p className="text-xs text-muted-foreground">Frontend</p>
+              <p>React - Vite - TanStack Router - Tailwind - Recharts</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Backend</p>
+              <p>ASP.NET Core Web API - JWT authentication - SQL Server</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Machine Learning</p>
+              <p>Python - FastAPI - Pandas - NumPy - scikit-learn</p>
+            </div>
           </div>
         </div>
       </main>
@@ -53,11 +92,14 @@ export default function Thesis() {
   );
 }
 
-function Meta({ icon: Icon, label, value }: any) {
+function Meta({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
     <div className="glass rounded-lg px-3 py-2 flex items-center gap-2">
-      <Icon className="h-4 w-4 text-primary"/>
-      <div><p className="text-[10px] text-muted-foreground">{label}</p><p className="text-xs font-medium">{value}</p></div>
+      <Icon className="h-4 w-4 text-primary" />
+      <div>
+        <p className="text-[10px] text-muted-foreground">{label}</p>
+        <p className="text-xs font-medium">{value}</p>
+      </div>
     </div>
   );
 }

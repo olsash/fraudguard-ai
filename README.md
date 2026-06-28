@@ -36,7 +36,7 @@ fraudguard-ai/
 |   |-- api/
 |   |   `-- app.py                # FastAPI prediction service
 |   |-- dataset/
-|   |   `-- fraud.csv             # Local dataset only; do not commit
+|   |   `-- fraud.csv             # Fraud transaction dataset
 |   |-- models/
 |   |   |-- columns.pkl           # Trained feature columns
 |   |   `-- fraud_model.pkl       # Trained model artifact
@@ -62,19 +62,10 @@ Install these tools before running the project locally:
 
 ## Dataset Setup
 
-The fraud dataset is intentionally not committed to the repository. The `.gitignore` file excludes CSV files and the `ml/dataset/` folder so the full dataset does not enter Git history.
-
-Place the dataset here:
+The project uses the fraud transaction dataset located at:
 
 ```text
 ml/dataset/fraud.csv
-```
-
-From the repository root:
-
-```powershell
-mkdir ml\dataset
-Copy-Item C:\path\to\your\fraud.csv ml\dataset\fraud.csv
 ```
 
 The training script expects these columns:
@@ -87,7 +78,7 @@ The training script expects these columns:
 - `newbalanceDest`
 - `isFraud`
 
-Do not force-add the dataset. Keep `ml/dataset/fraud.csv` local only.
+Do not remove or rename `ml/dataset/fraud.csv`; the notebook, training script, and validation checks resolve this path directly.
 
 ## Machine Learning Project Execution
 
@@ -193,7 +184,7 @@ If training fails with a dataset error, confirm that the full dataset is placed 
 ml/dataset/fraud.csv
 ```
 
-Do not commit the full dataset. It is intentionally ignored by Git.
+Do not remove or rename the dataset. If you replace it for a new experiment, keep the same path and required columns.
 
 ### Model Comparison Results
 
@@ -407,7 +398,7 @@ Then open the frontend development URL and sign in with one of the default devel
 
 ## Notes
 
-- Keep the dataset out of Git. The repository is configured to ignore `ml/dataset/` and `*.csv`.
+- Keep `ml/dataset/fraud.csv` available when running the notebook, retraining script, or ML API smoke tests.
 - Re-run `python retrain_models.py` after changing the dataset or model features.
 - Keep the ML API running while using fraud prediction workflows in the backend or frontend.
 - If backend predictions fail with a service unavailable message, check that `uvicorn` is running on port `8000` and that `ml/models/fraud_model.pkl` and `ml/models/columns.pkl` exist.

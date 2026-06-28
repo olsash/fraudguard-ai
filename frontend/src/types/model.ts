@@ -13,6 +13,6 @@ export interface RocPoint {
   fpr: number;
   nn: number;
   rf: number;
-  svm: number;
+  dt: number;
   lr: number;
 }

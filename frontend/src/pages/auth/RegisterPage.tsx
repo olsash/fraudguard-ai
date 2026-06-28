@@ -43,9 +43,9 @@ export default function Register() {
   }
 
   return (
-    <AuthShell title="Create your account" subtitle="Start detecting fraud in under 2 minutes">
+    <AuthShell title="Create your account" subtitle="Access the FraudGuard-AI prediction workspace">
       <form className="space-y-4" onSubmit={handleSubmit}>
-        <Field label="Full name" placeholder="Sara Amrani" value={fullName} onChange={(event) => setFullName(event.target.value)} required />
+        <Field label="Full name" placeholder="FraudGuard User" value={fullName} onChange={(event) => setFullName(event.target.value)} required />
         <Field label="Work email" type="email" placeholder="you@bank.io" value={email} onChange={(event) => setEmail(event.target.value)} required />
         <Field label="Phone number" type="tel" placeholder="+1 555 0100" value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} maxLength={50} />
         <label className="block">

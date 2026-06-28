@@ -1,19 +1,13 @@
 # Dataset Files
 
-The full `fraud.csv` dataset is not committed to this repository because it is too large for normal source control and should remain a local development asset.
+FraudGuard-AI uses the fraud transaction dataset stored at `ml/dataset/fraud.csv`.
 
 ## Full Dataset
 
-Place the complete dataset at:
+The complete dataset must remain available at:
 
 ```text
 ml/dataset/fraud.csv
-```
-
-From the repository root on Windows:
-
-```powershell
-Copy-Item C:\path\to\your\fraud.csv ml\dataset\fraud.csv
 ```
 
 The retraining command reads this file:
@@ -22,7 +16,7 @@ The retraining command reads this file:
 python retrain_models.py
 ```
 
-Do not commit `fraud.csv` or force-add it with Git. The root `.gitignore` keeps the full dataset ignored.
+Do not remove or rename `fraud.csv`. The notebook, retraining script, and FastAPI artifact workflow expect this exact path.
 
 ## Optional Small Test Dataset
 
@@ -42,6 +36,6 @@ This sample should contain the same columns as the full dataset:
 - `newbalanceDest`
 - `isFraud`
 
-Use `fraud_sample.csv` only for lightweight testing, demos, or notebook experiments. The production training script currently expects `fraud.csv`, so either copy the sample to `fraud.csv` temporarily for a quick run or update your local experiment code to read `fraud_sample.csv`.
+Use `fraud_sample.csv` only for lightweight local checks or temporary notebook experiments. The production training script expects `fraud.csv`, so keep the full dataset in place for the real project workflow.
 
 Keep `fraud_sample.csv` small enough to review and store in Git if you decide to commit it.

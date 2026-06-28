@@ -1,4 +1,4 @@
-﻿import { models, rocData } from "@/data/mockData";
+﻿import { models, rocData } from "@/data/fraudVisualizationData";
 
 export const modelService = {
   getModels: () => models,

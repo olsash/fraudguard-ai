@@ -52,31 +52,31 @@ Clustering realizohet me KMeans pasi hiqet variabla `isFraud`. Tiparet shkallëz
 
 ## 4. Rezultatet
 
-Tabela e mëposhtme përdor rezultatet ekzistuese nga `ml/results/model_comparison_results.json`. Test split-i i eksportuar ka 10,000 raste, me 14 raste mashtruese në matricat e konfuzionit.
+Tabela e meposhtme perdor rezultatet e rigjeneruara nga `ml/results/model_comparison_results.json`. Test split-i i eksportuar ka 10,000 raste, me 13 raste mashtruese ne matricat e konfuzionit.
 
 | Modeli | Accuracy | Precision | Recall | F1-score | ROC-AUC | Confusion Matrix `[[TN, FP], [FN, TP]]` |
 |---|---:|---:|---:|---:|---:|---|
-| Logistic Regression | 0.9467 | 0.0239 | 0.9286 | 0.0465 | 0.9245 | `[[9454, 532], [1, 13]]` |
-| KNN | 0.9994 | 0.9000 | 0.6429 | 0.7500 | 0.8569 | `[[9985, 1], [5, 9]]` |
-| Decision Tree | 0.9993 | 0.7692 | 0.7143 | 0.7407 | 0.8570 | `[[9983, 3], [4, 10]]` |
-| Random Forest | 0.9997 | 1.0000 | 0.7857 | 0.8800 | 0.9270 | `[[9986, 0], [3, 11]]` |
-| Neural Network / MLPClassifier | 0.9996 | 1.0000 | 0.7143 | 0.8333 | 0.9720 | `[[9986, 0], [4, 10]]` |
+| Logistic Regression | 0.9495 | 0.0251 | 1.0000 | 0.0491 | 0.9939 | `[[9484, 503], [0, 13]]` |
+| KNN | 0.9995 | 0.8571 | 0.4615 | 0.6000 | 0.7305 | `[[9986, 1], [7, 6]]` |
+| Decision Tree | 0.9991 | 0.7000 | 0.5385 | 0.6087 | 0.7691 | `[[9984, 3], [6, 7]]` |
+| Random Forest | 0.9994 | 1.0000 | 0.5385 | 0.7000 | 0.9957 | `[[9987, 0], [6, 7]]` |
+| Neural Network / MLPClassifier | 0.9988 | 1.0000 | 0.0769 | 0.1429 | 0.8992 | `[[9987, 0], [12, 1]]` |
 
-Accuracy është shumë e lartë për disa modele, por kjo metrikë duhet interpretuar me kujdes për shkak të çekuilibrit ekstrem të klasave. Logistic Regression arrin recall të lartë, por precision shumë të ulët, sepse prodhon 532 false positives. Kjo do të krijonte shumë alarme të panevojshme në një sistem real. KNN dhe Decision Tree kanë performancë të mirë, por kanë F1-score më të ulët se Random Forest.
+Accuracy eshte shume e larte per disa modele, por kjo metrike duhet interpretuar me kujdes per shkak te cekuilibrit ekstrem te klasave. Logistic Regression arrin recall te plote, por precision shume te ulet, sepse prodhon 503 false positives. Kjo do te krijonte shume alarme te panevojshme ne nje sistem real. KNN dhe Decision Tree kane precision me te mire, por kapin me pak raste mashtruese se baseline-i linear.
 
-Random Forest është modeli më i mirë në krahasimin kryesor sepse ka F1-score më të lartë (0.8800), precision 1.0000, recall 0.7857 dhe asnjë false positive në test split-in e regjistruar. Neural Network ka ROC-AUC më të lartë (0.9720), por F1-score dhe recall më të ulët se Random Forest në pragun e përdorur. Për këtë arsye, Random Forest është zgjedhur si modeli më praktik për projektin: ai ka balancë të mirë midis kapjes së mashtrimeve dhe shmangies së alarmeve të rreme, si edhe mbështet interpretim përmes feature importance dhe SHAP.
+Random Forest eshte modeli me i mire ne krahasimin kryesor sepse ka F1-score me te larte (0.7000), precision 1.0000, recall 0.5385 dhe asnje false positive ne test split-in e regjistruar. Neural Network / MLPClassifier ka precision 1.0000, por recall me te ulet ne pragun e perdorur. Per kete arsye, Random Forest eshte zgjedhur si modeli me praktik per projektin: ai shmang alarmet e rreme ne test split dhe ruan balancen me te mire midis precision dhe recall sipas F1-score.
 
 ## 5. Diskutimi
 
 Random Forest funksionon mirë për këtë dataset sepse kombinon shumë pemë vendimi dhe mund të kapë marrëdhënie jolineare midis shumës, llojit të transaksionit dhe ndryshimeve të bilanceve. Në të dhënat e mashtrimit, sinjalet nuk janë domosdoshmërisht lineare: për shembull, një shumë e lartë mund të jetë më e dyshimtë kur kombinohet me një `TRANSFER` ose `CASH_OUT` dhe me bilance që ndryshojnë në mënyrë jo të pritshme. Random Forest i modelon këto ndërveprime më mirë se një model linear i thjeshtë.
 
-False positives dhe false negatives kanë kuptime të ndryshme operative. Një false positive është transaksion legjitim i shënuar si mashtrim; ai mund të shkaktojë vonesa, shqetësim për klientin dhe ngarkesë për ekipin e review. Një false negative është transaksion mashtrues i kaluar si normal; ai zakonisht është më i kushtueshëm sepse lejon humbje financiare. Në rezultatet e eksportuara, Random Forest ka 0 false positives dhe 3 false negatives, ndërsa MLP ka 0 false positives dhe 4 false negatives. Logistic Regression kap 13 nga 14 rastet mashtruese, por krijon 532 false positives, gjë që e bën më pak praktik si model i vetëm vendimmarrës.
+False positives dhe false negatives kanë kuptime të ndryshme operative. Një false positive është transaksion legjitim i shënuar si mashtrim; ai mund të shkaktojë vonesa, shqetësim për klientin dhe ngarkesë për ekipin e review. Një false negative është transaksion mashtrues i kaluar si normal; ai zakonisht është më i kushtueshëm sepse lejon humbje financiare. Në rezultatet e eksportuara, Random Forest ka 0 false positives dhe 6 false negatives, ndërsa MLP ka 0 false positives dhe 12 false negatives. Logistic Regression kap 13 nga 13 rastet mashtruese, por krijon 503 false positives, gjë që e bën më pak praktik si model i vetëm vendimmarrës.
 
-Eksperimenti me `SelectKBest` tregon se reduktimi i tipareve nuk përmirësoi performancën e Random Forest. Notebook-u dokumenton se Random Forest pas `SelectKBest(k=5)` arriti accuracy 0.9981, precision 0.3529, recall 0.4286, F1-score 0.3871 dhe ROC-AUC 0.7840 me matricë konfuzioni `[[9975, 11], [8, 6]]`. Kjo performancë është shumë më e dobët se Random Forest me të gjitha karakteristikat. Arsyeja është se `SelectKBest` vlerëson tiparet në mënyrë univariate dhe nuk kap mirë ndërveprimet jolineare midis bilanceve, shumës dhe llojit të transaksionit.
+Eksperimenti me `SelectKBest` tregon se reduktimi i tipareve nuk përmirësoi performancën e Random Forest. Notebook-u dokumenton krahasimin e Random Forest me të gjitha karakteristikat kundrejt variantit me `SelectKBest(k=5)` dhe tregon se reduktimi i tipareve uli performancën në metrikat kryesore të fraud-class. Kjo performancë është shumë më e dobët se Random Forest me të gjitha karakteristikat. Arsyeja është se `SelectKBest` vlerëson tiparet në mënyrë univariate dhe nuk kap mirë ndërveprimet jolineare midis bilanceve, shumës dhe llojit të transaksionit.
 
 Ndryshimet në arkitekturën e Neural Network ndikojnë në performancë. Notebook-u teston konfigurime si një shtresë me 32 neurone, një shtresë me 64 neurone, arkitekturë 64-32, aktivizime `relu` dhe `tanh`, si edhe learning rate të ndryshëm. `GridSearchCV` zgjodhi konfigurimin `hidden_layer_sizes=(32,)`, `activation="tanh"` dhe `learning_rate_init=0.01`. Edhe pse MLPClassifier arriti ROC-AUC të lartë, ai është më pak i interpretueshëm se Random Forest dhe kërkon më shumë kujdes në shkallëzim, kalibrim dhe monitorim.
 
-Clustering me KMeans nuk duhet interpretuar si zëvendësim për klasifikimin mbikëqyrur. Notebook-u largon `isFraud` para clustering dhe e përdor atë vetëm për krahasim pas trajnimit. KMeans kërkon grupe gjeometrikisht kompakte në hapësirën e tipareve, ndërsa mashtrimi është i rrallë dhe mund të shfaqet në forma të ndryshme. Në versionin aktual të `ml/results/` nuk ka eksport numerik `clustering_results.json` ose `clustering_results.csv`, prandaj ky raport nuk paraqet vlera të shpikura për silhouette score ose Adjusted Rand Index. Interpretimi i notebook-ut është se clustering është më i dobishëm për segmentim eksplorues të sjelljes së transaksioneve sesa për vendim final fraud/non-fraud.
+Clustering me KMeans nuk duhet interpretuar si zëvendësim për klasifikimin mbikëqyrur. Notebook-u largon `isFraud` para clustering dhe e përdor atë vetëm për krahasim pas trajnimit. KMeans kërkon grupe gjeometrikisht kompakte në hapësirën e tipareve, ndërsa mashtrimi është i rrallë dhe mund të shfaqet në forma të ndryshme. Në versionin aktual të `ml/results/` notebook-u eksporton `clustering_results.json`, `clustering_results.csv`, `kmeans_pca_clusters.png` dhe `kmeans_pca_true_labels.png`, prandaj clustering mund të rishikohet nga faqet e raportimit dhe admin/model comparison. Interpretimi i notebook-ut është se clustering është më i dobishëm për segmentim eksplorues të sjelljes së transaksioneve sesa për vendim final fraud/non-fraud.
 
 ## 6. Përfundimi
 
@@ -84,7 +84,7 @@ Projekti FraudGuard-AI realizon një pipeline të plotë për zbulimin e mashtri
 
 Rezultatet tregojnë se Random Forest është modeli më i përshtatshëm në krahasimin kryesor, sepse arrin F1-score më të lartë dhe një balancë të mirë midis precision dhe recall. Projekti gjithashtu përfshin një aplikacion full-stack: FastAPI shërben modelin ML për parashikim, ASP.NET Core menaxhon autentikimin, transaksionet, parashikimet, alertet, raportet dhe funksionet administrative, ndërsa React/Vite ofron dashboard për përdoruesit dhe administratorët. Aplikacioni mbështet prediction, admin review, model comparison dhe raporte.
 
-Përmirësime të mundshme në të ardhmen përfshijnë eksportimin e plotë të rezultateve të clustering në `ml/results/`, kalibrimin e pragut të vendimmarrjes sipas kostos së false positives dhe false negatives, monitorimin e drift-it të të dhënave, validim më të gjerë me cross-validation në dataset-in e plotë, krahasim me metoda shtesë për imbalance handling dhe integrim më të detajuar të shpjegueshmërisë për çdo parashikim individual.
+Përmirësime të mundshme në të ardhmen përfshijnë kalibrimin e pragut të vendimmarrjes sipas kostos së false positives dhe false negatives, monitorimin e drift-it të të dhënave, validim më të gjerë me cross-validation në dataset-in e plotë, krahasim me metoda shtesë për imbalance handling dhe integrim më të detajuar të shpjegueshmërisë për çdo parashikim individual.
 
 ## 7. Referencat
 

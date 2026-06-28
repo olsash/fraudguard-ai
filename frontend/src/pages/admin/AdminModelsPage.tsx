@@ -1,5 +1,5 @@
 ﻿import { Topbar } from "@/components/layout/Topbar";
-import { models } from "@/data/mockData";
+import { models } from "@/data/fraudVisualizationData";
 import { Brain, Play, RefreshCw, Power } from "lucide-react";
 
 export default function AdminModels() {

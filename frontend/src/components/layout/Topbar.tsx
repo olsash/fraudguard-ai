@@ -27,12 +27,12 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
 }
 
 const tickerItems = [
-  "Model NN-v4 accuracy steady at 99.41%",
-  "Warning  3 high-risk transactions flagged in EU region",
-  "OK  Live stream healthy - 1.2k tx/sec",
-  "Alert ALT-1042 escalated to investigation",
-  "Geo anomaly: card swiped in JP and BR within 4 min",
-  "Velocity rule triggered on user_184",
+  "Random Forest selected by held-out F1-score in the latest notebook export",
+  "High-risk transactions are routed to prediction history and alert review",
+  "FastAPI ML service supplies fraud scores to the ASP.NET Core backend",
+  "Admin model comparison reads exported JSON and CSV metrics",
+  "KMeans clustering results include PCA visualizations",
+  "Feature importance exports support report and review pages",
 ];
 
 function FraudTicker() {

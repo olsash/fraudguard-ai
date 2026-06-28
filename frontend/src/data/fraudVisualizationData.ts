@@ -1,10 +1,10 @@
-﻿// Centralized mock data for the fraud detection app
+﻿// Static visualization/reference data for FraudGuard-AI UI pages.
 export const KPI = {
   totalTx: 184_392,
   fraudDetected: 1_247,
   safeTx: 183_145,
   riskScore: 23,
-  accuracy: 99.41,
+  accuracy: 99.94,
   activeUsers: 8_421,
   alertsToday: 38,
   systemHealth: 98,
@@ -35,12 +35,11 @@ export const hourlyActivity = Array.from({ length: 24 }).map((_, h) => ({
 }));
 
 export const models = [
-  { name: "Neural Network", acc: 99.41, prec: 98.7, rec: 97.9, f1: 98.3, time: "8m 22s", speed: "12ms", best: true },
-  { name: "Random Forest", acc: 98.92, prec: 97.8, rec: 96.5, f1: 97.1, time: "3m 14s", speed: "6ms" },
-  { name: "SVM", acc: 97.65, prec: 96.1, rec: 94.8, f1: 95.4, time: "12m 40s", speed: "21ms" },
-  { name: "Logistic Regression", acc: 95.21, prec: 93.4, rec: 91.2, f1: 92.3, time: "0m 38s", speed: "2ms" },
-  { name: "Decision Tree", acc: 94.78, prec: 92.6, rec: 90.4, f1: 91.5, time: "0m 51s", speed: "3ms" },
-  { name: "KNN", acc: 93.12, prec: 91.0, rec: 88.7, f1: 89.8, time: "1m 12s", speed: "18ms" },
+  { name: "Random Forest", acc: 99.94, prec: 100.0, rec: 53.85, f1: 70.0, time: "grid search", speed: "artifact", best: true },
+  { name: "Decision Tree", acc: 99.91, prec: 70.0, rec: 53.85, f1: 60.87, time: "grid search", speed: "artifact" },
+  { name: "KNN", acc: 99.95, prec: 85.71, rec: 46.15, f1: 60.0, time: "grid search", speed: "artifact" },
+  { name: "Neural Network / MLPClassifier", acc: 99.88, prec: 100.0, rec: 7.69, f1: 14.29, time: "grid search", speed: "artifact" },
+  { name: "Logistic Regression", acc: 94.95, prec: 2.51, rec: 100.0, f1: 4.91, time: "grid search", speed: "artifact" },
 ];
 
 export const rocData = Array.from({ length: 21 }).map((_, i) => {
@@ -49,7 +48,7 @@ export const rocData = Array.from({ length: 21 }).map((_, i) => {
     fpr,
     nn: Math.min(1, Math.pow(fpr, 0.15)),
     rf: Math.min(1, Math.pow(fpr, 0.22)),
-    svm: Math.min(1, Math.pow(fpr, 0.3)),
+    dt: Math.min(1, Math.pow(fpr, 0.3)),
     lr: Math.min(1, Math.pow(fpr, 0.45)),
   };
 });

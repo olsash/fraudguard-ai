@@ -16,7 +16,7 @@ The full dataset should be placed at:
 ml/dataset/fraud.csv
 ```
 
-The full CSV is not committed because it is too large. The repository documents where to place it locally.
+The full CSV is stored at `ml/dataset/fraud.csv` and should not be removed or renamed because the notebook and training workflow resolve that path directly.
 
 ### What is the prediction target?
 

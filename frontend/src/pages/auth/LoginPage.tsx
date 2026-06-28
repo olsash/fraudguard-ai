@@ -57,7 +57,7 @@ export default function Login() {
           </div>
         </div>
         <div className="glass rounded-lg p-3 text-xs text-muted-foreground">
-          <p className="font-medium text-foreground">Demo credentials</p>
+          <p className="font-medium text-foreground">Development credentials</p>
           <p>User: user@credit.com / user123</p>
           <p>Admin: admin@credit.com / admin123</p>
         </div>
@@ -87,11 +87,11 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
           <Link to="/"><Brand size="lg"/></Link>
         </div>
         <div className="relative">
-          <h2 className="text-4xl font-display font-semibold leading-tight">Fraud doesn't sleep. <span className="text-gradient">Neither does our AI.</span></h2>
-          <p className="mt-4 text-muted-foreground max-w-md">Trusted by risk teams to score 1.2M+ transactions a day with 99.41% precision.</p>
+          <h2 className="text-4xl font-display font-semibold leading-tight">FraudGuard-AI detects online payment fraud with <span className="text-gradient">machine learning.</span></h2>
+          <p className="mt-4 text-muted-foreground max-w-md">Sign in to run transaction predictions, inspect history, review alerts, and compare the exported machine learning models.</p>
           <div className="mt-8 glass rounded-2xl p-5 max-w-md">
-            <p className="text-sm">"FraudGuard cut our chargeback rate by 71% in three months."</p>
-            <p className="mt-3 text-xs text-muted-foreground">Maya Lindgren, Head of Risk, NORDBANK</p>
+            <p className="text-sm">FraudGuard-AI combines a React/Vite interface, ASP.NET Core Web API, Python/FastAPI ML service, and scikit-learn model artifacts.</p>
+            <p className="mt-3 text-xs text-muted-foreground">Online payment fraud detection using machine learning</p>
           </div>
         </div>
         <p className="relative text-xs text-muted-foreground">(c) 2026 FraudGuard Research</p>

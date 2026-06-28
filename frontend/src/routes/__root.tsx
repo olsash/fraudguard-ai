@@ -74,14 +74,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "FraudGuard" },
-      { name: "description", content: "FraudGuard is a machine learning credit card fraud detection system for real-time transaction risk analysis." },
+      { name: "description", content: "FraudGuard-AI is a machine learning system for online payment fraud detection and transaction risk analysis." },
       { name: "author", content: "FraudGuard" },
       { property: "og:title", content: "FraudGuard" },
-      { property: "og:description", content: "Machine learning credit card fraud detection for real-time transaction risk analysis." },
+      { property: "og:description", content: "Machine learning online payment fraud detection for transaction risk analysis." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "FraudGuard" },
-      { name: "twitter:description", content: "Machine learning credit card fraud detection for real-time transaction risk analysis." },
+      { name: "twitter:description", content: "Machine learning online payment fraud detection for transaction risk analysis." },
     ],
     links: [
       {

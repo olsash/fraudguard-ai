@@ -7,50 +7,50 @@ const steps = [
   {
     icon: Database,
     title: "Dataset",
-    desc: "284,807 transactions - 492 fraudulent (0.172%). Kaggle Credit Card dataset + simulated stream.",
-    stat: "284,807 rows",
+    desc: "Fraud transaction dataset loaded from ml/dataset/fraud.csv with transaction type, amount, origin/destination balances, and isFraud label.",
+    stat: "fraud.csv",
   },
   {
     icon: Sparkles,
     title: "Data Cleaning",
-    desc: "Removed duplicates, handled missing values, fixed type inconsistencies and outliers via IQR capping.",
-    stat: "0 NaN",
+    desc: "Validated required columns, removed incomplete modeling rows, and checked class distribution before training.",
+    stat: "validated",
   },
   {
     icon: Wrench,
     title: "Preprocessing",
-    desc: "StandardScaler on Amount & Time, one-hot encoded categoricals, SMOTE oversampling on minority class.",
-    stat: "SMOTE 1:1",
+    desc: "One-hot encoded transaction type and scaled numeric features inside pipelines for LR, KNN, MLP, KMeans, and PCA.",
+    stat: "encoded",
   },
   {
     icon: Layers,
-    title: "Feature Engineering",
-    desc: "Created velocity features, geo distance, time-of-day risk, merchant frequency, behavioral drift score.",
-    stat: "31 features",
+    title: "Feature Selection",
+    desc: "Ranked encoded transaction features with SelectKBest and compared the selected subset against the full feature set.",
+    stat: "SelectKBest",
   },
   {
     icon: Brain,
     title: "Model Training",
-    desc: "Trained 6 algorithms (LR, DT, RF, SVM, KNN, NN) with 5-fold cross-validation and grid search.",
-    stat: "6 models",
+    desc: "Trained Logistic Regression, KNN, Decision Tree, Random Forest, and Neural Network / MLPClassifier with GridSearchCV.",
+    stat: "5 models",
   },
   {
     icon: GaugeCircle,
     title: "Evaluation",
-    desc: "Compared accuracy, precision, recall, F1, ROC-AUC and confusion matrices on 30k hold-out set.",
-    stat: "AUC 0.998",
+    desc: "Compared accuracy, precision, recall, F1-score, ROC-AUC, confusion matrices, and exported app-compatible result files.",
+    stat: "F1 + AUC",
   },
   {
     icon: Send,
     title: "Prediction API",
-    desc: "Best model exported as ONNX, served via ASP.NET Core Web API with 12ms median latency.",
-    stat: "12 ms p50",
+    desc: "Best model artifacts are served by the Python FastAPI ML service and consumed by the ASP.NET Core Web API.",
+    stat: "FastAPI",
   },
   {
     icon: Globe,
     title: "Web Integration",
-    desc: "React dashboard consumes API in real time, displaying decisions, explanations and audit trails.",
-    stat: "Live",
+    desc: "React/Vite pages support fraud prediction, prediction history, reports, alerts, admin review, and model comparison.",
+    stat: "React/Vite",
   },
 ];
 
@@ -60,9 +60,9 @@ export default function Pipeline() {
       <Topbar title="Machine Learning Pipeline" subtitle="End-to-end workflow - from raw dataset to production prediction"/>
       <main className="flex-1 p-4 md:p-8 space-y-6">
         <div className="grid md:grid-cols-4 gap-4">
-          {[
-            ["Dataset size", "284,807"], ["Fraud ratio", "0.172%"],
-            ["Features engineered", "31"], ["Best AUC", "0.998"],
+          {[ 
+            ["Dataset", "fraud.csv"], ["Target", "isFraud"],
+            ["Classifiers", "5"], ["Clustering", "KMeans"],
           ].map(([l, v]) => (
             <div key={l} className="glass rounded-2xl p-5">
               <p className="text-xs uppercase tracking-widest text-muted-foreground">{l}</p>
@@ -100,7 +100,7 @@ export default function Pipeline() {
           <p className="font-display font-semibold">Tooling</p>
           <p className="text-xs text-muted-foreground mb-4">Technologies used across the ML and engineering stack</p>
           <div className="flex flex-wrap gap-2">
-            {["Python","Pandas","NumPy","Scikit-learn","TensorFlow","Keras","SMOTE","ONNX","ASP.NET Core","MySQL","React","TanStack Start"].map(t => (
+            {["Python","Pandas","NumPy","scikit-learn","MLPClassifier","KMeans","PCA","FastAPI","ASP.NET Core","SQL Server","React","Vite"].map(t => (
               <span key={t} className="glass rounded-lg px-3 py-1.5 text-sm">{t}</span>
             ))}
           </div>

@@ -42,8 +42,8 @@ export function AppSidebar({ variant = "user" }: { variant?: "user" | "admin" })
   }, []);
 
   const profileTo = variant === "admin" ? "/admin/profile" : "/app/profile";
-  const displayName = currentUser?.name ?? (variant === "admin" ? "Admin User" : "Sara Amrani");
-  const initials = currentUser?.initials ?? (variant === "admin" ? "AU" : "SA");
+  const displayName = currentUser?.name ?? (variant === "admin" ? "Admin User" : "FraudGuard User");
+  const initials = currentUser?.initials ?? (variant === "admin" ? "AU" : "FU");
   const roleLabel = currentUser?.role === "admin" ? "Administrator" : "User";
 
   return (

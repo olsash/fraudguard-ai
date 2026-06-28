@@ -1,5 +1,5 @@
 ﻿import { Topbar } from "@/components/layout/Topbar";
-import { models, rocData } from "@/data/mockData";
+import { models, rocData } from "@/data/fraudVisualizationData";
 import {
   LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -13,7 +13,7 @@ export default function ModelsPage() {
   const best = models[0];
   return (
     <>
-      <Topbar title="AI Model Performance" subtitle="Six machine learning algorithms benchmarked on 280k transactions"/>
+      <Topbar title="AI Model Performance" subtitle="FraudGuard-AI classifiers evaluated on ml/dataset/fraud.csv"/>
       <main className="flex-1 p-4 md:p-8 space-y-6">
         <div className="glass rounded-2xl p-6 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/15 to-accent/10"/>
@@ -23,7 +23,10 @@ export default function ModelsPage() {
                 <Trophy className="h-3 w-3 text-warning"/> Best performing model
               </div>
               <h2 className="mt-3 text-3xl font-display font-semibold">{best.name}</h2>
-              <p className="text-sm text-muted-foreground mt-2">A 4-layer feed-forward network with dropout regularization, trained for 50 epochs on a balanced SMOTE-resampled dataset.</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                The current notebook export selects Random Forest by held-out F1-score. The comparison also includes
+                Logistic Regression, KNN, Decision Tree, and Neural Network / MLPClassifier.
+              </p>
             </div>
             <Stat label="Accuracy" value={`${best.acc}%`} icon={Brain}/>
             <Stat label="Inference" value={best.speed} icon={Zap}/>
@@ -63,7 +66,7 @@ export default function ModelsPage() {
                 <ReferenceLine segment={[{x:0,y:0},{x:1,y:1}]} stroke="oklch(1 0 0 / 0.2)" strokeDasharray="3 3"/>
                 <Line type="monotone" dataKey="nn" stroke="oklch(0.78 0.18 200)" strokeWidth={2} dot={false} name="Neural Net"/>
                 <Line type="monotone" dataKey="rf" stroke="oklch(0.65 0.22 285)" strokeWidth={2} dot={false} name="Random Forest"/>
-                <Line type="monotone" dataKey="svm" stroke="oklch(0.72 0.18 155)" strokeWidth={2} dot={false} name="SVM"/>
+                <Line type="monotone" dataKey="dt" stroke="oklch(0.72 0.18 155)" strokeWidth={2} dot={false} name="Decision Tree"/>
                 <Line type="monotone" dataKey="lr" stroke="oklch(0.8 0.17 75)" strokeWidth={2} dot={false} name="Logistic Reg."/>
               </LineChart>
             </ResponsiveContainer>
@@ -76,7 +79,7 @@ export default function ModelsPage() {
               <RadarChart data={models.map(m => ({ metric: m.name, acc: m.acc, prec: m.prec, rec: m.rec, f1: m.f1 }))}>
                 <PolarGrid stroke="oklch(1 0 0 / 0.1)"/>
                 <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10, fill: "oklch(0.68 0.03 250)" }}/>
-                <PolarRadiusAxis tick={{ fontSize: 9, fill: "oklch(0.5 0.02 250)" }} domain={[80,100]}/>
+                <PolarRadiusAxis tick={{ fontSize: 9, fill: "oklch(0.5 0.02 250)" }} domain={[0,100]}/>
                 <Radar dataKey="acc" stroke="oklch(0.78 0.18 200)" fill="oklch(0.78 0.18 200)" fillOpacity={0.3}/>
                 <Radar dataKey="f1" stroke="oklch(0.65 0.22 285)" fill="oklch(0.65 0.22 285)" fillOpacity={0.2}/>
                 <Tooltip contentStyle={tooltipStyle}/>
@@ -111,13 +114,13 @@ function Mini({ label, value }: any) {
 }
 
 function ConfusionMatrix() {
-  const m = [[27412, 188], [142, 2258]];
+  const m = [[9987, 0], [6, 7]];
   const labels = ["Safe", "Fraud"];
-  const max = 27412;
+  const max = 9987;
   return (
     <div className="glass rounded-2xl p-5">
-      <p className="font-display font-semibold">Confusion Matrix - Neural Network</p>
-      <p className="text-xs text-muted-foreground mb-4">On 30,000 hold-out transactions</p>
+      <p className="font-display font-semibold">Confusion Matrix - Random Forest</p>
+      <p className="text-xs text-muted-foreground mb-4">Current notebook test split export</p>
       <div className="inline-grid grid-cols-[80px_repeat(2,minmax(120px,1fr))] gap-2">
         <div/>
         {labels.map(l => <div key={l} className="text-xs text-center text-muted-foreground">Pred: {l}</div>)}

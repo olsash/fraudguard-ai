@@ -1,5 +1,5 @@
 ﻿import { Topbar } from "@/components/layout/Topbar";
-import { fraudTrend, volumeData, geoFraud } from "@/data/mockData";
+import { fraudTrend, volumeData, geoFraud } from "@/data/fraudVisualizationData";
 import {
   AreaChart, Area, BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid,
 } from "recharts";

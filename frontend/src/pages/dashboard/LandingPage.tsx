@@ -5,7 +5,7 @@ import {
   Cpu, LineChart, Radar, Eye, Sparkles, AlertTriangle,
 } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from "recharts";
-import { fraudTrend } from "@/data/mockData";
+import { fraudTrend } from "@/data/fraudVisualizationData";
 
 export default function Landing() {
   return (
@@ -57,13 +57,13 @@ function Hero() {
         <div>
           <div className="inline-flex items-center gap-2 rounded-full glass px-3 py-1 text-xs text-muted-foreground">
             <span className="h-2 w-2 rounded-full bg-success animate-pulse-glow"/>
-            Live - 1.2M transactions analyzed today
+            FraudGuard-AI research and prediction workspace
           </div>
           <h1 className="mt-5 text-5xl md:text-6xl font-display font-semibold leading-[1.05] tracking-tight">
-            Fraud doesn't sleep. <span className="text-gradient">Neither does our AI.</span>
+            Online payment fraud detection with <span className="text-gradient">machine learning.</span>
           </h1>
           <p className="mt-5 text-lg text-muted-foreground max-w-xl">
-            Trusted by risk teams to score 1.2M+ transactions a day with 99.41% precision.
+            A full-stack academic system for transaction scoring, prediction history, alerts, reports, and model comparison.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link to="/app/predict" className="inline-flex items-center gap-2 bg-gradient-primary text-primary-foreground rounded-lg px-5 py-3 font-medium ring-glow">
@@ -75,9 +75,9 @@ function Hero() {
           </div>
           <div className="mt-10 grid grid-cols-3 gap-6 max-w-md">
             {[
-              ["99.41%", "Detection accuracy"],
-              ["12 ms", "Avg. inference time"],
-              ["6", "ML algorithms"],
+              ["5", "Classifiers"],
+              ["KMeans", "Clustering"],
+              ["FastAPI", "ML service"],
             ].map(([v, l]) => (
               <div key={l}>
                 <p className="text-2xl font-display font-semibold text-gradient">{v}</p>
@@ -114,8 +114,8 @@ function HeroVisual() {
       <FloatCard className="top-4 left-2" delay="0s">
         <Brain className="h-4 w-4 text-primary"/>
         <div>
-          <p className="text-xs text-muted-foreground">Neural Net</p>
-          <p className="text-sm font-semibold">99.41% acc.</p>
+          <p className="text-xs text-muted-foreground">MLPClassifier</p>
+          <p className="text-sm font-semibold">scikit-learn</p>
         </div>
       </FloatCard>
       <FloatCard className="top-16 right-0" delay="1s">
@@ -128,8 +128,8 @@ function HeroVisual() {
       <FloatCard className="bottom-20 left-0" delay="2s">
         <Activity className="h-4 w-4 text-success"/>
         <div>
-          <p className="text-xs text-muted-foreground">Stream</p>
-          <p className="text-sm font-semibold">1,248 tx/sec</p>
+          <p className="text-xs text-muted-foreground">Workflow</p>
+          <p className="text-sm font-semibold">Prediction history</p>
         </div>
       </FloatCard>
       <FloatCard className="bottom-4 right-4" delay="1.5s">
@@ -158,8 +158,8 @@ function LogoStrip() {
   return (
     <div className="border-y border-border bg-card/30">
       <div className="mx-auto max-w-7xl px-6 py-8 flex flex-wrap items-center justify-between gap-6 opacity-70">
-        <p className="text-xs uppercase tracking-widest text-muted-foreground">Trusted by leading fintech teams</p>
-        {["NORDBANK", "PAYWAVE", "AXISFIN", "VOLT.PAY", "ZENITH", "CRYPTOLEDGER"].map(n => (
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">Implemented FraudGuard-AI modules</p>
+        {["AUTH", "PREDICTION", "ALERTS", "REPORTS", "ADMIN", "ML API"].map(n => (
           <span key={n} className="text-sm font-display tracking-wider text-muted-foreground">{n}</span>
         ))}
       </div>
@@ -172,10 +172,10 @@ function Stats() {
     <section className="mx-auto max-w-7xl px-6 py-20">
       <div className="grid md:grid-cols-4 gap-4">
         {[
-          { v: "184k", l: "Transactions / day", icon: Activity },
-          { v: "1,247", l: "Frauds blocked / mo", icon: ShieldCheck },
-          { v: "$4.2M", l: "Loss prevented", icon: LineChart },
-          { v: "98%", l: "Customer trust", icon: CheckCircle2 },
+          { v: "5", l: "Classification models", icon: Activity },
+          { v: "1", l: "FastAPI ML service", icon: ShieldCheck },
+          { v: "2", l: "PCA cluster plots", icon: LineChart },
+          { v: "Admin", l: "Review dashboard", icon: CheckCircle2 },
         ].map((s, i) => (
           <div key={i} className="glass rounded-2xl p-6">
             <s.icon className="h-5 w-5 text-primary"/>
@@ -187,11 +187,11 @@ function Stats() {
       <div className="mt-6 glass rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Live fraud activity</p>
-            <p className="text-lg font-display font-semibold">Real-time detection signal</p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Report visualization</p>
+            <p className="text-lg font-display font-semibold">Fraud and transaction trend signal</p>
           </div>
           <div className="flex items-center gap-2 text-xs text-success">
-            <span className="h-2 w-2 rounded-full bg-success animate-pulse-glow"/> Streaming
+            <span className="h-2 w-2 rounded-full bg-success animate-pulse-glow"/> Dashboard data
           </div>
         </div>
         <div className="h-44">
@@ -220,12 +220,12 @@ function Stats() {
 
 function Features() {
   const items = [
-    { icon: Brain, title: "Neural Network Engine", desc: "Deep-learning model trained on 280k+ labeled transactions for unmatched precision." },
-    { icon: Zap, title: "12 ms inference", desc: "Score every transaction in real-time without slowing down checkout." },
-    { icon: Eye, title: "Explainable AI", desc: "SHAP-based reasoning for every prediction - not a black box." },
-    { icon: Globe, title: "Geo-velocity analytics", desc: "Detect impossible travel and cross-border anomalies instantly." },
-    { icon: Lock, title: "PCI-DSS aligned", desc: "Tokenized inputs, encrypted at rest, audited every quarter." },
-    { icon: Cpu, title: "6 Model ensemble", desc: "LR, DT, RF, SVM, KNN, NN - automatically routed for best precision." },
+    { icon: Brain, title: "Model comparison", desc: "Compare Logistic Regression, KNN, Decision Tree, Random Forest, and MLPClassifier results." },
+    { icon: Zap, title: "Prediction workflow", desc: "Submit transaction attributes to the backend and ML API for fraud-risk scoring." },
+    { icon: Eye, title: "Evaluation reports", desc: "Review accuracy, precision, recall, F1-score, ROC-AUC, feature importance, and confusion matrices." },
+    { icon: Globe, title: "Transaction context", desc: "Use transaction type, amount, and origin/destination balance movements as fraud detection signals." },
+    { icon: Lock, title: "Authenticated access", desc: "JWT-protected user and admin workflows separate normal prediction use from review operations." },
+    { icon: Cpu, title: "Clustering analysis", desc: "KMeans with PCA visualization supports exploratory analysis of transaction groups." },
   ];
   return (
     <section id="features" className="mx-auto max-w-7xl px-6 py-20">
@@ -247,14 +247,14 @@ function Features() {
 
 function HowItWorks() {
   const steps = [
-    { n: "01", t: "Ingest", d: "Stream transactions from your payment processor or batch API." },
-    { n: "02", t: "Enrich", d: "Append geo, device, merchant and behavioral features." },
-    { n: "03", t: "Score", d: "Run through the ensemble - get probability, confidence, reason codes." },
-    { n: "04", t: "Act", d: "Allow, challenge or block - with an audit trail your auditors will love." },
+    { n: "01", t: "Create", d: "Users enter or store transaction details in the ASP.NET Core application." },
+    { n: "02", t: "Predict", d: "The backend calls the Python FastAPI ML service with encoded transaction features." },
+    { n: "03", t: "Review", d: "Users and admins inspect prediction history, fraud probability, and transaction status." },
+    { n: "04", t: "Report", d: "Dashboards and admin pages display alerts, model comparison, and visualization exports." },
   ];
   return (
     <section id="how" className="mx-auto max-w-7xl px-6 py-20">
-      <SectionHeader eyebrow="Pipeline" title="From swipe to decision in under 20ms" />
+      <SectionHeader eyebrow="Pipeline" title="From transaction details to fraud review" />
       <div className="grid md:grid-cols-4 gap-4 mt-10">
         {steps.map((s, i) => (
           <div key={s.n} className="relative glass rounded-2xl p-6">
@@ -271,16 +271,16 @@ function HowItWorks() {
 
 function ModelsSection() {
   const m = [
-    ["Neural Network", "99.41%", "Best overall"],
-    ["Random Forest", "98.92%", "Fastest ensemble"],
-    ["SVM", "97.65%", "Strong margin"],
-    ["Logistic Regr.", "95.21%", "Interpretable"],
-    ["Decision Tree", "94.78%", "Explainable"],
-    ["KNN", "93.12%", "Baseline"],
+    ["Random Forest", "0.70 F1", "Selected model"],
+    ["Decision Tree", "0.61 F1", "Rule-based"],
+    ["KNN", "0.60 F1", "Distance-based"],
+    ["Neural Network", "0.14 F1", "MLPClassifier"],
+    ["Logistic Regr.", "0.05 F1", "Linear baseline"],
+    ["KMeans", "PCA", "Clustering"],
   ];
   return (
     <section id="models" className="mx-auto max-w-7xl px-6 py-20">
-      <SectionHeader eyebrow="Machine Learning" title="Six battle-tested algorithms, one decision engine" />
+      <SectionHeader eyebrow="Machine Learning" title="Classification and clustering experiments" />
       <div className="mt-10 grid md:grid-cols-3 gap-4">
         {m.map(([name, acc, tag]) => (
           <div key={name} className="glass rounded-2xl p-6 relative overflow-hidden">
@@ -292,7 +292,7 @@ function ModelsSection() {
               <Brain className="h-6 w-6 text-primary/60"/>
             </div>
             <div className="mt-3 h-1.5 rounded-full bg-secondary overflow-hidden">
-              <div className="h-full bg-gradient-primary" style={{ width: acc }}/>
+              <div className="h-full bg-gradient-primary" style={{ width: name === "KMeans" ? "45%" : `${Math.min(Number.parseFloat(acc) * 100, 100)}%` }}/>
             </div>
           </div>
         ))}
@@ -347,11 +347,11 @@ function Security() {
         <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-accent/30 blur-3xl"/>
         <div className="relative">
           <Lock className="h-8 w-8 text-primary"/>
-          <h2 className="mt-4 text-3xl md:text-4xl font-display font-semibold">Security is not a feature. It's the foundation.</h2>
-          <p className="mt-3 text-muted-foreground">End-to-end encryption, role-based access, signed audit trails and zero-trust networking. Every decision is reproducible.</p>
+          <h2 className="mt-4 text-3xl md:text-4xl font-display font-semibold">Application controls for review workflows.</h2>
+          <p className="mt-3 text-muted-foreground">FraudGuard-AI uses JWT authentication, role-based admin routes, system logs, and stored prediction history to make review activity traceable inside the project application.</p>
         </div>
         <ul className="relative space-y-3 text-sm">
-          {["PCI-DSS Level 1 aligned","SOC 2 Type II controls","ISO 27001 ready","GDPR & CCPA compliant","99.99% uptime SLA","Encrypted model weights"].map(i => (
+          {["JWT-protected API endpoints","Admin-only review routes","Prediction history records","Fraud alert workflows","System activity logs","Versioned ML result exports"].map(i => (
             <li key={i} className="flex items-center gap-3 glass rounded-lg p-3"><CheckCircle2 className="h-4 w-4 text-success"/> {i}</li>
           ))}
         </ul>
@@ -362,13 +362,13 @@ function Security() {
 
 function Testimonials() {
   const t = [
-    { q: "FraudGuard cut our chargeback rate by 71% in three months.", a: "Maya Lindgren", r: "Head of Risk, NORDBANK" },
-    { q: "The explainability dashboards turned every dispute into a 30-second resolution.", a: "Joshua Park", r: "Fraud Lead, PAYWAVE" },
-    { q: "Our analysts finally trust the model - and the model trusts the data.", a: "Amani Diallo", r: "VP Engineering, VOLT.PAY" },
+    { q: "The backend exposes authenticated routes for predictions, transactions, alerts, reports, and admin review.", a: "ASP.NET Core", r: "Web API" },
+    { q: "The ML service loads trained scikit-learn artifacts and returns fraud predictions for transaction features.", a: "Python", r: "FastAPI" },
+    { q: "The frontend provides user dashboards, prediction forms, history, reports, alerts, and admin model comparison.", a: "React", r: "Vite" },
   ];
   return (
     <section className="mx-auto max-w-7xl px-6 py-20">
-      <SectionHeader eyebrow="Customers" title="Loved by risk teams worldwide" />
+      <SectionHeader eyebrow="System" title="Implemented FraudGuard-AI components" />
       <div className="grid md:grid-cols-3 gap-4 mt-10">
         {t.map((x) => (
           <div key={x.a} className="glass rounded-2xl p-6">
@@ -390,8 +390,8 @@ function CTA() {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-primary p-12 text-center ring-glow">
         <div className="absolute inset-0 grid-bg opacity-30"/>
         <div className="relative">
-          <h2 className="text-3xl md:text-5xl font-display font-semibold text-primary-foreground">Catch fraud before it costs you.</h2>
-          <p className="mt-4 text-primary-foreground/80 max-w-2xl mx-auto">Launch the demo workspace - explore live transactions, run AI predictions, and walk through every model side by side.</p>
+          <h2 className="text-3xl md:text-5xl font-display font-semibold text-primary-foreground">Open the FraudGuard-AI workspace.</h2>
+          <p className="mt-4 text-primary-foreground/80 max-w-2xl mx-auto">Explore transaction prediction, prediction history, reports, alerts, and the exported machine learning model comparison.</p>
           <div className="mt-8 flex flex-wrap gap-3 justify-center">
             <Link to="/app" className="bg-background text-foreground rounded-lg px-5 py-3 font-medium hover:bg-background/90">Open Dashboard</Link>
             <Link to="/app/predict" className="glass-strong rounded-lg px-5 py-3 font-medium text-primary-foreground border border-white/30">Try AI Detection</Link>
@@ -408,10 +408,10 @@ function Footer() {
       <div className="mx-auto max-w-7xl px-6 py-12 grid md:grid-cols-4 gap-8">
         <div>
           <Brand/>
-          <p className="text-sm text-muted-foreground mt-3">AI-powered fraud detection for modern fintech. Built as a research thesis project.</p>
+          <p className="text-sm text-muted-foreground mt-3">Online payment fraud detection using machine learning. Built as a full-stack academic project.</p>
         </div>
         {[
-          ["Product", ["Dashboard", "AI Detection", "Reports", "Pricing"]],
+          ["Product", ["Dashboard", "Fraud Prediction", "Reports", "Alerts"]],
           ["Research", ["ML Pipeline", "Model Performance", "Thesis", "Datasets"]],
           ["Company", ["About", "Contact", "Security", "Privacy"]],
         ].map(([title, items]) => (
@@ -425,8 +425,8 @@ function Footer() {
       </div>
       <div className="border-t border-border">
         <div className="mx-auto max-w-7xl px-6 py-4 flex justify-between text-xs text-muted-foreground">
-          <p>(c) 2026 FraudGuard - Bachelor thesis research project</p>
-          <p>Built with React, ASP.NET Core, MySQL, scikit-learn & TensorFlow</p>
+          <p>(c) 2026 FraudGuard-AI - academic machine learning project</p>
+          <p>Built with React/Vite, ASP.NET Core Web API, SQL Server, FastAPI, and scikit-learn</p>
         </div>
       </div>
     </footer>

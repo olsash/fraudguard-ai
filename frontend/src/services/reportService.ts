@@ -1,4 +1,4 @@
-﻿import { fraudTrend, geoFraud, volumeData } from "@/data/mockData";
+﻿import { fraudTrend, geoFraud, volumeData } from "@/data/fraudVisualizationData";
 
 export const reportService = {
   getFraudTrend: () => fraudTrend,

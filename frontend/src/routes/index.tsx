@@ -6,9 +6,9 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "FraudGuard" },
-      { name: "description", content: "Real-time machine learning credit card fraud detection for banks and fintech teams." },
+      { name: "description", content: "Online payment fraud detection using machine learning, ASP.NET Core, FastAPI, and React/Vite." },
       { property: "og:title", content: "FraudGuard" },
-      { property: "og:description", content: "Real-time machine learning fraud prevention with 99.41% accuracy." },
+      { property: "og:description", content: "Full-stack FraudGuard-AI workspace for fraud prediction, history, alerts, reports, and model comparison." },
     ],
   }),
   component: Page,
