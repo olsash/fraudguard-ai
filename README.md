@@ -225,6 +225,16 @@ The best model is selected from the notebook results using evaluation metrics su
 Admin Dashboard -> Model Comparison
 ```
 
+### Academic Report
+
+A complete academic Machine Learning project report is available at:
+
+```text
+docs/fraudguard-ai-ml-report.md
+```
+
+The report summarizes the dataset, preprocessing, classification and clustering methodology, exported model results, discussion, conclusion, and references.
+
 ### 5. Start the ML Prediction API
 
 Start the FastAPI prediction service after the model has been trained:
