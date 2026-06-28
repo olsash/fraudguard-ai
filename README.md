@@ -1,74 +1,104 @@
-# FraudGuard AI
+# FraudGuard-AI
 
-FraudGuard AI is a full-stack fraud detection project for analyzing payment transactions, flagging suspicious activity, and exposing model-backed fraud risk predictions through a web application.
+FraudGuard-AI is a full-stack machine learning project for online payment fraud detection. It uses a fraud transaction dataset, trains and compares several classifiers, exposes fraud prediction through a Python FastAPI service, and provides a React/Vite web application backed by an ASP.NET Core Web API.
 
-The project is split into three main parts:
+The project is intended for both implementation review and academic evaluation. It includes the machine learning notebook, trained model artifacts, exported evaluation results, backend APIs, frontend dashboards, admin review pages, and project documentation.
 
-- A Python machine learning workspace for dataset exploration, model training, and prediction serving.
-- A .NET backend API for authentication, users, transactions, predictions, alerts, reports, and admin workflows.
-- A React/Vite frontend for the user and admin dashboards.
+## Project Overview
 
-## Folder Structure
+FraudGuard-AI helps identify suspicious online payment transactions by analyzing transaction type, amount, and account balance changes before and after a transaction. Fraud detection is useful because fraudulent payments are usually rare, expensive, and difficult to review manually at scale.
+
+Machine learning is used as a binary classification approach. The target variable is `isFraud`, where the model learns patterns that separate legitimate and fraudulent transactions. The project also includes clustering with KMeans and PCA visualization to explore whether transactions form natural groups without using the fraud label during clustering.
+
+The implemented system supports:
+
+- User authentication and role-based access.
+- Transaction creation and fraud prediction.
+- Prediction history.
+- Admin dashboard and admin review pages.
+- Model comparison from exported ML results.
+- Reports and visualizations.
+- Fraud alerts where supported by the backend/frontend workflow.
+
+## Prerequisites
+
+Install these tools before running the full project:
+
+- Python 3.10 or newer
+- Node.js 20 or newer
+- .NET SDK 10, matching the backend `net10.0` target
+- SQL Server LocalDB, SQL Server Developer Edition, or another SQL Server instance
+- Jupyter Notebook, installed through `ml/requirements.txt`
+- Entity Framework Core CLI support for `dotnet ef database update`
+
+## Repository Structure
 
 ```text
 fraudguard-ai/
 |-- backend/
 |   `-- FraudGuard.Api/
-|       |-- Controllers/          # REST API controllers
-|       |-- Data/                 # Entity Framework DbContext
-|       |-- DTOs/                 # API request/response models
+|       |-- Controllers/          # ASP.NET Core API controllers
+|       |-- Data/                 # Entity Framework Core DbContext
+|       |-- DTOs/                 # Request and response DTOs
 |       |-- Migrations/           # EF Core database migrations
 |       |-- Models/               # Database entities
-|       |-- Services/             # JWT, logging, and ML API integration
-|       |-- appsettings.json      # API configuration
-|       `-- FraudGuard.Api.csproj # .NET backend project
+|       |-- Services/             # JWT, logs, and ML API integration services
+|       |-- appsettings.json      # Backend configuration
+|       `-- FraudGuard.Api.csproj # ASP.NET Core Web API project
 |-- frontend/
 |   |-- src/
 |   |   |-- components/           # Shared UI and layout components
-|   |   |-- config/               # Frontend API URL configuration
-|   |   |-- pages/                # Dashboard, auth, admin, and workflow pages
+|   |   |-- config/               # Frontend API configuration
+|   |   |-- data/                 # Static visualization/reference data
+|   |   |-- pages/                # User, admin, reports, auth, and workflow pages
 |   |   |-- routes/               # TanStack Router routes
-|   |   |-- services/             # API clients
-|   |   `-- types/                # TypeScript API/domain types
+|   |   |-- services/             # Frontend API clients
+|   |   `-- types/                # TypeScript domain/API types
 |   |-- package.json
 |   `-- vite.config.ts
 |-- ml/
 |   |-- api/
-|   |   `-- app.py                # FastAPI prediction service
+|   |   `-- app.py                # Python FastAPI prediction service
 |   |-- dataset/
 |   |   `-- fraud.csv             # Fraud transaction dataset
-|   |-- models/
-|   |   |-- columns.pkl           # Trained feature columns
-|   |   `-- fraud_model.pkl       # Trained model artifact
+|   |-- models/                   # Trained model artifacts
 |   |-- notebooks/
 |   |   `-- fraud_detection_ml_experiments.ipynb
-|   |-- results/
-|   |   `-- model_comparison_results.json
+|   |-- results/                  # Exported metrics, plots, and model comparison files
 |   |-- requirements.txt
-|   `-- train_model.py            # Reproducible training script
-|-- .gitignore
+|   |-- train_model.py
+|   `-- validate_notebook_outputs.py
+|-- docs/
+|   `-- fraudguard-ai-ml-report.md
+|-- retrain_models.py
 `-- README.md
 ```
 
-## Prerequisites
+Main folders:
 
-Install these tools before running the project locally:
+- `backend`: ASP.NET Core Web API for authentication, users, transactions, predictions, alerts, settings, logs, admin workflows, and integration with the ML API.
+- `frontend`: React/Vite application for the user workspace, admin dashboard, prediction pages, model comparison, reports, alerts, and settings.
+- `ml`: Python machine learning workspace, including preprocessing, training, FastAPI prediction service, notebook, model artifacts, and result exports.
+- `ml/notebooks`: Academic ML experiment notebook.
+- `ml/models`: Saved trained models, feature columns, scaler, and metadata.
+- `ml/results`: Exported metrics and visualizations used by reports and admin model comparison pages.
+- `docs`: Academic documentation, including the ML project report.
 
-- Python 3.10 or newer
-- Node.js 20 or newer
-- .NET SDK 10
-- SQL Server LocalDB, SQL Server Developer Edition, or another SQL Server instance
-- Jupyter Notebook or JupyterLab, if you want to run the ML notebook
+## Dataset
 
-## Dataset Setup
-
-The project uses the fraud transaction dataset located at:
+The dataset exists in the repository at:
 
 ```text
 ml/dataset/fraud.csv
 ```
 
-The training script expects these columns:
+This dataset is used for model training, evaluation, feature selection, clustering experiments, and result exports. The main target column is:
+
+```text
+isFraud
+```
+
+The primary modeling features used by the notebook and training workflow are:
 
 - `type`
 - `amount`
@@ -78,93 +108,40 @@ The training script expects these columns:
 - `newbalanceDest`
 - `isFraud`
 
-Do not remove or rename `ml/dataset/fraud.csv`; the notebook, training script, and validation checks resolve this path directly.
+Do not remove or rename `ml/dataset/fraud.csv`. The notebook, training scripts, validation script, and ML API workflow rely on this path.
 
-## Machine Learning Project Execution
+## Machine Learning Workflow
 
-Run all ML commands from the repository root unless a step says otherwise. The ML workflow has four parts:
-
-1. Create a Python virtual environment.
-2. Install `ml/requirements.txt`.
-3. Open and run the notebook for experiments.
-4. Train the production model and start the FastAPI prediction API.
-
-### 1. Create and Activate a Virtual Environment
-
-Create a local Python virtual environment from the repository root:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-```
-
-If PowerShell blocks activation, allow scripts for the current user and activate again:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-.\.venv\Scripts\Activate.ps1
-```
-
-On macOS or Linux:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-```
-
-### 2. Install ML Dependencies
-
-Install the ML requirements:
-
-```powershell
-pip install -r ml\requirements.txt
-```
-
-The requirements include the libraries needed for the notebook, model training, and prediction API, including pandas, NumPy, scikit-learn, matplotlib, SHAP, Jupyter, FastAPI, Uvicorn, Pydantic, and joblib.
-
-### 3. Open and Run the ML Notebook
-
-The notebook is used for data exploration, class imbalance analysis, model comparison, feature selection, hyperparameter tuning, clustering, explainability, and evaluation plots.
-
-Before opening it, make sure the full dataset exists at:
-
-```text
-ml/dataset/fraud.csv
-```
-
-Then start Jupyter:
-
-```powershell
-jupyter notebook
-```
-
-Open:
+The main academic workflow is implemented in:
 
 ```text
 ml/notebooks/fraud_detection_ml_experiments.ipynb
 ```
 
-Run the notebook cells from top to bottom. The notebook checks for `ml/dataset/fraud.csv` before loading data and prints a clear error if the dataset is missing.
+The workflow includes:
 
-You can also use JupyterLab if preferred:
+- Dataset loading from `ml/dataset/fraud.csv`.
+- Data exploration and class distribution review.
+- Preprocessing of numeric and categorical transaction features.
+- One-hot encoding for transaction type.
+- Feature scaling where required by the model.
+- Stratified train/test split for reproducible evaluation.
+- Class imbalance handling using class-weighted classifiers where supported.
+- Feature selection with `SelectKBest`.
+- Classification with:
+  - Logistic Regression
+  - K-Nearest Neighbors
+  - Decision Tree
+  - Random Forest
+  - Neural Network / `MLPClassifier`
+- Hyperparameter tuning with `GridSearchCV`.
+- Evaluation with accuracy, precision, recall, F1-score, ROC-AUC, and confusion matrices.
+- Neural network architecture comparison.
+- KMeans clustering.
+- PCA visualization for clustering results.
+- Export of model comparison results, confusion matrices, feature importance, clustering results, PCA plots, and model artifacts.
 
-```powershell
-jupyter lab
-```
-
-### 4. Train the Production ML Model
-
-The notebook is for experiments. The production prediction API uses the model artifacts generated by the retraining command.
-
-Train the model from the repository root:
-
-```powershell
-python retrain_models.py
-```
-
-This reads `ml/dataset/fraud.csv` and writes:
+Important result and artifact paths:
 
 ```text
 ml/models/best_model.pkl
@@ -174,71 +151,105 @@ ml/models/scaler.pkl
 ml/models/training_metadata.json
 ml/results/model_comparison_results.json
 ml/results/model_comparison_results.csv
+ml/results/confusion_matrices.json
+ml/results/confusion_matrices.csv
+ml/results/feature_importance_results.json
+ml/results/feature_importance_results.csv
+ml/results/clustering_results.json
+ml/results/clustering_results.csv
+ml/results/kmeans_pca_clusters.png
+ml/results/kmeans_pca_true_labels.png
 ```
 
-The retraining command loads the dataset, preprocesses encoded model features, trains and evaluates the classifiers, selects the best model by F1-score, saves the model/scaler/columns artifacts, exports model comparison results, and writes dataset metadata plus model parameters to `ml/models/training_metadata.json` for reproducibility.
-
-If training fails with a dataset error, confirm that the full dataset is placed at:
-
-```text
-ml/dataset/fraud.csv
-```
-
-Do not remove or rename the dataset. If you replace it for a new experiment, keep the same path and required columns.
-
-### Model Comparison Results
-
-FraudGuard AI evaluates multiple classifiers for fraud detection before selecting the model used by the application. The tested classifiers include:
-
-- Logistic Regression
-- KNN
-- Decision Tree
-- Random Forest
-- Neural Network
-
-The full technical experiments are available in:
-
-```text
-ml/notebooks/fraud_detection_ml_experiments.ipynb
-```
-
-The final comparison results displayed in the web application are stored in:
-
-```text
-ml/results/model_comparison_results.json
-```
-
-The Admin Model Comparison page displays these exported results inside the web application. It is informational only: admins can review metrics and hyperparameters, but the page does not retrain models or switch the production model from the UI.
-
-The best model is selected from the notebook results using evaluation metrics such as F1 Score, Recall, Precision, Accuracy, and Confusion Matrix. To view the page in the app, sign in as an admin and open:
-
-```text
-Admin Dashboard -> Model Comparison
-```
-
-### Academic Report
-
-A complete academic Machine Learning project report is available at:
+The academic ML report is available at:
 
 ```text
 docs/fraudguard-ai-ml-report.md
 ```
 
-The report summarizes the dataset, preprocessing, classification and clustering methodology, exported model results, discussion, conclusion, and references.
+## Run the ML Notebook
 
-### 5. Start the ML Prediction API
+Run these commands from the repository root.
 
-Start the FastAPI prediction service after the model has been trained:
+### 1. Create a Python Environment
+
+PowerShell on Windows:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+```
+
+If PowerShell blocks script activation:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+.\.venv\Scripts\Activate.ps1
+```
+
+macOS or Linux:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+```
+
+### 2. Install ML Dependencies
+
+```powershell
+pip install -r ml\requirements.txt
+```
+
+macOS or Linux:
+
+```bash
+pip install -r ml/requirements.txt
+```
+
+### 3. Open Jupyter Notebook
+
+```powershell
+jupyter notebook
+```
+
+Open this notebook:
+
+```text
+ml/notebooks/fraud_detection_ml_experiments.ipynb
+```
+
+Run the notebook from the first cell to the last cell. It should load `ml/dataset/fraud.csv`, train/evaluate the models, generate plots, save outputs, and leave the notebook with visible outputs for academic review.
+
+Optional validation after running the notebook:
+
+```powershell
+python ml\validate_notebook_outputs.py
+```
+
+## Run the Production Training Script
+
+The notebook is the main academic experiment file. The project also includes a retraining entry point:
+
+```powershell
+python retrain_models.py
+```
+
+This command reads `ml/dataset/fraud.csv` and writes model artifacts and result files under `ml/models` and `ml/results`.
+
+## Run the ML API
+
+The ML API exists at:
+
+```text
+ml/api/app.py
+```
+
+Start the FastAPI prediction service from the repository root after model artifacts exist:
 
 ```powershell
 uvicorn ml.api.app:app --reload --host 127.0.0.1 --port 8000
-```
-
-The API loads:
-
-```text
-ml/models/fraud_model.pkl
-ml/models/columns.pkl
 ```
 
 Health check:
@@ -253,50 +264,31 @@ Prediction endpoint:
 POST http://localhost:8000/predict
 ```
 
-Smoke test the prediction flow with one low-risk and one high-risk sample:
+Smoke test:
 
 ```powershell
 python ml\smoke_test_prediction_api.py
 ```
 
-Use a custom API URL if needed:
+Use a custom base URL if needed:
 
 ```powershell
 python ml\smoke_test_prediction_api.py --base-url http://127.0.0.1:8000
 ```
 
-Example prediction request:
+## Run the Backend
 
-```json
-{
-  "transactionType": "TRANSFER",
-  "amount": 250000,
-  "oldBalanceOrigin": 300000,
-  "newBalanceOrigin": 50000,
-  "oldBalanceDestination": 0,
-  "newBalanceDestination": 250000
-}
-```
-
-If the API returns `503 Model artifacts are not available`, run:
-
-```powershell
-python retrain_models.py
-```
-
-The .NET backend is configured to call this service at `http://localhost:8000`.
-
-## Backend Startup
-
-The backend project is in `backend/FraudGuard.Api`.
-
-The default connection string in `backend/FraudGuard.Api/appsettings.json` is:
+The ASP.NET Core backend project is located at:
 
 ```text
-Server=localhost;Database=FraudGuardDb;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=False;
+backend/FraudGuard.Api
 ```
 
-Update it if your SQL Server instance uses a different host, instance name, or authentication method.
+The backend uses Entity Framework Core with SQL Server. The default connection string is in:
+
+```text
+backend/FraudGuard.Api/appsettings.json
+```
 
 From the repository root:
 
@@ -313,20 +305,26 @@ The backend runs at:
 http://localhost:5000
 ```
 
-Default development accounts:
-
-- `admin@credit.com` / `admin123`
-- `user@credit.com` / `user123`
-
-The backend exposes API routes under:
+API routes are available under:
 
 ```text
 http://localhost:5000/api
 ```
 
-## Frontend Startup
+Default development accounts:
 
-The frontend project is in `frontend`.
+- `admin@credit.com` / `admin123`
+- `user@credit.com` / `user123`
+
+The backend is configured to call the ML API at `http://localhost:8000`.
+
+## Run the Frontend
+
+The React/Vite frontend is located at:
+
+```text
+frontend
+```
 
 From the repository root:
 
@@ -336,7 +334,7 @@ npm install
 npm run dev
 ```
 
-Vite will print the local development URL. The backend CORS policy allows:
+Vite prints the local development URL in the terminal. The backend CORS policy allows:
 
 ```text
 http://localhost:5173
@@ -349,7 +347,7 @@ By default, the frontend calls:
 http://localhost:5000/api
 ```
 
-You can override the API URLs with environment variables:
+Optional environment overrides:
 
 ```powershell
 $env:VITE_API_BASE_URL="http://localhost:5000/api"
@@ -357,12 +355,11 @@ $env:VITE_ML_PREDICTION_API_URL="http://localhost:5000/api/predictions"
 npm run dev
 ```
 
-## Recommended Local Run Order
+## Recommended Run Order
 
 Use separate terminals:
 
-1. Prepare the dataset at `ml/dataset/fraud.csv`.
-2. Create the Python virtual environment, install ML dependencies, and train the model:
+1. Prepare Python dependencies and model artifacts:
 
 ```powershell
 python -m venv .venv
@@ -372,13 +369,13 @@ pip install -r ml\requirements.txt
 python retrain_models.py
 ```
 
-3. Start the ML API:
+2. Start the ML API:
 
 ```powershell
 uvicorn ml.api.app:app --reload --host 127.0.0.1 --port 8000
 ```
 
-4. Start the backend:
+3. Start the backend:
 
 ```powershell
 cd backend\FraudGuard.Api
@@ -386,7 +383,7 @@ dotnet ef database update
 dotnet run
 ```
 
-5. Start the frontend:
+4. Start the frontend:
 
 ```powershell
 cd frontend
@@ -394,11 +391,154 @@ npm install
 npm run dev
 ```
 
-Then open the frontend development URL and sign in with one of the default development accounts.
+5. Open the frontend URL printed by Vite and sign in with a development account.
 
-## Notes
+## Academic Requirements Checklist
 
-- Keep `ml/dataset/fraud.csv` available when running the notebook, retraining script, or ML API smoke tests.
-- Re-run `python retrain_models.py` after changing the dataset or model features.
-- Keep the ML API running while using fraud prediction workflows in the backend or frontend.
-- If backend predictions fail with a service unavailable message, check that `uvicorn` is running on port `8000` and that `ml/models/fraud_model.pkl` and `ml/models/columns.pkl` exist.
+- [x] Real dataset at `ml/dataset/fraud.csv`
+- [x] Target column `isFraud`
+- [x] Five classifiers
+- [x] Logistic Regression
+- [x] KNN
+- [x] Decision Tree
+- [x] Random Forest
+- [x] Neural Network / `MLPClassifier`
+- [x] Hyperparameter tuning with `GridSearchCV`
+- [x] Feature selection with `SelectKBest`
+- [x] Train/test split
+- [x] Evaluation metrics: accuracy, precision, recall, F1-score, ROC-AUC
+- [x] Confusion matrices
+- [x] Model comparison exports
+- [x] KMeans clustering
+- [x] PCA visualization
+- [x] Saved model artifacts
+- [x] Documentation in `docs/fraudguard-ai-ml-report.md`
+- [x] Executable notebook workflow
+- [x] Full-stack application for prediction, history, admin review, reports, alerts, and model comparison
+
+## Troubleshooting
+
+### Python packages are missing
+
+Activate the virtual environment and reinstall the ML requirements:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+pip install -r ml\requirements.txt
+```
+
+### Jupyter does not open
+
+Confirm the environment is active and `jupyter` is installed from `ml/requirements.txt`:
+
+```powershell
+jupyter notebook
+```
+
+### Dataset path errors
+
+Confirm the dataset is still located at:
+
+```text
+ml/dataset/fraud.csv
+```
+
+Do not rename the file or move it to another folder.
+
+### Model artifacts are not found
+
+Regenerate artifacts:
+
+```powershell
+python retrain_models.py
+```
+
+Then verify expected notebook outputs if you ran the notebook:
+
+```powershell
+python ml\validate_notebook_outputs.py
+```
+
+### ML API returns a model artifact error
+
+Start the FastAPI service only after model artifacts exist:
+
+```powershell
+uvicorn ml.api.app:app --reload --host 127.0.0.1 --port 8000
+```
+
+If artifacts are missing, run:
+
+```powershell
+python retrain_models.py
+```
+
+### Backend database connection fails
+
+Check the SQL Server connection string in:
+
+```text
+backend/FraudGuard.Api/appsettings.json
+```
+
+Then run migrations from the backend folder:
+
+```powershell
+cd backend\FraudGuard.Api
+dotnet ef database update
+```
+
+### Backend cannot reach the ML API
+
+Make sure the FastAPI service is running at:
+
+```text
+http://localhost:8000
+```
+
+### Frontend cannot reach the backend
+
+Confirm the backend is running at:
+
+```text
+http://localhost:5000
+```
+
+If needed, set the frontend API URL before starting Vite:
+
+```powershell
+cd frontend
+$env:VITE_API_BASE_URL="http://localhost:5000/api"
+npm run dev
+```
+
+### Frontend dependencies are missing
+
+Install dependencies from the frontend folder:
+
+```powershell
+cd frontend
+npm install
+```
+
+## Useful Validation Commands
+
+Validate notebook outputs:
+
+```powershell
+python ml\validate_notebook_outputs.py
+```
+
+Build the frontend:
+
+```powershell
+cd frontend
+npm run build
+```
+
+Build the backend:
+
+```powershell
+cd backend\FraudGuard.Api
+dotnet build
+```
