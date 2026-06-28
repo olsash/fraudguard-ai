@@ -29,18 +29,44 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
         var email = request.Email.Trim().ToLowerInvariant();
+        var phoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
         var emailExists = await _dbContext.Users.AnyAsync(user => user.Email == email);
 
         if (emailExists)
         {
-            return Conflict(new { message = "Email is already registered." });
+            return Conflict(new AuthErrorResponse
+            {
+                Code = "EMAIL_ALREADY_EXISTS",
+                Field = "email",
+                Message = "An account with this email already exists."
+            });
+        }
+
+        if (phoneNumber is not null && await _dbContext.Users.AnyAsync(user => user.PhoneNumber == phoneNumber))
+        {
+            return Conflict(new AuthErrorResponse
+            {
+                Code = "PHONE_ALREADY_EXISTS",
+                Field = "phone",
+                Message = "An account with this phone number already exists."
+            });
+        }
+
+        if (!request.Password.Any(char.IsLetter) || !request.Password.Any(char.IsDigit))
+        {
+            return BadRequest(new AuthErrorResponse
+            {
+                Code = "INVALID_PASSWORD",
+                Field = "password",
+                Message = "Password must contain both letters and numbers."
+            });
         }
 
         var user = new User
         {
             FullName = request.FullName.Trim(),
             Email = email,
-            PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim(),
+            PhoneNumber = phoneNumber,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Role = "User",
             CreatedAt = DateTime.UtcNow
@@ -59,16 +85,36 @@ public class AuthController : ControllerBase
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await _dbContext.Users.SingleOrDefaultAsync(item => item.Email == email);
 
-        if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        if (user is null)
         {
             await _systemLogService.LogAsync("Warning", "auth", $"Failed login attempt for {email}.");
-            return Unauthorized(new { message = "Invalid email or password." });
+            return Unauthorized(new AuthErrorResponse
+            {
+                Code = "EMAIL_NOT_FOUND",
+                Field = "email",
+                Message = "No account was found with this email."
+            });
+        }
+
+        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        {
+            await _systemLogService.LogAsync("Warning", "auth", $"Failed login attempt for {email}.", user);
+            return Unauthorized(new AuthErrorResponse
+            {
+                Code = "INVALID_PASSWORD",
+                Field = "password",
+                Message = "Incorrect password. Please try again."
+            });
         }
 
         if (!user.IsActive)
         {
             await _systemLogService.LogAsync("Warning", "auth", $"Inactive account login attempt for {user.Email}.", user);
-            return Unauthorized(new { message = "This account is inactive." });
+            return Unauthorized(new AuthErrorResponse
+            {
+                Code = "ACCOUNT_INACTIVE",
+                Message = "This account is inactive."
+            });
         }
 
         user.LastLoginAt = DateTime.UtcNow;

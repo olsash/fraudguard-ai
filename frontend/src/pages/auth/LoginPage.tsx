@@ -2,26 +2,83 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Brand } from "@/components/common/Brand";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { authService } from "@/services/authService";
+import { AuthApiError, authService } from "@/services/authService";
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type LoginFieldErrors = {
+  email?: string;
+  password?: string;
+};
 
 export default function Login() {
   const navigate = useNavigate();
   const [show, setShow] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({});
+  const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function validateForm() {
+    const nextErrors: LoginFieldErrors = {};
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      nextErrors.email = "Email is required.";
+    } else if (!emailPattern.test(trimmedEmail)) {
+      nextErrors.email = "Please enter a valid email address.";
+    }
+
+    if (!password) {
+      nextErrors.password = "Password is required.";
+    }
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
+    setFormError("");
+
+    if (!validateForm()) {
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const result = await authService.signIn(email, password);
+      const result = await authService.signIn(email.trim(), password);
       void navigate({ to: result.redirectTo, replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to sign in.");
+      if (err instanceof AuthApiError) {
+        if (err.code === "EMAIL_NOT_FOUND" || err.field === "email") {
+          setFieldErrors((current) => ({
+            ...current,
+            email: "No account was found with this email.",
+          }));
+          return;
+        }
+
+        if (err.code === "INVALID_PASSWORD" || err.field === "password") {
+          setFieldErrors((current) => ({
+            ...current,
+            password: "Incorrect password. Please try again.",
+          }));
+          return;
+        }
+
+        if ((err.status ?? 500) >= 500 || err.status === 0) {
+          setFormError("Login service is currently unavailable. Please try again.");
+          return;
+        }
+
+        setFormError(err.message || "Unable to sign in.");
+        return;
+      }
+
+      setFormError("Login service is currently unavailable. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -29,7 +86,7 @@ export default function Login() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to your FraudGuard workspace">
-      <form className="space-y-4" onSubmit={handleSubmit} autoComplete="off">
+      <form className="space-y-4" onSubmit={handleSubmit} autoComplete="off" noValidate>
         <Field
           label="Email"
           type="email"
@@ -37,8 +94,13 @@ export default function Login() {
           name="fg-login-email-input"
           placeholder="you@bank.io"
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            setFieldErrors((current) => ({ ...current, email: undefined }));
+            setFormError("");
+          }}
           autoComplete="off"
+          error={fieldErrors.email}
         />
         <div>
           <Field
@@ -48,8 +110,13 @@ export default function Login() {
             name="fg-login-passphrase-input"
             placeholder="Password"
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              setFieldErrors((current) => ({ ...current, password: undefined }));
+              setFormError("");
+            }}
             autoComplete="new-password"
+            error={fieldErrors.password}
             rightIcon={
               <button
                 type="button"
@@ -66,7 +133,11 @@ export default function Login() {
             </Link>
           </div>
         </div>
-        {error && <p className="text-xs text-destructive">{error}</p>}
+        {formError && (
+          <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {formError}
+          </p>
+        )}
         <button
           type="submit"
           disabled={isSubmitting}
@@ -139,25 +210,44 @@ type FieldProps = {
   label: string;
   rightIcon?: React.ReactNode;
   hint?: string;
+  error?: string;
 } & React.InputHTMLAttributes<HTMLInputElement>;
 
 export function Field({
   label,
   rightIcon,
   hint,
+  error,
   className: _className,
+  id,
   ...inputProps
 }: FieldProps) {
+  const errorId = id ? `${id}-error` : undefined;
+
   return (
     <label className="block">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <div className="mt-1 flex items-center glass rounded-lg px-3 py-2.5 focus-within:ring-1 focus-within:ring-primary/60">
+      <div
+        className={`mt-1 flex items-center glass rounded-lg px-3 py-2.5 focus-within:ring-1 ${
+          error
+            ? "border-destructive/60 focus-within:ring-destructive/50"
+            : "focus-within:ring-primary/60"
+        }`}
+      >
         <input
           {...inputProps}
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          id={id}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : inputProps["aria-describedby"]}
+          className={`flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground ${_className ?? ""}`}
         />
         {rightIcon}
       </div>
+      {error && (
+        <span id={errorId} className="mt-1 block text-xs text-destructive">
+          {error}
+        </span>
+      )}
       {hint && <span className="text-[10px] text-muted-foreground mt-1 block">{hint}</span>}
     </label>
   );

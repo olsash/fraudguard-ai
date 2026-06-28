@@ -17,3 +17,12 @@ public class AuthUserDto
 
     public string Role { get; set; } = string.Empty;
 }
+
+public class AuthErrorResponse
+{
+    public string Code { get; set; } = string.Empty;
+
+    public string? Field { get; set; }
+
+    public string Message { get; set; } = string.Empty;
+}

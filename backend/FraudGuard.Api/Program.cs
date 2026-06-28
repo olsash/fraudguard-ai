@@ -1,8 +1,10 @@
 using System.Text;
 using FraudGuard.Api.Data;
+using FraudGuard.Api.DTOs;
 using FraudGuard.Api.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -11,7 +13,30 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var validationEntry = context.ModelState.FirstOrDefault(entry => entry.Value?.Errors.Count > 0);
+            var rawField = validationEntry.Key.Split('.').LastOrDefault() ?? string.Empty;
+            var field = rawField switch
+            {
+                "PhoneNumber" => "phone",
+                "" => null,
+                _ => char.ToLowerInvariant(rawField[0]) + rawField[1..]
+            };
+
+            var message = validationEntry.Value?.Errors.FirstOrDefault()?.ErrorMessage ?? "Invalid request.";
+
+            return new BadRequestObjectResult(new AuthErrorResponse
+            {
+                Code = "VALIDATION_ERROR",
+                Field = field,
+                Message = message
+            });
+        };
+    });
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDataProtection()

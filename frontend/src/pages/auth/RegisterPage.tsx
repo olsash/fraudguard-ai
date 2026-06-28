@@ -1,42 +1,105 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AuthShell, Field } from "@/pages/auth/LoginPage";
-import { Github, Mail, type LucideIcon } from "lucide-react";
-import { authService } from "@/services/authService";
+import { AuthApiError, authService } from "@/services/authService";
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type RegisterFieldErrors = {
+  fullName?: string;
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+  terms?: string;
+};
 
 export default function Register() {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
+  const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const score = scorePwd(pwd);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
+  function clearFieldError(field: keyof RegisterFieldErrors) {
+    setFieldErrors((current) => ({ ...current, [field]: undefined }));
+    setFormError("");
+  }
 
-    if (!acceptedTerms) {
-      setError("Please accept the terms to continue.");
-      return;
+  function validateForm() {
+    const nextErrors: RegisterFieldErrors = {};
+    const trimmedName = fullName.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) {
+      nextErrors.fullName = "Full name is required.";
     }
 
-    if (pwd !== confirmPassword) {
-      setError("Passwords do not match.");
+    if (!trimmedEmail) {
+      nextErrors.email = "Email is required.";
+    } else if (!emailPattern.test(trimmedEmail)) {
+      nextErrors.email = "Please enter a valid email address.";
+    }
+
+    if (!pwd) {
+      nextErrors.password = "Password is required.";
+    } else if (pwd.length < 6) {
+      nextErrors.password = "Password must be at least 6 characters.";
+    } else if (!/[A-Za-z]/.test(pwd) || !/\d/.test(pwd)) {
+      nextErrors.password = "Password must contain both letters and numbers.";
+    }
+
+    if (!confirmPassword) {
+      nextErrors.confirmPassword = "Please confirm your password.";
+    } else if (pwd && pwd !== confirmPassword) {
+      nextErrors.confirmPassword = "Passwords do not match.";
+    }
+
+    if (!acceptedTerms) {
+      nextErrors.terms = "You must agree to the Terms of Service and Privacy Policy.";
+    }
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError("");
+
+    if (isSubmitting || !validateForm()) {
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const result = await authService.register(fullName.trim(), email, phoneNumber, pwd);
+      const result = await authService.register(fullName.trim(), email.trim(), pwd);
       void navigate({ to: result.redirectTo, replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to create account.");
+      if (err instanceof AuthApiError) {
+        if (err.code === "EMAIL_ALREADY_EXISTS" || err.field === "email") {
+          setFieldErrors((current) => ({
+            ...current,
+            email: "An account with this email already exists.",
+          }));
+          return;
+        }
+
+        if (err.field === "password") {
+          setFieldErrors((current) => ({
+            ...current,
+            password: err.message || "Password must contain both letters and numbers.",
+          }));
+          return;
+        }
+      }
+
+      setFormError("Registration service is currently unavailable. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -44,12 +107,16 @@ export default function Register() {
 
   return (
     <AuthShell title="Create your account" subtitle="Access the FraudGuard-AI prediction workspace">
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <form className="space-y-4" onSubmit={handleSubmit} autoComplete="off" noValidate>
         <Field
           label="Full name"
           placeholder="FraudGuard User"
           value={fullName}
-          onChange={(event) => setFullName(event.target.value)}
+          onChange={(event) => {
+            setFullName(event.target.value);
+            clearFieldError("fullName");
+          }}
+          error={fieldErrors.fullName}
           required
         />
         <Field
@@ -57,26 +124,34 @@ export default function Register() {
           type="email"
           placeholder="you@bank.io"
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            clearFieldError("email");
+          }}
+          error={fieldErrors.email}
+          autoComplete="off"
           required
-        />
-        <Field
-          label="Phone number"
-          type="tel"
-          placeholder="+1 555 0100"
-          value={phoneNumber}
-          onChange={(event) => setPhoneNumber(event.target.value)}
-          maxLength={50}
         />
         <label className="block">
           <span className="text-xs text-muted-foreground">Password</span>
-          <div className="mt-1 flex items-center glass rounded-lg px-3 py-2.5">
+          <div
+            className={`mt-1 flex items-center glass rounded-lg px-3 py-2.5 focus-within:ring-1 ${
+              fieldErrors.password
+                ? "border-destructive/60 focus-within:ring-destructive/50"
+                : "focus-within:ring-primary/60"
+            }`}
+          >
             <input
               type="password"
               value={pwd}
-              onChange={(event) => setPwd(event.target.value)}
+              onChange={(event) => {
+                setPwd(event.target.value);
+                clearFieldError("password");
+              }}
               placeholder="Enter password"
               className="flex-1 bg-transparent text-sm outline-none"
+              aria-invalid={Boolean(fieldErrors.password)}
+              aria-describedby={fieldErrors.password ? "register-password-error" : undefined}
               required
               minLength={6}
             />
@@ -92,26 +167,45 @@ export default function Register() {
           <p className="text-[10px] text-muted-foreground mt-1">
             Use at least 6 characters. Letters, numbers, and symbols are recommended.
           </p>
+          {fieldErrors.password && (
+            <span id="register-password-error" className="mt-1 block text-xs text-destructive">
+              {fieldErrors.password}
+            </span>
+          )}
         </label>
         <Field
           label="Confirm password"
           type="password"
           placeholder="Confirm your password"
           value={confirmPassword}
-          onChange={(event) => setConfirmPassword(event.target.value)}
+          onChange={(event) => {
+            setConfirmPassword(event.target.value);
+            clearFieldError("confirmPassword");
+          }}
+          error={fieldErrors.confirmPassword}
           required
           minLength={6}
         />
-        <label className="flex items-start gap-2 text-xs text-muted-foreground">
-          <input
-            type="checkbox"
-            className="mt-0.5 accent-primary"
-            checked={acceptedTerms}
-            onChange={(event) => setAcceptedTerms(event.target.checked)}
-          />
-          I agree to the Terms of Service and Privacy Policy.
-        </label>
-        {error && <p className="text-xs text-destructive">{error}</p>}
+        <div>
+          <label className="flex items-start gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              className="mt-0.5 accent-primary"
+              checked={acceptedTerms}
+              onChange={(event) => {
+                setAcceptedTerms(event.target.checked);
+                clearFieldError("terms");
+              }}
+            />
+            I agree to the Terms of Service and Privacy Policy.
+          </label>
+          {fieldErrors.terms && <p className="mt-1 text-xs text-destructive">{fieldErrors.terms}</p>}
+        </div>
+        {formError && (
+          <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {formError}
+          </p>
+        )}
         <button
           type="submit"
           disabled={isSubmitting}
@@ -119,12 +213,7 @@ export default function Register() {
         >
           {isSubmitting ? "Creating account..." : "Create account"}
         </button>
-        <Divider />
-        <div className="grid grid-cols-2 gap-2">
-          <SocialBtn icon={Github} label="GitHub" />
-          <SocialBtn icon={Mail} label="Google" />
-        </div>
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="pt-1 text-center text-sm text-muted-foreground">
           Already have one?{" "}
           <Link to="/login" className="text-primary hover:underline">
             Sign in
@@ -142,24 +231,4 @@ function scorePwd(p: string) {
   if (/\d/.test(p)) s++;
   if (/[^A-Za-z0-9]/.test(p)) s++;
   return s;
-}
-
-function Divider() {
-  return (
-    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-      <div className="flex-1 h-px bg-border" /> or continue with{" "}
-      <div className="flex-1 h-px bg-border" />
-    </div>
-  );
-}
-
-function SocialBtn({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
-  return (
-    <button
-      type="button"
-      className="flex items-center justify-center gap-2 glass rounded-lg py-2.5 text-sm hover:ring-1 hover:ring-primary/40"
-    >
-      <Icon className="h-4 w-4" /> {label}
-    </button>
-  );
 }

@@ -22,6 +22,25 @@ interface AuthResponse {
   user: BackendAuthUser;
 }
 
+export type AuthErrorField = "email" | "password" | "phone";
+
+export class AuthApiError extends Error {
+  code?: string;
+  field?: AuthErrorField;
+  status?: number;
+
+  constructor(message: string, options: { code?: string; field?: string; status?: number } = {}) {
+    super(message);
+    this.name = "AuthApiError";
+    this.code = options.code;
+    this.field =
+      options.field === "email" || options.field === "password" || options.field === "phone"
+        ? options.field
+        : undefined;
+    this.status = options.status;
+  }
+}
+
 const AUTH_TOKEN_KEY = "fraudguard_token";
 const AUTH_USER_KEY = "fraudguard_user";
 const AUTH_ROLE_KEY = "fraudguard.auth.role";
@@ -60,21 +79,33 @@ export function mapBackendUser(user: BackendAuthUser): AuthUser {
   };
 }
 
-async function parseAuthResponse(response: Response): Promise<AuthResponse> {
+async function parseAuthResponse(
+  response: Response,
+  messages: {
+    fallback: string;
+    serviceUnavailable: string;
+  },
+): Promise<AuthResponse> {
   if (response.ok) {
     return response.json() as Promise<AuthResponse>;
   }
 
-  let message = "Unable to sign in.";
+  let message = messages.fallback;
+  let code: string | undefined;
+  let field: string | undefined;
 
   try {
-    const body = (await response.json()) as { message?: string };
-    message = body.message ?? message;
+    const body = (await response.json()) as { code?: string; field?: string; message?: string };
+    message = response.status >= 500 ? messages.serviceUnavailable : body.message ?? message;
+    code = body.code;
+    field = body.field;
   } catch {
-    message = `Authentication failed: ${response.status}`;
+    message = response.status >= 500
+      ? messages.serviceUnavailable
+      : `Authentication failed: ${response.status}`;
   }
 
-  throw new Error(message);
+  throw new AuthApiError(message, { code, field, status: response.status });
 }
 
 function storeSession(token: string, user: AuthUser) {
@@ -112,15 +143,27 @@ export const authService = {
   },
 
   signIn: async (email: string, password: string) => {
-    const response = await fetch(`${apiConfig.baseUrl}/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    });
+    let response: Response;
 
-    const data = await parseAuthResponse(response);
+    try {
+      response = await fetch(`${apiConfig.baseUrl}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+    } catch {
+      throw new AuthApiError("Login service is currently unavailable. Please try again.", {
+        code: "LOGIN_SERVICE_UNAVAILABLE",
+        status: 0,
+      });
+    }
+
+    const data = await parseAuthResponse(response, {
+      fallback: "Unable to sign in.",
+      serviceUnavailable: "Login service is currently unavailable. Please try again.",
+    });
     const user = mapBackendUser(data.user);
     const redirectTo = user.role === "admin" ? "/admin" : "/app";
 
@@ -129,16 +172,28 @@ export const authService = {
     return { user, redirectTo };
   },
 
-  register: async (fullName: string, email: string, phoneNumber: string, password: string) => {
-    const response = await fetch(`${apiConfig.baseUrl}/auth/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ fullName, email, phoneNumber: phoneNumber.trim() || null, password }),
-    });
+  register: async (fullName: string, email: string, password: string) => {
+    let response: Response;
 
-    const data = await parseAuthResponse(response);
+    try {
+      response = await fetch(`${apiConfig.baseUrl}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fullName, email, password }),
+      });
+    } catch {
+      throw new AuthApiError("Registration service is currently unavailable. Please try again.", {
+        code: "REGISTRATION_SERVICE_UNAVAILABLE",
+        status: 0,
+      });
+    }
+
+    const data = await parseAuthResponse(response, {
+      fallback: "Unable to create account.",
+      serviceUnavailable: "Registration service is currently unavailable. Please try again.",
+    });
     const user = mapBackendUser(data.user);
 
     storeSession(data.token, user);

@@ -300,3 +300,10 @@ C:\Users\olsas\Downloads\fraudguard-ai\.build\FraudGuard.Api\FraudGuard.Api.deps
 C:\Users\olsas\Downloads\fraudguard-ai\.build\FraudGuard.Api\FraudGuard.Api.runtimeconfig.json
 C:\Users\olsas\Downloads\fraudguard-ai\.build\FraudGuard.Api\FraudGuard.Api.dll
 C:\Users\olsas\Downloads\fraudguard-ai\.build\FraudGuard.Api\FraudGuard.Api.pdb
+C:\Users\olsas\Downloads\fraudguard-ai\build-check\backend-api\appsettings.json
+C:\Users\olsas\Downloads\fraudguard-ai\build-check\backend-api\FraudGuard.Api.staticwebassets.endpoints.json
+C:\Users\olsas\Downloads\fraudguard-ai\build-check\backend-api\FraudGuard.Api.exe
+C:\Users\olsas\Downloads\fraudguard-ai\build-check\backend-api\FraudGuard.Api.deps.json
+C:\Users\olsas\Downloads\fraudguard-ai\build-check\backend-api\FraudGuard.Api.runtimeconfig.json
+C:\Users\olsas\Downloads\fraudguard-ai\build-check\backend-api\FraudGuard.Api.dll
+C:\Users\olsas\Downloads\fraudguard-ai\build-check\backend-api\FraudGuard.Api.pdb
