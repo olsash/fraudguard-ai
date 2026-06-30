@@ -1,17 +1,35 @@
 ﻿import { Link } from "@tanstack/react-router";
 import { Brand } from "@/components/common/Brand";
+import { authService, type AuthRole } from "@/services/authService";
 import {
   ShieldCheck, Brain, Activity, Zap, Lock, Globe, ArrowRight, CheckCircle2,
   Cpu, LineChart, Radar, Eye, Sparkles, AlertTriangle,
 } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from "recharts";
-import { fraudTrend } from "@/data/fraudVisualizationData";
+import { models as modelMetrics } from "@/data/fraudVisualizationData";
+import { useEffect, useState } from "react";
+
+const sampleTrend = [
+  { day: "Mon", safe: 42, fraud: 3 },
+  { day: "Tue", safe: 58, fraud: 7 },
+  { day: "Wed", safe: 51, fraud: 5 },
+  { day: "Thu", safe: 64, fraud: 9 },
+  { day: "Fri", safe: 72, fraud: 6 },
+  { day: "Sat", safe: 46, fraud: 4 },
+  { day: "Sun", safe: 55, fraud: 8 },
+];
 
 export default function Landing() {
+  const [role, setRole] = useState<AuthRole | null>(null);
+
+  useEffect(() => {
+    setRole(authService.getCurrentRole());
+  }, []);
+
   return (
     <div className="min-h-screen">
-      <Nav />
-      <Hero />
+      <Nav role={role} />
+      <Hero role={role} />
       <LogoStrip />
       <Stats />
       <Features />
@@ -20,13 +38,33 @@ export default function Landing() {
       <DashboardPreview />
       <Security />
       <Testimonials />
-      <CTA />
+      <CTA role={role} />
       <Footer />
     </div>
   );
 }
 
-function Nav() {
+function WorkspaceLink({
+  role,
+  className,
+  children,
+}: {
+  role: AuthRole | null;
+  className: string;
+  children: React.ReactNode;
+}) {
+  if (role === "admin") {
+    return <Link to="/admin" className={className}>{children}</Link>;
+  }
+
+  if (role === "user") {
+    return <Link to="/app" className={className}>{children}</Link>;
+  }
+
+  return <Link to="/login" className={className}>{children}</Link>;
+}
+
+function Nav({ role }: { role: AuthRole | null }) {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/60 backdrop-blur-xl">
       <div className="mx-auto max-w-7xl flex items-center justify-between px-6 h-16">
@@ -39,16 +77,16 @@ function Nav() {
         </nav>
         <div className="flex items-center gap-2">
           <Link to="/login" className="text-sm text-muted-foreground hover:text-foreground px-3 py-2">Sign in</Link>
-          <Link to="/login" className="text-sm bg-gradient-primary text-primary-foreground rounded-lg px-4 py-2 font-medium ring-glow hover:opacity-95">
+          <WorkspaceLink role={role} className="text-sm bg-gradient-primary text-primary-foreground rounded-lg px-4 py-2 font-medium ring-glow hover:opacity-95">
             Launch App
-          </Link>
+          </WorkspaceLink>
         </div>
       </div>
     </header>
   );
 }
 
-function Hero() {
+function Hero({ role }: { role: AuthRole | null }) {
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0 grid-bg opacity-40 [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" />
@@ -63,20 +101,26 @@ function Hero() {
             Online payment fraud detection with <span className="text-gradient">machine learning.</span>
           </h1>
           <p className="mt-5 text-lg text-muted-foreground max-w-xl">
-            A full-stack academic system for transaction scoring, prediction history, alerts, reports, and model comparison.
+            Detect suspicious online payment transactions using machine learning. Analyze risk, review alerts, export reports, and compare trained scikit-learn models.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/app/predict" className="inline-flex items-center gap-2 bg-gradient-primary text-primary-foreground rounded-lg px-5 py-3 font-medium ring-glow">
-              Start Analysis <ArrowRight className="h-4 w-4"/>
-            </Link>
-            <Link to="/app" className="inline-flex items-center gap-2 glass rounded-lg px-5 py-3 font-medium hover:ring-1 hover:ring-primary/40">
-              View Dashboard
+            {role ? (
+              <WorkspaceLink role={role} className="inline-flex items-center gap-2 bg-gradient-primary text-primary-foreground rounded-lg px-5 py-3 font-medium ring-glow">
+                Open Workspace <ArrowRight className="h-4 w-4"/>
+              </WorkspaceLink>
+            ) : (
+              <Link to="/register" className="inline-flex items-center gap-2 bg-gradient-primary text-primary-foreground rounded-lg px-5 py-3 font-medium ring-glow">
+                Create Account <ArrowRight className="h-4 w-4"/>
+              </Link>
+            )}
+            <Link to="/login" className="inline-flex items-center gap-2 glass rounded-lg px-5 py-3 font-medium hover:ring-1 hover:ring-primary/40">
+              Sign in
             </Link>
           </div>
           <div className="mt-10 grid grid-cols-3 gap-6 max-w-md">
             {[
               ["5", "Classifiers"],
-              ["KMeans", "Clustering"],
+              ["JWT", "Role access"],
               ["FastAPI", "ML service"],
             ].map(([v, l]) => (
               <div key={l}>
@@ -121,8 +165,8 @@ function HeroVisual() {
       <FloatCard className="top-16 right-0" delay="1s">
         <AlertTriangle className="h-4 w-4 text-destructive"/>
         <div>
-          <p className="text-xs text-muted-foreground">Fraud flagged</p>
-              <p className="text-sm font-semibold">TX-9F2A - €3,420</p>
+          <p className="text-xs text-muted-foreground">Example alert</p>
+          <p className="text-sm font-semibold">High-risk transfer</p>
         </div>
       </FloatCard>
       <FloatCard className="bottom-20 left-0" delay="2s">
@@ -135,8 +179,8 @@ function HeroVisual() {
       <FloatCard className="bottom-4 right-4" delay="1.5s">
         <Radar className="h-4 w-4 text-accent"/>
         <div>
-          <p className="text-xs text-muted-foreground">Risk score</p>
-          <p className="text-sm font-semibold">Low - 14</p>
+          <p className="text-xs text-muted-foreground">Example score</p>
+          <p className="text-sm font-semibold">Low risk - 14</p>
         </div>
       </FloatCard>
     </div>
@@ -191,12 +235,12 @@ function Stats() {
             <p className="text-lg font-display font-semibold">Fraud and transaction trend signal</p>
           </div>
           <div className="flex items-center gap-2 text-xs text-success">
-            <span className="h-2 w-2 rounded-full bg-success animate-pulse-glow"/> Dashboard data
+            <span className="h-2 w-2 rounded-full bg-success animate-pulse-glow"/> Sample visualization
           </div>
         </div>
         <div className="h-44">
           <ResponsiveContainer>
-            <AreaChart data={fraudTrend}>
+            <AreaChart data={sampleTrend}>
               <defs>
                 <linearGradient id="g1" x1="0" x2="0" y1="0" y2="1">
                   <stop offset="0%" stopColor="oklch(0.78 0.18 200)" stopOpacity={0.6}/>
@@ -225,11 +269,11 @@ function Features() {
     { icon: Eye, title: "Evaluation reports", desc: "Review accuracy, precision, recall, F1-score, ROC-AUC, feature importance, and confusion matrices." },
     { icon: Globe, title: "Transaction context", desc: "Use transaction type, amount, and origin/destination balance movements as fraud detection signals." },
     { icon: Lock, title: "Authenticated access", desc: "JWT-protected user and admin workflows separate normal prediction use from review operations." },
-    { icon: Cpu, title: "Clustering analysis", desc: "KMeans with PCA visualization supports exploratory analysis of transaction groups." },
+    { icon: Cpu, title: "Exploratory clustering", desc: "KMeans and PCA exports are available for analysis, but supervised classifiers remain the fraud prediction path." },
   ];
   return (
     <section id="features" className="mx-auto max-w-7xl px-6 py-20">
-      <SectionHeader eyebrow="Capabilities" title="Everything a fraud team needs" />
+      <SectionHeader eyebrow="Capabilities" title="Implemented FraudGuard-AI workflows" />
       <div className="grid md:grid-cols-3 gap-4 mt-10">
         {items.map((it) => (
           <div key={it.title} className="glass rounded-2xl p-6 group hover:ring-1 hover:ring-primary/40 transition">
@@ -270,29 +314,24 @@ function HowItWorks() {
 }
 
 function ModelsSection() {
-  const m = [
-    ["Random Forest", "0.70 F1", "Selected model"],
-    ["Decision Tree", "0.61 F1", "Rule-based"],
-    ["KNN", "0.60 F1", "Distance-based"],
-    ["Neural Network", "0.14 F1", "MLPClassifier"],
-    ["Logistic Regr.", "0.05 F1", "Linear baseline"],
-    ["KMeans", "PCA", "Clustering"],
-  ];
   return (
     <section id="models" className="mx-auto max-w-7xl px-6 py-20">
-      <SectionHeader eyebrow="Machine Learning" title="Classification and clustering experiments" />
+      <SectionHeader eyebrow="Machine Learning" title="Exported classifier comparison" />
       <div className="mt-10 grid md:grid-cols-3 gap-4">
-        {m.map(([name, acc, tag]) => (
-          <div key={name} className="glass rounded-2xl p-6 relative overflow-hidden">
+        {modelMetrics.map((model) => (
+          <div key={model.name} className="glass rounded-2xl p-6 relative overflow-hidden">
             <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/20 blur-3xl"/>
-            <p className="text-xs text-muted-foreground">{tag}</p>
-            <p className="text-xl font-display font-semibold mt-1">{name}</p>
+            <p className="text-xs text-muted-foreground">{model.best ? "Selected model" : model.speed}</p>
+            <p className="text-xl font-display font-semibold mt-1">{model.name}</p>
             <div className="mt-4 flex items-end justify-between">
-              <span className="text-3xl font-display text-gradient">{acc}</span>
+              <span className="text-3xl font-display text-gradient">{model.f1.toFixed(2)} F1</span>
               <Brain className="h-6 w-6 text-primary/60"/>
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Precision {model.prec.toFixed(2)}% · Recall {model.rec.toFixed(2)}%
+            </p>
             <div className="mt-3 h-1.5 rounded-full bg-secondary overflow-hidden">
-              <div className="h-full bg-gradient-primary" style={{ width: name === "KMeans" ? "45%" : `${Math.min(Number.parseFloat(acc) * 100, 100)}%` }}/>
+              <div className="h-full bg-gradient-primary" style={{ width: `${Math.min(model.f1, 100)}%` }}/>
             </div>
           </div>
         ))}
@@ -310,9 +349,9 @@ function DashboardPreview() {
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent"/>
           <div className="grid md:grid-cols-3 gap-4">
             {[
-              ["Total Transactions", "184,392", "+12.4%"],
-              ["Fraud Detected", "1,247", "-8.1%"],
-              ["Risk Score", "23 / 100", "Stable"],
+              ["User workspace", "Transactions", "History and saved records"],
+              ["Prediction flow", "Risk scoring", "ML service backed"],
+              ["Admin review", "Alerts & logs", "Role-protected pages"],
             ].map(([l, v, d]) => (
               <div key={l} className="glass rounded-xl p-4">
                 <p className="text-xs uppercase tracking-widest text-muted-foreground">{l}</p>
@@ -322,8 +361,9 @@ function DashboardPreview() {
             ))}
           </div>
           <div className="mt-4 glass rounded-xl p-4 h-56">
+            <p className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">Sample safe/fraud trend preview</p>
             <ResponsiveContainer>
-              <AreaChart data={fraudTrend}>
+              <AreaChart data={sampleTrend}>
                 <defs>
                   <linearGradient id="gp" x1="0" x2="0" y1="0" y2="1">
                     <stop offset="0%" stopColor="oklch(0.65 0.22 285)" stopOpacity={0.7}/>
@@ -384,7 +424,7 @@ function Testimonials() {
   );
 }
 
-function CTA() {
+function CTA({ role }: { role: AuthRole | null }) {
   return (
     <section className="mx-auto max-w-7xl px-6 py-20">
       <div className="relative overflow-hidden rounded-3xl bg-gradient-primary p-12 text-center ring-glow">
@@ -393,8 +433,14 @@ function CTA() {
           <h2 className="text-3xl md:text-5xl font-display font-semibold text-primary-foreground">Open the FraudGuard-AI workspace.</h2>
           <p className="mt-4 text-primary-foreground/80 max-w-2xl mx-auto">Explore transaction prediction, prediction history, reports, alerts, and the exported machine learning model comparison.</p>
           <div className="mt-8 flex flex-wrap gap-3 justify-center">
-            <Link to="/app" className="bg-background text-foreground rounded-lg px-5 py-3 font-medium hover:bg-background/90">Open Dashboard</Link>
-            <Link to="/app/predict" className="glass-strong rounded-lg px-5 py-3 font-medium text-primary-foreground border border-white/30">Try AI Detection</Link>
+            {role ? (
+              <WorkspaceLink role={role} className="bg-background text-foreground rounded-lg px-5 py-3 font-medium hover:bg-background/90">
+                Open Dashboard
+              </WorkspaceLink>
+            ) : (
+              <Link to="/register" className="bg-background text-foreground rounded-lg px-5 py-3 font-medium hover:bg-background/90">Create Account</Link>
+            )}
+            <Link to="/login" className="glass-strong rounded-lg px-5 py-3 font-medium text-primary-foreground border border-white/30">Sign in</Link>
           </div>
         </div>
       </div>
@@ -410,18 +456,33 @@ function Footer() {
           <Brand/>
           <p className="text-sm text-muted-foreground mt-3">Online payment fraud detection using machine learning. Built as a full-stack academic project.</p>
         </div>
-        {[
-          ["Product", ["Dashboard", "Fraud Prediction", "Reports", "Alerts"]],
-          ["Research", ["ML Pipeline", "Model Performance", "Thesis", "Datasets"]],
-          ["Company", ["About", "Contact", "Security", "Privacy"]],
-        ].map(([title, items]) => (
-          <div key={title as string}>
-            <p className="text-sm font-semibold">{title}</p>
-            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-              {(items as string[]).map(i => <li key={i}><a href="#" className="hover:text-foreground">{i}</a></li>)}
-            </ul>
-          </div>
-        ))}
+        <div>
+          <p className="text-sm font-semibold">Workspace</p>
+          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <li><Link to="/app" className="hover:text-foreground">User dashboard</Link></li>
+            <li><Link to="/app/predict" className="hover:text-foreground">Fraud prediction</Link></li>
+            <li><Link to="/app/transactions" className="hover:text-foreground">Transaction history</Link></li>
+            <li><Link to="/app/alerts" className="hover:text-foreground">Alerts</Link></li>
+          </ul>
+        </div>
+        <div>
+          <p className="text-sm font-semibold">Admin & ML</p>
+          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <li><Link to="/admin" className="hover:text-foreground">Admin dashboard</Link></li>
+            <li><Link to="/admin/models" className="hover:text-foreground">AI models</Link></li>
+            <li><Link to="/admin/model-comparison" className="hover:text-foreground">Model comparison</Link></li>
+            <li><Link to="/app/pipeline" className="hover:text-foreground">ML pipeline</Link></li>
+          </ul>
+        </div>
+        <div>
+          <p className="text-sm font-semibold">Project</p>
+          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <li><a href="#features" className="hover:text-foreground">Features</a></li>
+            <li><a href="#models" className="hover:text-foreground">Model metrics</a></li>
+            <li><a href="#how" className="hover:text-foreground">Prediction pipeline</a></li>
+            <li><a href="#security" className="hover:text-foreground">Security model</a></li>
+          </ul>
+        </div>
       </div>
       <div className="border-t border-border">
         <div className="mx-auto max-w-7xl px-6 py-4 flex justify-between text-xs text-muted-foreground">
