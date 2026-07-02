@@ -25,15 +25,28 @@ interface AuthResponse {
 const AUTH_TOKEN_KEY = "fraudguard_token";
 const AUTH_USER_KEY = "fraudguard_user";
 const AUTH_ROLE_KEY = "fraudguard.auth.role";
+const AUTH_STORAGE_KEYS = [AUTH_TOKEN_KEY, AUTH_USER_KEY, AUTH_ROLE_KEY];
 export const AUTH_USER_CHANGED_EVENT = "fraudguard:user-changed";
 
 function canUseStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
+function clearAuthStorage() {
+  if (typeof window === "undefined") return;
+
+  for (const key of AUTH_STORAGE_KEYS) {
+    window.localStorage?.removeItem(key);
+    window.sessionStorage?.removeItem(key);
+  }
+}
+
 function getInitials(fullName: string) {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
+  const initials = parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
   return initials || "FG";
 }
 
@@ -82,9 +95,7 @@ export const authService = {
     try {
       return JSON.parse(rawUser) as AuthUser;
     } catch {
-      window.localStorage.removeItem(AUTH_USER_KEY);
-      window.localStorage.removeItem(AUTH_ROLE_KEY);
-      window.localStorage.removeItem(AUTH_TOKEN_KEY);
+      clearAuthStorage();
       return null;
     }
   },
@@ -178,10 +189,7 @@ export const authService = {
   },
 
   signOut: () => {
-    if (!canUseStorage()) return;
-    window.localStorage.removeItem(AUTH_TOKEN_KEY);
-    window.localStorage.removeItem(AUTH_USER_KEY);
-    window.localStorage.removeItem(AUTH_ROLE_KEY);
+    clearAuthStorage();
     window.dispatchEvent(new CustomEvent(AUTH_USER_CHANGED_EVENT, { detail: null }));
   },
 };

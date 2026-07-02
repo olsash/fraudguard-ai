@@ -1,14 +1,14 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Brand } from "@/components/common/Brand";
 import { useState } from "react";
-import { Eye, EyeOff, Github, Mail } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { authService } from "@/services/authService";
 
 export default function Login() {
   const navigate = useNavigate();
   const [show, setShow] = useState(false);
-  const [email, setEmail] = useState("admin@credit.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -29,69 +29,97 @@ export default function Login() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to your FraudGuard workspace">
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <form className="space-y-4" onSubmit={handleSubmit} autoComplete="off">
         <Field
           label="Email"
           type="email"
+          id="fg-login-email-input"
+          name="fg-login-email-input"
           placeholder="you@bank.io"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          autoComplete="email"
+          autoComplete="off"
         />
         <div>
           <Field
             label="Password"
             type={show ? "text" : "password"}
-            placeholder="••••••••"
+            id="fg-login-passphrase-input"
+            name="fg-login-passphrase-input"
+            placeholder="Password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
+            autoComplete="new-password"
             rightIcon={
-              <button type="button" onClick={() => setShow(s => !s)} className="text-muted-foreground hover:text-foreground">
-                {show ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
+              <button
+                type="button"
+                onClick={() => setShow((s) => !s)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             }
           />
           <div className="flex justify-end mt-2 text-xs">
-            <Link to="/forgot-password" className="text-primary hover:underline">Forgot password?</Link>
+            <Link to="/forgot-password" className="text-primary hover:underline">
+              Forgot password?
+            </Link>
           </div>
         </div>
-        <div className="glass rounded-lg p-3 text-xs text-muted-foreground">
-          <p className="font-medium text-foreground">Development credentials</p>
-          <p>User: user@credit.com / user123</p>
-          <p>Admin: admin@credit.com / admin123</p>
-        </div>
         {error && <p className="text-xs text-destructive">{error}</p>}
-        <button type="submit" disabled={isSubmitting} className="block w-full text-center bg-gradient-primary text-primary-foreground rounded-lg py-3 font-medium ring-glow disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="block w-full text-center bg-gradient-primary text-primary-foreground rounded-lg py-3 font-medium ring-glow disabled:opacity-60"
+        >
           {isSubmitting ? "Signing in..." : "Sign in"}
         </button>
-        <Divider/>
-        <div className="grid grid-cols-2 gap-2">
-          <SocialBtn icon={Github} label="GitHub"/>
-          <SocialBtn icon={Mail} label="Google"/>
-        </div>
         <p className="text-center text-sm text-muted-foreground">
-          New here? <Link to="/register" className="text-primary hover:underline">Create an account</Link>
+          New here?{" "}
+          <Link to="/register" className="text-primary hover:underline">
+            Create an account
+          </Link>
         </p>
       </form>
     </AuthShell>
   );
 }
 
-export function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+export function AuthShell({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="min-h-screen grid md:grid-cols-2 bg-mesh">
       <div className="hidden md:flex flex-col justify-between p-12 relative overflow-hidden border-r border-border">
-        <div className="absolute inset-0 grid-bg opacity-30"/>
+        <div className="absolute inset-0 grid-bg opacity-30" />
         <div className="relative">
-          <Link to="/"><Brand size="lg"/></Link>
+          <Link to="/">
+            <Brand size="lg" />
+          </Link>
         </div>
         <div className="relative">
-          <h2 className="text-4xl font-display font-semibold leading-tight">FraudGuard-AI detects online payment fraud with <span className="text-gradient">machine learning.</span></h2>
-          <p className="mt-4 text-muted-foreground max-w-md">Sign in to run transaction predictions, inspect history, review alerts, and compare the exported machine learning models.</p>
+          <h2 className="text-4xl font-display font-semibold leading-tight">
+            FraudGuard-AI detects online payment fraud with{" "}
+            <span className="text-gradient">machine learning.</span>
+          </h2>
+          <p className="mt-4 text-muted-foreground max-w-md">
+            Sign in to run transaction predictions, inspect history, review alerts, and compare the
+            exported machine learning models.
+          </p>
           <div className="mt-8 glass rounded-2xl p-5 max-w-md">
-            <p className="text-sm">FraudGuard-AI combines a React/Vite interface, ASP.NET Core Web API, Python/FastAPI ML service, and scikit-learn model artifacts.</p>
-            <p className="mt-3 text-xs text-muted-foreground">Online payment fraud detection using machine learning</p>
+            <p className="text-sm">
+              FraudGuard-AI combines a React/Vite interface, ASP.NET Core Web API, Python/FastAPI ML
+              service, and scikit-learn model artifacts.
+            </p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Online payment fraud detection using machine learning
+            </p>
           </div>
         </div>
         <p className="relative text-xs text-muted-foreground">(c) 2026 FraudGuard Research</p>
@@ -114,32 +142,23 @@ type FieldProps = {
 } & React.InputHTMLAttributes<HTMLInputElement>;
 
 export function Field({
-  label, rightIcon, hint, className: _className, ...inputProps
+  label,
+  rightIcon,
+  hint,
+  className: _className,
+  ...inputProps
 }: FieldProps) {
   return (
     <label className="block">
       <span className="text-xs text-muted-foreground">{label}</span>
       <div className="mt-1 flex items-center glass rounded-lg px-3 py-2.5 focus-within:ring-1 focus-within:ring-primary/60">
-        <input {...inputProps} className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"/>
+        <input
+          {...inputProps}
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        />
         {rightIcon}
       </div>
       {hint && <span className="text-[10px] text-muted-foreground mt-1 block">{hint}</span>}
     </label>
-  );
-}
-
-export function Divider() {
-  return (
-    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-      <div className="flex-1 h-px bg-border"/> or continue with <div className="flex-1 h-px bg-border"/>
-    </div>
-  );
-}
-
-export function SocialBtn({ icon: Icon, label }: { icon: any; label: string }) {
-  return (
-    <button type="button" className="flex items-center justify-center gap-2 glass rounded-lg py-2.5 text-sm hover:ring-1 hover:ring-primary/40">
-      <Icon className="h-4 w-4"/> {label}
-    </button>
   );
 }

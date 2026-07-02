@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { AuthShell, Field, Divider, SocialBtn } from "@/pages/auth/LoginPage";
-import { Github, Mail } from "lucide-react";
+import { AuthShell, Field } from "@/pages/auth/LoginPage";
+import { Github, Mail, type LucideIcon } from "lucide-react";
 import { authService } from "@/services/authService";
 
 export default function Register() {
@@ -45,28 +45,78 @@ export default function Register() {
   return (
     <AuthShell title="Create your account" subtitle="Access the FraudGuard-AI prediction workspace">
       <form className="space-y-4" onSubmit={handleSubmit}>
-        <Field label="Full name" placeholder="FraudGuard User" value={fullName} onChange={(event) => setFullName(event.target.value)} required />
-        <Field label="Work email" type="email" placeholder="you@bank.io" value={email} onChange={(event) => setEmail(event.target.value)} required />
-        <Field label="Phone number" type="tel" placeholder="+1 555 0100" value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} maxLength={50} />
+        <Field
+          label="Full name"
+          placeholder="FraudGuard User"
+          value={fullName}
+          onChange={(event) => setFullName(event.target.value)}
+          required
+        />
+        <Field
+          label="Work email"
+          type="email"
+          placeholder="you@bank.io"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+        />
+        <Field
+          label="Phone number"
+          type="tel"
+          placeholder="+1 555 0100"
+          value={phoneNumber}
+          onChange={(event) => setPhoneNumber(event.target.value)}
+          maxLength={50}
+        />
         <label className="block">
           <span className="text-xs text-muted-foreground">Password</span>
           <div className="mt-1 flex items-center glass rounded-lg px-3 py-2.5">
-            <input type="password" value={pwd} onChange={(event) => setPwd(event.target.value)} placeholder="Enter password" className="flex-1 bg-transparent text-sm outline-none" required minLength={6} />
+            <input
+              type="password"
+              value={pwd}
+              onChange={(event) => setPwd(event.target.value)}
+              placeholder="Enter password"
+              className="flex-1 bg-transparent text-sm outline-none"
+              required
+              minLength={6}
+            />
           </div>
           <div className="mt-2 flex gap-1">
             {[0, 1, 2, 3].map((i) => (
-              <div key={i} className={`h-1 flex-1 rounded-full ${i < score ? (score >= 3 ? "bg-success" : score === 2 ? "bg-warning" : "bg-destructive") : "bg-secondary"}`} />
+              <div
+                key={i}
+                className={`h-1 flex-1 rounded-full ${i < score ? (score >= 3 ? "bg-success" : score === 2 ? "bg-warning" : "bg-destructive") : "bg-secondary"}`}
+              />
             ))}
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">Use at least 6 characters. Letters, numbers, and symbols are recommended.</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Use at least 6 characters. Letters, numbers, and symbols are recommended.
+          </p>
         </label>
-        <Field label="Confirm password" type="password" placeholder="Confirm your password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required minLength={6} />
+        <Field
+          label="Confirm password"
+          type="password"
+          placeholder="Confirm your password"
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+          required
+          minLength={6}
+        />
         <label className="flex items-start gap-2 text-xs text-muted-foreground">
-          <input type="checkbox" className="mt-0.5 accent-primary" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} />
+          <input
+            type="checkbox"
+            className="mt-0.5 accent-primary"
+            checked={acceptedTerms}
+            onChange={(event) => setAcceptedTerms(event.target.checked)}
+          />
           I agree to the Terms of Service and Privacy Policy.
         </label>
         {error && <p className="text-xs text-destructive">{error}</p>}
-        <button type="submit" disabled={isSubmitting} className="block w-full text-center bg-gradient-primary text-primary-foreground rounded-lg py-3 font-medium ring-glow disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="block w-full text-center bg-gradient-primary text-primary-foreground rounded-lg py-3 font-medium ring-glow disabled:opacity-60"
+        >
           {isSubmitting ? "Creating account..." : "Create account"}
         </button>
         <Divider />
@@ -75,7 +125,10 @@ export default function Register() {
           <SocialBtn icon={Mail} label="Google" />
         </div>
         <p className="text-center text-sm text-muted-foreground">
-          Already have one? <Link to="/login" className="text-primary hover:underline">Sign in</Link>
+          Already have one?{" "}
+          <Link to="/login" className="text-primary hover:underline">
+            Sign in
+          </Link>
         </p>
       </form>
     </AuthShell>
@@ -89,4 +142,24 @@ function scorePwd(p: string) {
   if (/\d/.test(p)) s++;
   if (/[^A-Za-z0-9]/.test(p)) s++;
   return s;
+}
+
+function Divider() {
+  return (
+    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="flex-1 h-px bg-border" /> or continue with{" "}
+      <div className="flex-1 h-px bg-border" />
+    </div>
+  );
+}
+
+function SocialBtn({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+  return (
+    <button
+      type="button"
+      className="flex items-center justify-center gap-2 glass rounded-lg py-2.5 text-sm hover:ring-1 hover:ring-primary/40"
+    >
+      <Icon className="h-4 w-4" /> {label}
+    </button>
+  );
 }
