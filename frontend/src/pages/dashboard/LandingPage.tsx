@@ -469,7 +469,6 @@ function Footer() {
           <p className="text-sm font-semibold">Admin & ML</p>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
             <li><Link to="/admin" className="hover:text-foreground">Admin dashboard</Link></li>
-            <li><Link to="/admin/models" className="hover:text-foreground">AI models</Link></li>
             <li><Link to="/admin/model-comparison" className="hover:text-foreground">Model comparison</Link></li>
             <li><Link to="/app/pipeline" className="hover:text-foreground">ML pipeline</Link></li>
           </ul>

@@ -3,7 +3,7 @@
     {
       "id": "random_forest",
       "displayName": "Random Forest",
-      "version": "v1.0.0",
+      "version": "v1.0.1",
       "status": "live",
       "isActive": true,
       "isEnabled": true,
@@ -12,8 +12,8 @@
       "recall": 99.57,
       "f1Score": 95.23,
       "rocAuc": 99.89,
-      "lastTrainedAt": "2026-07-03T14:59:52.637831+00:00",
-      "lastBenchmarkedAt": "2026-07-03T15:49:32.022652+00:00",
+      "lastTrainedAt": "2026-07-19T19:19:53.242125+00:00",
+      "lastBenchmarkedAt": "2026-07-19T19:19:53.242148+00:00",
       "artifactPath": "ml/models/random_forest.pkl",
       "notes": "Tree ensemble that reduces variance and models non-linear interactions.",
       "confusionMatrix": {
@@ -50,16 +50,16 @@
       "id": "knn",
       "displayName": "KNN",
       "version": "v1.0.1",
-      "status": "disabled",
+      "status": "idle",
       "isActive": false,
-      "isEnabled": false,
+      "isEnabled": true,
       "accuracy": 97.51,
       "precision": 91.49,
       "recall": 93.55,
       "f1Score": 92.51,
       "rocAuc": 97.84,
       "lastTrainedAt": "2026-07-03T15:08:10.523422+00:00",
-      "lastBenchmarkedAt": "2026-07-03T15:08:10.523450+00:00",
+      "lastBenchmarkedAt": "2026-07-19T19:20:33.660064+00:00",
       "artifactPath": "ml/models/knn.pkl",
       "notes": "Distance-based classifier for local transaction similarity.",
       "confusionMatrix": {
@@ -116,5 +116,5 @@
       }
     }
   ],
-  "updatedAt": "2026-07-05T13:51:25.406265+00:00"
+  "updatedAt": "2026-07-19T19:20:33.669411+00:00"
 }

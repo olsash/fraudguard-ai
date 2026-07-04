@@ -30,7 +30,6 @@ import { Route as AdminTransactionsRouteImport } from './routes/admin/transactio
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminProfileRouteImport } from './routes/admin/profile'
 import { Route as AdminPredictionsRouteImport } from './routes/admin/predictions'
-import { Route as AdminModelsRouteImport } from './routes/admin/models'
 import { Route as AdminModelComparisonRouteImport } from './routes/admin/model-comparison'
 import { Route as AdminLogsRouteImport } from './routes/admin/logs'
 import { Route as AdminAlertsRouteImport } from './routes/admin/alerts'
@@ -140,11 +139,6 @@ const AdminPredictionsRoute = AdminPredictionsRouteImport.update({
   path: '/admin/predictions',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminModelsRoute = AdminModelsRouteImport.update({
-  id: '/admin/models',
-  path: '/admin/models',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminModelComparisonRoute = AdminModelComparisonRouteImport.update({
   id: '/admin/model-comparison',
   path: '/admin/model-comparison',
@@ -169,7 +163,6 @@ export interface FileRoutesByFullPath {
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/model-comparison': typeof AdminModelComparisonRoute
-  '/admin/models': typeof AdminModelsRoute
   '/admin/predictions': typeof AdminPredictionsRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -196,7 +189,6 @@ export interface FileRoutesByTo {
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/model-comparison': typeof AdminModelComparisonRoute
-  '/admin/models': typeof AdminModelsRoute
   '/admin/predictions': typeof AdminPredictionsRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -224,7 +216,6 @@ export interface FileRoutesById {
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/model-comparison': typeof AdminModelComparisonRoute
-  '/admin/models': typeof AdminModelsRoute
   '/admin/predictions': typeof AdminPredictionsRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -253,7 +244,6 @@ export interface FileRouteTypes {
     | '/admin/alerts'
     | '/admin/logs'
     | '/admin/model-comparison'
-    | '/admin/models'
     | '/admin/predictions'
     | '/admin/profile'
     | '/admin/settings'
@@ -280,7 +270,6 @@ export interface FileRouteTypes {
     | '/admin/alerts'
     | '/admin/logs'
     | '/admin/model-comparison'
-    | '/admin/models'
     | '/admin/predictions'
     | '/admin/profile'
     | '/admin/settings'
@@ -307,7 +296,6 @@ export interface FileRouteTypes {
     | '/admin/alerts'
     | '/admin/logs'
     | '/admin/model-comparison'
-    | '/admin/models'
     | '/admin/predictions'
     | '/admin/profile'
     | '/admin/settings'
@@ -335,7 +323,6 @@ export interface RootRouteChildren {
   AdminAlertsRoute: typeof AdminAlertsRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminModelComparisonRoute: typeof AdminModelComparisonRoute
-  AdminModelsRoute: typeof AdminModelsRoute
   AdminPredictionsRoute: typeof AdminPredictionsRoute
   AdminProfileRoute: typeof AdminProfileRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
@@ -504,13 +491,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPredictionsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/models': {
-      id: '/admin/models'
-      path: '/admin/models'
-      fullPath: '/admin/models'
-      preLoaderRoute: typeof AdminModelsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin/model-comparison': {
       id: '/admin/model-comparison'
       path: '/admin/model-comparison'
@@ -543,7 +523,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAlertsRoute: AdminAlertsRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminModelComparisonRoute: AdminModelComparisonRoute,
-  AdminModelsRoute: AdminModelsRoute,
   AdminPredictionsRoute: AdminPredictionsRoute,
   AdminProfileRoute: AdminProfileRoute,
   AdminSettingsRoute: AdminSettingsRoute,

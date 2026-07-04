@@ -72,7 +72,10 @@ export default function AdminModelComparisonPage() {
         <section className="glass rounded-2xl p-5">
           <div className="max-w-5xl space-y-2 text-sm text-muted-foreground leading-6">
             <p>
-              This page summarizes the classifiers tested during the fraud detection experiments using the exported ML results from the backend API.
+              This page summarizes the classifiers trained and evaluated in the Python notebook. The metrics, charts, selected hyperparameters, and best-model decision come from the exported ML results served through the backend API.
+            </p>
+            <p>
+              The selected/exported model artifact is served by the Python/FastAPI ML service. The ASP.NET Core backend calls that ML service for prediction requests; this page reports evaluation results and does not provide live retraining, benchmarking, enable/disable, or deployment controls.
             </p>
             <p>
               F1-score matters because fraud detection needs a practical balance between catching fraud and avoiding excessive false alerts. Recall matters because missed fraud cases become false negatives, which are usually more costly than reviewing a suspicious transaction.
@@ -191,7 +194,7 @@ export default function AdminModelComparisonPage() {
                       <Th>FN</Th>
                       <Th>TP</Th>
                       <Th>Status</Th>
-                      <Th />
+                      <Th>{""}</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -518,7 +521,7 @@ function Th({
   direction,
   onClick,
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   sortable?: boolean;
   active?: boolean;
   direction?: "asc" | "desc";

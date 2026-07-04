@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Radar, Receipt, Bell,
-  Users, Settings, ShieldAlert, Activity, LogOut, UserCircle, BarChart3, Brain,
+  Users, Settings, ShieldAlert, Activity, LogOut, UserCircle, BarChart3,
 } from "lucide-react";
 import { Brand } from "@/components/common/Brand";
 import { AUTH_USER_CHANGED_EVENT, authService, type AuthUser } from "@/services/authService";
@@ -21,7 +21,6 @@ const adminNav = [
   { to: "/admin/users", label: "Users", icon: Users },
   { to: "/admin/transactions", label: "Transactions", icon: Receipt },
   { to: "/admin/predictions", label: "Predictions", icon: Radar },
-  { to: "/admin/models", label: "Models", icon: Brain },
   { to: "/admin/model-comparison", label: "Model Comparison", icon: BarChart3 },
   { to: "/admin/alerts", label: "Alerts", icon: ShieldAlert },
   { to: "/admin/logs", label: "Logs", icon: Activity },
