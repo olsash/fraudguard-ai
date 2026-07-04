@@ -370,7 +370,7 @@ function formatPredictionError(error: unknown, fallback: string) {
   }
 
   if (error instanceof ApiError && error.status === 503) {
-    return error.message || "Prediction service is unavailable. Please start the ML service and try again.";
+    return error.message || "Prediction service is unavailable. Confirm the backend can load the exported ONNX model artifacts.";
   }
 
   return error instanceof Error ? error.message : fallback;
@@ -1179,7 +1179,11 @@ function HistoryItem({
   const title =
     item.transactionMerchant ??
     (item.transactionId ? `Transaction #${item.transactionId}` : "Manual prediction");
-  const status = item.transactionStatus ?? getPredictionStatus(item);
+  const transactionStatus = item.transactionStatus?.toLowerCase();
+  const status: AnalysisStatus =
+    transactionStatus === "safe" || transactionStatus === "review" || transactionStatus === "fraud"
+      ? transactionStatus
+      : getPredictionStatus(item);
 
   return (
     <button

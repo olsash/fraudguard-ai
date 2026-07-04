@@ -15,7 +15,7 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
 const tickerItems = [
   "Random Forest selected by held-out F1-score in the latest notebook export",
   "High-risk transactions are routed to prediction history and alert review",
-  "FastAPI ML service supplies fraud scores to the ASP.NET Core backend",
+  "ASP.NET Core runs fraud scoring locally with the exported ONNX model",
   "Admin model comparison reads exported JSON and CSV metrics",
   "KMeans clustering results include PCA visualizations",
   "Feature importance exports support report and review pages",

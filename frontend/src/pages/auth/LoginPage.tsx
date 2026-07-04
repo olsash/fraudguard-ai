@@ -185,7 +185,7 @@ export function AuthShell({
           </p>
           <div className="mt-8 glass rounded-2xl p-5 max-w-md">
             <p className="text-sm">
-              FraudGuard-AI combines a React/Vite interface, ASP.NET Core Web API, Python/FastAPI ML
+              FraudGuard-AI combines a React/Vite interface, ASP.NET Core Web API, ONNX Runtime ML
               service, and scikit-learn model artifacts.
             </p>
             <p className="mt-3 text-xs text-muted-foreground">

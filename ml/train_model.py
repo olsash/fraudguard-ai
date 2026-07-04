@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sklearn
+from sklearn.base import clone
+from sklearn.compose import ColumnTransformer
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier
@@ -25,7 +27,8 @@ from sklearn.metrics import (
     silhouette_score,
 )
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from ml.paths import (
     BEST_MODEL_PATH,
@@ -35,6 +38,7 @@ from ml.paths import (
     COLUMNS_PATH,
     COMPATIBILITY_MODEL_PATH,
     DATASET_PATH,
+    FULL_PIPELINE_MODEL_PATH,
     FEATURE_IMPORTANCE_CSV_PATH,
     FEATURE_IMPORTANCE_JSON_PATH,
     KMEANS_PCA_CLUSTERS_PATH,
@@ -50,7 +54,7 @@ from ml.paths import (
     TRAINING_METADATA_PATH,
     repo_relative,
 )
-from ml.preprocessing import FEATURES, TARGET, preprocess_training_data, validate_dataset
+from ml.preprocessing import FEATURES, NUMERIC_COLUMNS, TARGET, TYPE_COLUMN, preprocess_training_data, split_features_target, validate_dataset
 
 
 RANDOM_SEED = 42
@@ -64,6 +68,7 @@ CLUSTERING_SAMPLE_SIZE = 50_000
 CLUSTERING_SILHOUETTE_SAMPLE_SIZE = 10_000
 PCA_PLOT_SAMPLE_SIZE = 10_000
 SHAP_SAMPLE_SIZE = 1_000
+TRANSACTION_TYPES = ["CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"]
 
 
 def print_class_distribution(labels: pd.Series, title: str) -> None:
@@ -109,6 +114,32 @@ def evaluate_classifier(model_name: str, model, x_train, y_train, x_test, y_test
         metrics["roc_auc"] = float(roc_auc_score(y_test, probabilities))
 
     return metrics, model
+
+
+def build_full_prediction_pipeline(classifier, *, scale_numeric: bool) -> Pipeline:
+    numeric_transformer = StandardScaler() if scale_numeric else "passthrough"
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("numeric", numeric_transformer, NUMERIC_COLUMNS),
+            (
+                "type",
+                OneHotEncoder(
+                    categories=[TRANSACTION_TYPES],
+                    handle_unknown="ignore",
+                    sparse_output=False,
+                ),
+                [TYPE_COLUMN],
+            ),
+        ],
+        verbose_feature_names_out=False,
+    )
+
+    return Pipeline(
+        steps=[
+            ("preprocessor", preprocessor),
+            ("classifier", clone(classifier)),
+        ]
+    )
 
 
 def select_best_model(evaluated_models: list[tuple[dict, object]], selected_metric: str = "f1") -> tuple[dict, object]:
@@ -610,6 +641,7 @@ def main() -> None:
         print_class_distribution(data[TARGET], "\nTraining sample class distribution:")
 
     print("[3/8] Preprocessing data.")
+    raw_features, raw_target = split_features_target(data)
     x, y, preprocessing_artifacts = preprocess_training_data(
         data,
         scale_numeric=SCALE_NUMERIC_FEATURES,
@@ -666,11 +698,18 @@ def main() -> None:
 
     print("[6/8] Saving best model, scaler, columns, and comparison results.")
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    full_pipeline = build_full_prediction_pipeline(
+        best_model,
+        scale_numeric=preprocessing_artifacts.scale_numeric,
+    )
+    full_pipeline.fit(raw_features, raw_target)
     joblib.dump(best_model, BEST_MODEL_PATH)
+    joblib.dump(full_pipeline, FULL_PIPELINE_MODEL_PATH)
     joblib.dump(best_model, COMPATIBILITY_MODEL_PATH)
     joblib.dump(preprocessing_artifacts.columns, COLUMNS_PATH)
     joblib.dump(preprocessing_artifacts.scaler, SCALER_PATH)
     print(f"Saved best model artifact to {BEST_MODEL_PATH}")
+    print(f"Saved full preprocessing/classifier pipeline artifact to {FULL_PIPELINE_MODEL_PATH}")
     print(f"Saved compatibility model artifact to {COMPATIBILITY_MODEL_PATH}")
     print(f"Saved encoded columns to {COLUMNS_PATH}")
     print(f"Saved scaler artifact to {SCALER_PATH}")
@@ -700,6 +739,7 @@ def main() -> None:
         "model": {
             "type": "RandomForestClassifier",
             "parameters": best_model.get_params(),
+            "fullPipelineArtifact": repo_relative(FULL_PIPELINE_MODEL_PATH),
         },
         "best_model_registry": repo_relative(BEST_MODEL_REGISTRY_PATH),
         "shap_feature_importance": shap_artifacts,

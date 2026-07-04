@@ -75,7 +75,7 @@ export default function AdminModelComparisonPage() {
               This page summarizes the classifiers trained and evaluated in the Python notebook. The metrics, charts, selected hyperparameters, and best-model decision come from the exported ML results served through the backend API.
             </p>
             <p>
-              The selected/exported model artifact is served by the Python/FastAPI ML service. The ASP.NET Core backend calls that ML service for prediction requests; this page reports evaluation results and does not provide live retraining, benchmarking, enable/disable, or deployment controls.
+              The selected/exported model is converted to ONNX and served directly by the ASP.NET Core backend through ONNX Runtime for prediction requests; this page reports evaluation results and does not provide live retraining, benchmarking, enable/disable, or deployment controls.
             </p>
             <p>
               F1-score matters because fraud detection needs a practical balance between catching fraud and avoiding excessive false alerts. Recall matters because missed fraud cases become false negatives, which are usually more costly than reviewing a suspicious transaction.

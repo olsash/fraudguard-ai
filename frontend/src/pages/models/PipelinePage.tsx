@@ -43,8 +43,8 @@ const steps = [
   {
     icon: Send,
     title: "Prediction API",
-    desc: "Best model artifacts are served by the Python FastAPI ML service and consumed by the ASP.NET Core Web API.",
-    stat: "FastAPI",
+    desc: "Best model artifacts are exported to ONNX and served directly by the ASP.NET Core Web API.",
+    stat: "ONNX",
   },
   {
     icon: Globe,
@@ -100,7 +100,7 @@ export default function Pipeline() {
           <p className="font-display font-semibold">Tooling</p>
           <p className="text-xs text-muted-foreground mb-4">Technologies used across the ML and engineering stack</p>
           <div className="flex flex-wrap gap-2">
-            {["Python","Pandas","NumPy","scikit-learn","MLPClassifier","KMeans","PCA","FastAPI","ASP.NET Core","SQL Server","React","Vite"].map(t => (
+            {["Python","Pandas","NumPy","scikit-learn","MLPClassifier","KMeans","PCA","ONNX Runtime","ASP.NET Core","SQL Server","React","Vite"].map(t => (
               <span key={t} className="glass rounded-lg px-3 py-1.5 text-sm">{t}</span>
             ))}
           </div>

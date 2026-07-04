@@ -17,7 +17,7 @@ export default function Thesis() {
             </h1>
             <p className="mt-4 text-muted-foreground">
               FraudGuard-AI studies supervised and unsupervised machine learning for detecting fraudulent online payment
-              transactions. The implemented system combines a scikit-learn experiment workflow, a Python FastAPI
+              transactions. The implemented system combines a scikit-learn experiment workflow, ONNX Runtime
               prediction service, an ASP.NET Core Web API, and a React/Vite dashboard for prediction, history, alerts,
               reports, and administrative review.
             </p>
@@ -83,7 +83,7 @@ export default function Thesis() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Machine Learning</p>
-              <p>Python - FastAPI - Pandas - NumPy - scikit-learn</p>
+              <p>Python - ONNX Runtime - Pandas - NumPy - scikit-learn</p>
             </div>
           </div>
         </div>

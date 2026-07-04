@@ -1,0 +1,147 @@
+{
+  "modelName": "RandomForestClassifier",
+  "modelVersion": "63ac23148402",
+  "modelTrainingDate": null,
+  "createdAtUtc": "2026-07-20T04:17:59.469946+00:00",
+  "sourceModelArtifact": "ml/models/best_model.pkl",
+  "sourceColumnsArtifact": "ml/models/columns.pkl",
+  "sourceScalerArtifact": "ml/models/scaler.pkl",
+  "inputFeatures": [
+    "type",
+    "amount",
+    "oldbalanceOrg",
+    "newbalanceOrig",
+    "oldbalanceDest",
+    "newbalanceDest"
+  ],
+  "numericFeatures": [
+    "amount",
+    "oldbalanceOrg",
+    "newbalanceOrig",
+    "oldbalanceDest",
+    "newbalanceDest"
+  ],
+  "transactionTypeFeature": "type",
+  "transactionTypes": [
+    "CASH_IN",
+    "CASH_OUT",
+    "DEBIT",
+    "PAYMENT",
+    "TRANSFER"
+  ],
+  "encodedFeatureColumns": [
+    "amount",
+    "oldbalanceOrg",
+    "newbalanceOrig",
+    "oldbalanceDest",
+    "newbalanceDest",
+    "type_CASH_IN",
+    "type_CASH_OUT",
+    "type_DEBIT",
+    "type_PAYMENT",
+    "type_TRANSFER"
+  ],
+  "columnOrder": [
+    "amount",
+    "oldbalanceOrg",
+    "newbalanceOrig",
+    "oldbalanceDest",
+    "newbalanceDest",
+    "type_CASH_IN",
+    "type_CASH_OUT",
+    "type_DEBIT",
+    "type_PAYMENT",
+    "type_TRANSFER"
+  ],
+  "inputTensorName": "type",
+  "inputTensorNames": [
+    "type",
+    "amount",
+    "oldbalanceOrg",
+    "newbalanceOrig",
+    "oldbalanceDest",
+    "newbalanceDest"
+  ],
+  "inputTensors": [
+    {
+      "name": "type",
+      "feature": "type",
+      "type": "tensor(string)",
+      "shape": [
+        "None",
+        "1"
+      ]
+    },
+    {
+      "name": "amount",
+      "feature": "amount",
+      "type": "tensor(float)",
+      "shape": [
+        "None",
+        "1"
+      ]
+    },
+    {
+      "name": "oldbalanceOrg",
+      "feature": "oldbalanceOrg",
+      "type": "tensor(float)",
+      "shape": [
+        "None",
+        "1"
+      ]
+    },
+    {
+      "name": "newbalanceOrig",
+      "feature": "newbalanceOrig",
+      "type": "tensor(float)",
+      "shape": [
+        "None",
+        "1"
+      ]
+    },
+    {
+      "name": "oldbalanceDest",
+      "feature": "oldbalanceDest",
+      "type": "tensor(float)",
+      "shape": [
+        "None",
+        "1"
+      ]
+    },
+    {
+      "name": "newbalanceDest",
+      "feature": "newbalanceDest",
+      "type": "tensor(float)",
+      "shape": [
+        "None",
+        "1"
+      ]
+    }
+  ],
+  "outputTensorNames": [
+    "label",
+    "probabilities"
+  ],
+  "labelOutputName": "label",
+  "probabilityOutputName": "probabilities",
+  "decisionUsesProbabilityThreshold": true,
+  "classificationThreshold": 0.5,
+  "classes": [
+    0,
+    1
+  ],
+  "fraudClass": 1,
+  "probabilityClassIndex": 1,
+  "usesExternalPreprocessing": false,
+  "preprocessing": {
+    "encoding": "ONNX ColumnTransformer one-hot encoding for transaction type",
+    "scaleNumericFeatures": false,
+    "numericScaler": null
+  },
+  "verification": {
+    "sampleCount": 3,
+    "maxProbabilityDelta": 5.331998383928394e-07,
+    "maxPipelineProbabilityDelta": 0.0,
+    "verifiedAtUtc": "2026-07-20T04:17:59.584461+00:00"
+  }
+}

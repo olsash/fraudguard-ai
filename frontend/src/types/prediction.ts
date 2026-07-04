@@ -37,6 +37,7 @@ export interface PredictionResult extends PredictionInput {
   riskBreakdown?: RiskBreakdownFactor[];
   modelName?: string | null;
   modelTrainingDate?: string | null;
+  modelVersion?: string | null;
   suggestedAction: string;
   createdAt: string;
 }
@@ -50,6 +51,7 @@ export interface TransactionPredictionResult {
   confidence: number;
   modelName?: string | null;
   modelTrainingDate?: string | null;
+  modelVersion?: string | null;
   predictedClass?: string;
   explanation: string[];
   createdAt: string;

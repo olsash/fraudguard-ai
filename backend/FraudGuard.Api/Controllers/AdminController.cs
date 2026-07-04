@@ -17,13 +17,13 @@ namespace FraudGuard.Api.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
-    private readonly PythonPredictionService _predictionService;
+    private readonly IFraudPredictionService _predictionService;
     private readonly ISystemLogService _systemLogService;
     private readonly ILogger<AdminController> _logger;
 
     public AdminController(
         AppDbContext dbContext,
-        PythonPredictionService predictionService,
+        IFraudPredictionService predictionService,
         ISystemLogService systemLogService,
         ILogger<AdminController> logger)
     {
@@ -607,9 +607,9 @@ public class AdminController : ControllerBase
                 SuggestedActionForScore(riskScore),
                 mlResult.Confidence);
         }
-        catch (PredictionServiceUnavailableException)
+        catch (FraudPredictionException)
         {
-            _logger.LogWarning("ML prediction service unavailable during admin analysis for transaction TX-{TransactionId}; using rule-based fallback.", transaction.Id);
+            _logger.LogWarning("ONNX prediction service unavailable during admin analysis for transaction TX-{TransactionId}; using rule-based fallback.", transaction.Id);
             return ruleResult;
         }
     }

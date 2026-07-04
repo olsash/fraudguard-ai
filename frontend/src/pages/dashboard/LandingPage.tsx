@@ -121,7 +121,7 @@ function Hero({ role }: { role: AuthRole | null }) {
             {[
               ["5", "Classifiers"],
               ["JWT", "Role access"],
-              ["FastAPI", "ML service"],
+              ["ONNX", "Inference"],
             ].map(([v, l]) => (
               <div key={l}>
                 <p className="text-2xl font-display font-semibold text-gradient">{v}</p>
@@ -203,7 +203,7 @@ function LogoStrip() {
     <div className="border-y border-border bg-card/30">
       <div className="mx-auto max-w-7xl px-6 py-8 flex flex-wrap items-center justify-between gap-6 opacity-70">
         <p className="text-xs uppercase tracking-widest text-muted-foreground">Implemented FraudGuard-AI modules</p>
-        {["AUTH", "PREDICTION", "ALERTS", "REPORTS", "ADMIN", "ML API"].map(n => (
+        {["AUTH", "PREDICTION", "ALERTS", "REPORTS", "ADMIN", "ONNX"].map(n => (
           <span key={n} className="text-sm font-display tracking-wider text-muted-foreground">{n}</span>
         ))}
       </div>
@@ -217,7 +217,7 @@ function Stats() {
       <div className="grid md:grid-cols-4 gap-4">
         {[
           { v: "5", l: "Classification models", icon: Activity },
-          { v: "1", l: "FastAPI ML service", icon: ShieldCheck },
+          { v: "1", l: "ONNX inference service", icon: ShieldCheck },
           { v: "2", l: "PCA cluster plots", icon: LineChart },
           { v: "Admin", l: "Review dashboard", icon: CheckCircle2 },
         ].map((s, i) => (
@@ -265,7 +265,7 @@ function Stats() {
 function Features() {
   const items = [
     { icon: Brain, title: "Model comparison", desc: "Compare Logistic Regression, KNN, Decision Tree, Random Forest, and MLPClassifier results." },
-    { icon: Zap, title: "Prediction workflow", desc: "Submit transaction attributes to the backend and ML API for fraud-risk scoring." },
+    { icon: Zap, title: "Prediction workflow", desc: "Submit transaction attributes to the backend for ONNX fraud-risk scoring." },
     { icon: Eye, title: "Evaluation reports", desc: "Review accuracy, precision, recall, F1-score, ROC-AUC, feature importance, and confusion matrices." },
     { icon: Globe, title: "Transaction context", desc: "Use transaction type, amount, and origin/destination balance movements as fraud detection signals." },
     { icon: Lock, title: "Authenticated access", desc: "JWT-protected user and admin workflows separate normal prediction use from review operations." },
@@ -292,7 +292,7 @@ function Features() {
 function HowItWorks() {
   const steps = [
     { n: "01", t: "Create", d: "Users enter or store transaction details in the ASP.NET Core application." },
-    { n: "02", t: "Predict", d: "The backend calls the Python FastAPI ML service with encoded transaction features." },
+    { n: "02", t: "Predict", d: "The backend maps transaction features to the exported ONNX tensor and runs inference locally." },
     { n: "03", t: "Review", d: "Users and admins inspect prediction history, fraud probability, and transaction status." },
     { n: "04", t: "Report", d: "Dashboards and admin pages display alerts, model comparison, and visualization exports." },
   ];
@@ -350,7 +350,7 @@ function DashboardPreview() {
           <div className="grid md:grid-cols-3 gap-4">
             {[
               ["User workspace", "Transactions", "History and saved records"],
-              ["Prediction flow", "Risk scoring", "ML service backed"],
+              ["Prediction flow", "Risk scoring", "ONNX backed"],
               ["Admin review", "Alerts & logs", "Role-protected pages"],
             ].map(([l, v, d]) => (
               <div key={l} className="glass rounded-xl p-4">
@@ -403,7 +403,7 @@ function Security() {
 function Testimonials() {
   const t = [
     { q: "The backend exposes authenticated routes for predictions, transactions, alerts, reports, and admin review.", a: "ASP.NET Core", r: "Web API" },
-    { q: "The ML service loads trained scikit-learn artifacts and returns fraud predictions for transaction features.", a: "Python", r: "FastAPI" },
+    { q: "The backend loads the exported ONNX model and returns fraud predictions for transaction features.", a: "ASP.NET Core", r: "ONNX Runtime" },
     { q: "The frontend provides user dashboards, prediction forms, history, reports, alerts, and admin model comparison.", a: "React", r: "Vite" },
   ];
   return (
@@ -486,7 +486,7 @@ function Footer() {
       <div className="border-t border-border">
         <div className="mx-auto max-w-7xl px-6 py-4 flex justify-between text-xs text-muted-foreground">
           <p>(c) 2026 FraudGuard-AI - academic machine learning project</p>
-          <p>Built with React/Vite, ASP.NET Core Web API, SQL Server, FastAPI, and scikit-learn</p>
+          <p>Built with React/Vite, ASP.NET Core Web API, SQL Server, ONNX Runtime, and scikit-learn</p>
         </div>
       </div>
     </footer>

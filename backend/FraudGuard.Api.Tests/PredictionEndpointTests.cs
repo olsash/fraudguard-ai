@@ -2,11 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.Encodings.Web;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.Models;
-using FraudGuard.Api.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -31,26 +29,61 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
     }
 
     [Fact]
-    public async Task CreatePrediction_WithValidRequest_ReturnsPredictionResult()
+    public async Task CreatePrediction_WithSafeTransaction_ReturnsLowRiskPrediction()
     {
-        var response = await _client.PostAsJsonAsync("/api/predictions", ValidPredictionRequest());
+        var response = await _client.PostAsJsonAsync("/api/predictions", SafePredictionRequest());
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<PredictionResponseBody>();
 
         Assert.NotNull(body);
+        Assert.False(body.IsFraud);
+        Assert.Equal("Not fraud", body.PredictedClass);
+        Assert.Equal("Low", body.RiskLevel);
+        Assert.InRange(body.FraudProbability, 0, 0.2);
+        Assert.InRange(body.RiskScore, 0, 20);
+        Assert.Equal("RandomForestClassifier", body.ModelName);
+        Assert.False(string.IsNullOrWhiteSpace(body.ModelVersion));
+        Assert.Contains(body.RiskBreakdown, factor => factor.Factor == "Transaction amount");
+    }
+
+    [Fact]
+    public async Task CreatePrediction_WithSuspiciousTransaction_ReturnsFraudPrediction()
+    {
+        var response = await _client.PostAsJsonAsync("/api/predictions", SuspiciousPredictionRequest());
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<PredictionResponseBody>();
+
+        Assert.NotNull(body);
+        Assert.True(body.IsFraud);
         Assert.Equal("Fraud", body.PredictedClass);
-        Assert.True(body.RiskScore >= 0);
-        Assert.True(body.FraudProbability >= 0);
-        Assert.Equal("Random Forest - test", body.ModelName);
+        Assert.Equal("High", body.RiskLevel);
+        Assert.InRange(body.FraudProbability, 0.9, 1.0);
+        Assert.InRange(body.RiskScore, 90, 100);
+        Assert.Equal("RandomForestClassifier", body.ModelName);
         Assert.Contains(body.RiskBreakdown, factor => factor.Factor == "High transaction amount");
         Assert.Contains(body.RiskBreakdown, factor => factor.Factor == "Transfer or cash-out transaction type");
     }
 
     [Fact]
+    public async Task CreatePrediction_WorksWithoutFastApiPort8000()
+    {
+        var response = await _client.PostAsJsonAsync("/api/predictions", SuspiciousPredictionRequest());
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<PredictionResponseBody>();
+
+        Assert.NotNull(body);
+        Assert.True(body.IsFraud);
+        Assert.DoesNotContain(body.Reasons, reason => reason.Contains("FastAPI", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(body.Reasons, reason => reason.Contains("port 8000", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task CreatePrediction_WithMissingAmount_ReturnsClearValidationError()
     {
-        var request = ValidPredictionRequest();
+        var request = SuspiciousPredictionRequest();
         request.Remove("amount");
 
         var response = await _client.PostAsJsonAsync("/api/predictions", request);
@@ -61,7 +94,7 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
     [Fact]
     public async Task CreatePrediction_WithNegativeAmount_ReturnsClearValidationError()
     {
-        var request = ValidPredictionRequest();
+        var request = SuspiciousPredictionRequest();
         request["amount"] = -1;
 
         var response = await _client.PostAsJsonAsync("/api/predictions", request);
@@ -72,7 +105,7 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
     [Fact]
     public async Task CreatePrediction_WithInvalidTransactionType_ReturnsClearError()
     {
-        var request = ValidPredictionRequest();
+        var request = SuspiciousPredictionRequest();
         request["transactionType"] = "WIRE";
 
         var response = await _client.PostAsJsonAsync("/api/predictions", request);
@@ -89,7 +122,7 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
     [InlineData("newBalanceDestination", "New destination balance is required.")]
     public async Task CreatePrediction_WithMissingBalanceValue_ReturnsClearValidationError(string missingField, string expectedMessage)
     {
-        var request = ValidPredictionRequest();
+        var request = SuspiciousPredictionRequest();
         request.Remove(missingField);
 
         var response = await _client.PostAsJsonAsync("/api/predictions", request);
@@ -97,29 +130,53 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         await AssertValidationError(response, expectedMessage);
     }
 
-    private static Dictionary<string, object> ValidPredictionRequest()
+    private static Dictionary<string, object> SafePredictionRequest()
     {
         return new Dictionary<string, object>
         {
-            ["transactionType"] = "TRANSFER",
-            ["amount"] = 250000,
-            ["oldBalanceOrigin"] = 300000,
-            ["newBalanceOrigin"] = 50000,
+            ["transactionType"] = "PAYMENT",
+            ["amount"] = 42.75,
+            ["oldBalanceOrigin"] = 1000,
+            ["newBalanceOrigin"] = 957.25,
+            ["oldBalanceDestination"] = 500,
+            ["newBalanceDestination"] = 542.75
+        };
+    }
+
+    private static Dictionary<string, object> SuspiciousPredictionRequest()
+    {
+        return new Dictionary<string, object>
+        {
+            ["transactionType"] = "CASH_OUT",
+            ["amount"] = 1000000,
+            ["oldBalanceOrigin"] = 1000000,
+            ["newBalanceOrigin"] = 0,
             ["oldBalanceDestination"] = 0,
-            ["newBalanceDestination"] = 250000
+            ["newBalanceDestination"] = 1000000
         };
     }
 
     private static async Task AssertValidationError(HttpResponseMessage response, string expectedMessage)
     {
-        var body = await response.Content.ReadFromJsonAsync<ValidationProblemResponse>();
+        var content = await response.Content.ReadAsStringAsync();
+        var validationBody = JsonSerializer.Deserialize<ValidationProblemResponse>(content, JsonOptions);
+        var errorBody = JsonSerializer.Deserialize<ErrorResponse>(content, JsonOptions);
+        var messages = validationBody?.Errors.SelectMany(error => error.Value).ToArray() ?? [];
+        if (!string.IsNullOrWhiteSpace(errorBody?.Message))
+        {
+            messages = [.. messages, errorBody.Message];
+        }
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.NotNull(body);
         Assert.Contains(
-            body.Errors.SelectMany(error => error.Value),
+            messages,
             message => message.Contains(expectedMessage, StringComparison.OrdinalIgnoreCase));
     }
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     private sealed class PredictionResponseBody
     {
@@ -127,9 +184,17 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
 
         public int RiskScore { get; set; }
 
+        public string RiskLevel { get; set; } = string.Empty;
+
+        public bool IsFraud { get; set; }
+
         public double FraudProbability { get; set; }
 
         public string? ModelName { get; set; }
+
+        public string? ModelVersion { get; set; }
+
+        public string[] Reasons { get; set; } = [];
 
         public RiskBreakdownFactorBody[] RiskBreakdown { get; set; } = [];
     }
@@ -178,9 +243,6 @@ public sealed class PredictionApiFactory : WebApplicationFactory<Program>
                 options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
             });
 
-            services.AddHttpClient<PythonPredictionService>()
-                .ConfigurePrimaryHttpMessageHandler(() => new FakeMlPredictionHandler());
-
             using var provider = services.BuildServiceProvider();
             using var scope = provider.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -226,51 +288,5 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
         var ticket = new AuthenticationTicket(principal, SchemeName);
 
         return Task.FromResult(AuthenticateResult.Success(ticket));
-    }
-}
-
-public sealed class FakeMlPredictionHandler : HttpMessageHandler
-{
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-        if (request.RequestUri?.AbsolutePath != "/predict")
-        {
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
-        }
-
-        var payload = new
-        {
-            fraudProbability = 0.91,
-            riskScore = 91,
-            riskLevel = "High",
-            isFraud = true,
-            predictedClass = "Fraud",
-            confidence = 0.91,
-            modelName = "Random Forest - test",
-            modelTrainingDate = "2026-01-01T00:00:00Z",
-            reasons = new[] { "Model Signals|Test model returned a high fraud probability." },
-            explanationFactors = new[] { "Model Signals|Test model returned a high fraud probability." },
-            riskBreakdown = new[]
-            {
-                new
-                {
-                    factor = "High transaction amount",
-                    impact = "Risk",
-                    explanation = "Amount is above the high-value threshold."
-                },
-                new
-                {
-                    factor = "Transfer or cash-out transaction type",
-                    impact = "Risk",
-                    explanation = "TRANSFER is treated as fraud-sensitive."
-                }
-            },
-            suggestedAction = "Manual review required"
-        };
-
-        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = JsonContent.Create(payload)
-        });
     }
 }

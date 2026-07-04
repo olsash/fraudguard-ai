@@ -16,7 +16,7 @@ The retraining command reads this file:
 python retrain_models.py
 ```
 
-Do not remove or rename `fraud.csv`. The notebook, retraining script, and FastAPI artifact workflow expect this exact path.
+Do not remove or rename `fraud.csv`. The notebook, retraining script, and ONNX export workflow expect this exact path.
 
 ## Optional Small Test Dataset
 

@@ -54,6 +54,8 @@ public class PredictionResponse
 
     public string? ModelTrainingDate { get; set; }
 
+    public string? ModelVersion { get; set; }
+
     public string SuggestedAction { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
@@ -85,6 +87,8 @@ public class TransactionPredictionResponse
     public string? ModelName { get; set; }
 
     public string? ModelTrainingDate { get; set; }
+
+    public string? ModelVersion { get; set; }
 
     public string PredictedClass { get; set; } = string.Empty;
 

@@ -1,6 +1,6 @@
 # FraudGuard-AI
 
-FraudGuard-AI is a full-stack machine learning project for online payment fraud detection. It uses a fraud transaction dataset, trains and compares several classifiers, exposes fraud prediction through a Python FastAPI service, and provides a React/Vite web application backed by an ASP.NET Core Web API.
+FraudGuard-AI is a full-stack machine learning project for online payment fraud detection. It uses a fraud transaction dataset, trains and compares several classifiers in Python, exports the selected model to ONNX, and runs fraud prediction directly inside the ASP.NET Core Web API with ONNX Runtime.
 
 The project is intended for both implementation review and academic evaluation. It includes the machine learning notebook, trained model artifacts, exported evaluation results, backend APIs, frontend dashboards, admin review pages, and project documentation.
 
@@ -42,7 +42,8 @@ fraudguard-ai/
 |       |-- DTOs/                 # Request and response DTOs
 |       |-- Migrations/           # EF Core database migrations
 |       |-- Models/               # Database entities
-|       |-- Services/             # JWT, logs, and ML API integration services
+|       |-- Services/             # JWT, logs, and ONNX ML inference services
+|       |-- MLModels/             # Exported ONNX model and inference metadata
 |       |-- appsettings.json      # Backend configuration
 |       `-- FraudGuard.Api.csproj # ASP.NET Core Web API project
 |-- frontend/
@@ -58,7 +59,7 @@ fraudguard-ai/
 |   `-- vite.config.ts
 |-- ml/
 |   |-- api/
-|   |   `-- app.py                # Python FastAPI prediction service
+|   |   `-- app.py                # Legacy/optional Python FastAPI prediction service
 |   |-- dataset/
 |   |   `-- fraud.csv             # Fraud transaction dataset
 |   |-- models/                   # Trained model artifacts
@@ -76,9 +77,9 @@ fraudguard-ai/
 
 Main folders:
 
-- `backend`: ASP.NET Core Web API for authentication, users, transactions, predictions, alerts, settings, logs, admin workflows, and integration with the ML API.
+- `backend`: ASP.NET Core Web API for authentication, users, transactions, predictions, alerts, settings, logs, admin workflows, and local ONNX inference.
 - `frontend`: React/Vite application for the user workspace, admin dashboard, prediction pages, model comparison, reports, alerts, and settings.
-- `ml`: Python machine learning workspace, including preprocessing, training, FastAPI prediction service, notebook, model artifacts, and result exports.
+- `ml`: Python machine learning workspace, including preprocessing, training, optional FastAPI experiment service, notebook, model artifacts, result exports, and ONNX export.
 - `ml/notebooks`: Academic ML experiment notebook.
 - `ml/models`: Saved trained models, feature columns, scaler, and metadata.
 - `ml/results`: Exported metrics and visualizations used by reports and admin model comparison pages.
@@ -108,7 +109,7 @@ The primary modeling features used by the notebook and training workflow are:
 - `newbalanceDest`
 - `isFraud`
 
-Do not remove or rename `ml/dataset/fraud.csv`. The notebook, training scripts, validation script, and ML API workflow rely on this path.
+Do not remove or rename `ml/dataset/fraud.csv`. The notebook, training scripts, validation script, and ONNX export workflow rely on this path.
 
 ## Machine Learning Workflow
 
@@ -149,6 +150,8 @@ ml/models/fraud_model.pkl
 ml/models/columns.pkl
 ml/models/scaler.pkl
 ml/models/training_metadata.json
+backend/FraudGuard.Api/MLModels/fraud_model.onnx
+backend/FraudGuard.Api/MLModels/fraud_model.metadata.json
 ml/results/model_comparison_results.json
 ml/results/model_comparison_results.csv
 ml/results/confusion_matrices.json
@@ -238,15 +241,32 @@ python retrain_models.py
 
 This command reads `ml/dataset/fraud.csv` and writes model artifacts and result files under `ml/models` and `ml/results`.
 
-## Run the ML API
+After retraining, export the selected sklearn model to ONNX for the ASP.NET Core backend:
 
-The ML API exists at:
+```powershell
+python ml\export_model_to_onnx.py
+```
+
+This writes:
+
+```text
+backend/FraudGuard.Api/MLModels/fraud_model.onnx
+backend/FraudGuard.Api/MLModels/fraud_model.metadata.json
+```
+
+The metadata contains the raw input features, encoded feature column order, ONNX input tensor name, output tensor names, model version, classification threshold, and model classes. The backend reads this metadata and maps prediction DTO values into the ONNX tensor in that exact order.
+
+## Optional Python ML API
+
+The Python FastAPI app still exists for local ML experiments and legacy smoke checks:
 
 ```text
 ml/api/app.py
 ```
 
-Start the FastAPI prediction service after model artifacts exist.
+It is not required during normal application use. Runtime prediction now executes inside ASP.NET Core using `backend/FraudGuard.Api/MLModels/fraud_model.onnx`.
+
+If you still want to run the optional FastAPI service after model artifacts exist:
 
 From the `ml` folder:
 
@@ -331,7 +351,7 @@ Default development accounts:
 - `admin@credit.com` / `admin123`
 - `user@credit.com` / `user123`
 
-The backend is configured to call the ML API at `http://localhost:8000`.
+The backend loads `MLModels/fraud_model.onnx` and `MLModels/fraud_model.metadata.json` at startup. If either artifact is missing, startup fails with the expected path. The backend no longer calls `http://localhost:8000` for prediction.
 
 ## Run the Frontend
 
@@ -366,7 +386,6 @@ Optional environment overrides:
 
 ```powershell
 $env:VITE_API_BASE_URL="http://localhost:5000/api"
-$env:VITE_ML_PREDICTION_API_URL="http://localhost:5000/api/predictions"
 npm run dev
 ```
 
@@ -374,7 +393,7 @@ npm run dev
 
 Use separate terminals:
 
-1. Prepare Python dependencies and model artifacts:
+1. Prepare Python dependencies, model artifacts, and ONNX export:
 
 ```powershell
 python -m venv .venv
@@ -382,16 +401,10 @@ python -m venv .venv
 python -m pip install --upgrade pip
 pip install -r ml\requirements.txt
 python retrain_models.py
+python ml\export_model_to_onnx.py
 ```
 
-2. Start the ML API:
-
-```powershell
-cd ml
-python -m uvicorn api.app:app --reload --host 127.0.0.1 --port 8000
-```
-
-3. Start the backend:
+2. Start the backend:
 
 ```powershell
 cd backend\FraudGuard.Api
@@ -399,7 +412,7 @@ dotnet ef database update
 dotnet run
 ```
 
-4. Start the frontend:
+3. Start the frontend:
 
 ```powershell
 cd frontend
@@ -407,7 +420,7 @@ npm install
 npm run dev
 ```
 
-5. Open the frontend URL printed by Vite and sign in with a development account.
+4. Open the frontend URL printed by Vite and sign in with a development account.
 
 ## Academic Requirements Checklist
 
@@ -467,6 +480,7 @@ Regenerate artifacts:
 
 ```powershell
 python retrain_models.py
+python ml\export_model_to_onnx.py
 ```
 
 Then verify expected notebook outputs if you ran the notebook:
@@ -475,18 +489,20 @@ Then verify expected notebook outputs if you ran the notebook:
 python ml\validate_notebook_outputs.py
 ```
 
-### ML API returns a model artifact error
+### ONNX model artifact errors
 
-Start the FastAPI service only after model artifacts exist:
+The backend expects these files at startup:
 
-```powershell
-uvicorn ml.api.app:app --reload --host 127.0.0.1 --port 8000
+```text
+backend/FraudGuard.Api/MLModels/fraud_model.onnx
+backend/FraudGuard.Api/MLModels/fraud_model.metadata.json
 ```
 
-If artifacts are missing, run:
+If either file is missing, regenerate the Python artifacts and export ONNX:
 
 ```powershell
 python retrain_models.py
+python ml\export_model_to_onnx.py
 ```
 
 ### Backend database connection fails
@@ -502,14 +518,6 @@ Then run migrations from the backend folder:
 ```powershell
 cd backend\FraudGuard.Api
 dotnet ef database update
-```
-
-### Backend cannot reach the ML API
-
-Make sure the FastAPI service is running at:
-
-```text
-http://localhost:8000
 ```
 
 ### Frontend cannot reach the backend
@@ -545,6 +553,12 @@ Validate notebook outputs:
 python ml\validate_notebook_outputs.py
 ```
 
+Verify Python sklearn to ONNX parity:
+
+```powershell
+python -m unittest ml.test_onnx_export
+```
+
 Build the frontend:
 
 ```powershell
@@ -557,4 +571,10 @@ Build the backend:
 ```powershell
 cd backend\FraudGuard.Api
 dotnet build
+```
+
+Run backend tests:
+
+```powershell
+dotnet test backend\FraudGuard.Api.Tests\FraudGuard.Api.Tests.csproj
 ```

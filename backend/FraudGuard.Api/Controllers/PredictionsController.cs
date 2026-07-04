@@ -19,13 +19,13 @@ namespace FraudGuard.Api.Controllers;
 public class PredictionsController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
-    private readonly PythonPredictionService _predictionService;
+    private readonly IFraudPredictionService _predictionService;
     private readonly ISystemLogService _systemLogService;
     private readonly ILogger<PredictionsController> _logger;
 
     public PredictionsController(
         AppDbContext dbContext,
-        PythonPredictionService predictionService,
+        IFraudPredictionService predictionService,
         ISystemLogService systemLogService,
         ILogger<PredictionsController> logger)
     {
@@ -50,14 +50,19 @@ public class PredictionsController : ControllerBase
             return BadRequest(new { message = "Transaction type must be one of CASH_IN, CASH_OUT, DEBIT, PAYMENT, TRANSFER." });
         }
 
-        PythonPredictionResult result;
+        FraudPredictionResult result;
         try
         {
             result = await _predictionService.PredictAsync(request, cancellationToken);
         }
-        catch (PredictionServiceUnavailableException ex)
+        catch (FraudPredictionInputException ex)
         {
-            _logger.LogWarning(ex, "Manual prediction request could not reach the ML prediction service for user {UserId}.", userId.Value);
+            _logger.LogWarning(ex, "Manual prediction request has invalid model input for user {UserId}.", userId.Value);
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (FraudPredictionException ex)
+        {
+            _logger.LogWarning(ex, "Manual prediction request failed in the ONNX prediction service for user {UserId}.", userId.Value);
             return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
         }
 
@@ -103,14 +108,19 @@ public class PredictionsController : ControllerBase
         }
 
         var predictionRequest = request.ToPredictionRequest();
-        PythonPredictionResult result;
+        FraudPredictionResult result;
         try
         {
             result = await _predictionService.PredictAsync(predictionRequest, cancellationToken);
         }
-        catch (PredictionServiceUnavailableException ex)
+        catch (FraudPredictionInputException ex)
         {
-            _logger.LogWarning(ex, "Advanced model test could not reach the ML prediction service for user {UserId}.", userId.Value);
+            _logger.LogWarning(ex, "Advanced model test has invalid model input for user {UserId}.", userId.Value);
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (FraudPredictionException ex)
+        {
+            _logger.LogWarning(ex, "Advanced model test failed in the ONNX prediction service for user {UserId}.", userId.Value);
             return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
         }
 
@@ -195,6 +205,7 @@ public class PredictionsController : ControllerBase
             Confidence = prediction.Confidence,
             ModelName = result.ModelName,
             ModelTrainingDate = result.ModelTrainingDate,
+            ModelVersion = result.ModelVersion,
             PredictedClass = prediction.IsFraud ? "Fraud" : "Not fraud",
             Explanation = result.Reasons,
             CreatedAt = prediction.CreatedAt
@@ -278,7 +289,7 @@ public class PredictionsController : ControllerBase
         return ToResponse(prediction, prediction.RiskScore / 100.0, Math.Max(prediction.RiskScore / 100.0, 1 - prediction.RiskScore / 100.0), ReadReasons(prediction.Explanation));
     }
 
-    private static PredictionResponse ToResponse(Prediction prediction, double fraudProbability, double confidence, string[] reasons, PythonPredictionResult? modelResult = null)
+    private static PredictionResponse ToResponse(Prediction prediction, double fraudProbability, double confidence, string[] reasons, FraudPredictionResult? modelResult = null)
     {
         return new PredictionResponse
         {
@@ -308,6 +319,7 @@ public class PredictionsController : ControllerBase
             RiskBreakdown = modelResult?.RiskBreakdown.Length > 0 ? modelResult.RiskBreakdown : BuildRiskBreakdown(prediction),
             ModelName = modelResult?.ModelName,
             ModelTrainingDate = modelResult?.ModelTrainingDate,
+            ModelVersion = modelResult?.ModelVersion,
             SuggestedAction = prediction.SuggestedAction,
             CreatedAt = prediction.CreatedAt
         };
@@ -343,6 +355,7 @@ public class PredictionsController : ControllerBase
             RiskBreakdown = response.RiskBreakdown,
             ModelName = response.ModelName,
             ModelTrainingDate = response.ModelTrainingDate,
+            ModelVersion = response.ModelVersion,
             SuggestedAction = response.SuggestedAction,
             CreatedAt = response.CreatedAt,
             Decision = response.PredictedClass,
@@ -547,11 +560,12 @@ public class PredictionsController : ControllerBase
                 SuggestedActionForScore(riskScore),
                 mlResult.Confidence,
                 mlResult.ModelName,
-                mlResult.ModelTrainingDate);
+                mlResult.ModelTrainingDate,
+                mlResult.ModelVersion);
         }
-        catch (PredictionServiceUnavailableException)
+        catch (FraudPredictionException)
         {
-            _logger.LogWarning("ML prediction service unavailable while scoring transaction TX-{TransactionId}; using rule-based fallback.", transaction.Id);
+            _logger.LogWarning("ONNX prediction service unavailable while scoring transaction TX-{TransactionId}; using rule-based fallback.", transaction.Id);
             return ruleResult;
         }
     }
@@ -739,7 +753,7 @@ public class PredictionsController : ControllerBase
 
     private async Task CreatePredictionAlertAsync(Prediction prediction, double fraudProbability, CancellationToken cancellationToken)
     {
-        if (prediction.TransactionId.HasValue || (!prediction.IsFraud && prediction.RiskScore < 70))
+        if (!prediction.TransactionId.HasValue || (!prediction.IsFraud && prediction.RiskScore < 70))
         {
             return;
         }
@@ -802,5 +816,5 @@ public class PredictionsController : ControllerBase
             .ToArray();
     }
 
-    private sealed record TransactionRiskResult(int RiskScore, string RiskLevel, string Status, string[] Reasons, string SuggestedAction, double Confidence, string? ModelName = null, string? ModelTrainingDate = null);
+    private sealed record TransactionRiskResult(int RiskScore, string RiskLevel, string Status, string[] Reasons, string SuggestedAction, double Confidence, string? ModelName = null, string? ModelTrainingDate = null, string? ModelVersion = null);
 }

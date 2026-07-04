@@ -215,7 +215,7 @@ function RiskDistributionChart({ data, total }: { data: RiskDistributionPoint[];
           <div key={item.name} className="flex items-center gap-2 text-xs">
             <span className="h-2 w-2 rounded-full" style={{ background: item.color }} />
             <span className="text-muted-foreground">{item.name}</span>
-            <span className="ml-auto font-medium">{item.count} ({item.percent}%)</span>
+            <span className="ml-auto font-medium">{item.value} ({item.percent}%)</span>
           </div>
         ))}
       </div>
