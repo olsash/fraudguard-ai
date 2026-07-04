@@ -18,6 +18,14 @@ public class TransactionResponseDto
 
     public decimal Amount { get; set; }
 
+    public decimal? OldBalanceOrigin { get; set; }
+
+    public decimal? NewBalanceOrigin { get; set; }
+
+    public decimal? OldBalanceDestination { get; set; }
+
+    public decimal? NewBalanceDestination { get; set; }
+
     public string Currency { get; set; } = string.Empty;
 
     public int? RiskScore { get; set; }

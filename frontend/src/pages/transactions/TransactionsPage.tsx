@@ -1,8 +1,8 @@
 import { FraudSelect } from "@/components/common/FraudSelect";
 import { Topbar } from "@/components/layout/Topbar";
-import { predictionService } from "@/services/predictionService";
 import { transactionService } from "@/services/transactionService";
 import type { CreateTransactionInput, Transaction, TransactionFilters, TransactionStatus } from "@/types/transaction";
+import { useNavigate } from "@tanstack/react-router";
 import { ChevronRight, Download, Loader2, Plus, Search, Sparkles, X } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -48,6 +48,7 @@ const countries = [
 ];
 
 export default function TxPage() {
+  const navigate = useNavigate();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summaryText, setSummaryText] = useState("0 transactions");
   const [filters, setFilters] = useState<TransactionFilters>({ status: "all" });
@@ -115,22 +116,8 @@ export default function TxPage() {
     }
   }
 
-  async function predictTransaction(transactionId: number) {
-    setPredictingId(transactionId);
-    setError(null);
-
-    try {
-      await predictionService.predictTransaction(transactionId);
-      toast.success("Prediction saved successfully");
-      await loadTransactions();
-      if (selected?.id === transactionId) {
-        setSelected(await transactionService.getTransactionById(transactionId));
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unable to run prediction.");
-    } finally {
-      setPredictingId(null);
-    }
+  async function openFraudAnalysis() {
+    await navigate({ to: "/app/predict-fraud" });
   }
 
   function exportCsv() {
@@ -194,7 +181,7 @@ export default function TxPage() {
                           <button
                             onClick={(event) => {
                               event.stopPropagation();
-                              void predictTransaction(transaction.id);
+                              void openFraudAnalysis();
                             }}
                             disabled={predictingId === transaction.id}
                             className="rounded px-2 py-1 text-xs glass hover:ring-1 hover:ring-primary/40 disabled:opacity-60"
@@ -212,7 +199,7 @@ export default function TxPage() {
           </div>
         )}
       </main>
-      {selected && <TxModal tx={selected} predicting={predictingId === selected.id} onPredict={() => void predictTransaction(selected.id)} onClose={() => setSelected(null)} />}
+      {selected && <TxModal tx={selected} predicting={predictingId === selected.id} onPredict={() => void openFraudAnalysis()} onClose={() => setSelected(null)} />}
       {showCreate && (
         <CreateTransactionModal
           form={form}

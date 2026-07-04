@@ -86,7 +86,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("transactions/{id:int}/analyze")]
-    public async Task<ActionResult<AdminTransactionAnalysisDto>> AnalyzeTransaction(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<AdminTransactionAnalysisDto>> AnalyzeTransaction(int id, AnalyzeTransactionRequest? request, CancellationToken cancellationToken)
     {
         var transaction = await _dbContext.Transactions
             .Include(item => item.User)
@@ -98,17 +98,35 @@ public class AdminController : ControllerBase
             return NotFound(new { message = "Transaction not found." });
         }
 
-        var result = await ScoreTransactionAsync(transaction, cancellationToken);
+        var balances = ResolveBalances(transaction, request);
+        var balanceErrors = ValidateBalances(balances);
+        if (balanceErrors.Length > 0)
+        {
+            return BadRequest(new { message = balanceErrors[0], errors = balanceErrors });
+        }
+
+        var predictionRequest = new CreatePredictionRequest
+        {
+            TransactionType = NormalizeTransactionType(transaction.TransactionType),
+            Amount = transaction.Amount,
+            OldBalanceOrigin = balances.OldBalanceOrigin,
+            NewBalanceOrigin = balances.NewBalanceOrigin,
+            OldBalanceDestination = balances.OldBalanceDestination,
+            NewBalanceDestination = balances.NewBalanceDestination
+        };
+        ApplyBalances(transaction, predictionRequest);
+
+        var result = await ScoreTransactionAsync(transaction, predictionRequest, cancellationToken);
         var prediction = new Prediction
         {
             UserId = transaction.UserId,
             TransactionId = transaction.Id,
             TransactionType = transaction.TransactionType,
             Amount = transaction.Amount,
-            OldBalanceOrigin = 0,
-            NewBalanceOrigin = 0,
-            OldBalanceDestination = 0,
-            NewBalanceDestination = 0,
+            OldBalanceOrigin = predictionRequest.OldBalanceOriginValue,
+            NewBalanceOrigin = predictionRequest.NewBalanceOriginValue,
+            OldBalanceDestination = predictionRequest.OldBalanceDestinationValue,
+            NewBalanceDestination = predictionRequest.NewBalanceDestinationValue,
             RiskScore = result.RiskScore,
             RiskLevel = result.RiskLevel,
             IsFraud = result.Status == "fraud",
@@ -120,6 +138,7 @@ public class AdminController : ControllerBase
 
         transaction.RiskScore = result.RiskScore;
         transaction.Status = result.Status;
+        ApplyBalances(transaction, predictionRequest);
         _dbContext.Predictions.Add(prediction);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -434,6 +453,10 @@ public class AdminController : ControllerBase
             Country = transaction.Country,
             Category = transaction.Category,
             Amount = transaction.Amount,
+            OldBalanceOrigin = transaction.OldBalanceOrigin,
+            NewBalanceOrigin = transaction.NewBalanceOrigin,
+            OldBalanceDestination = transaction.OldBalanceDestination,
+            NewBalanceDestination = transaction.NewBalanceDestination,
             Currency = transaction.Currency,
             TransactionType = transaction.TransactionType,
             RiskScore = transaction.RiskScore,
@@ -456,6 +479,10 @@ public class AdminController : ControllerBase
             Country = transaction.Country,
             Category = transaction.Category,
             Amount = transaction.Amount,
+            OldBalanceOrigin = transaction.OldBalanceOrigin,
+            NewBalanceOrigin = transaction.NewBalanceOrigin,
+            OldBalanceDestination = transaction.OldBalanceDestination,
+            NewBalanceDestination = transaction.NewBalanceDestination,
             Currency = transaction.Currency,
             TransactionType = transaction.TransactionType,
             RiskScore = transaction.RiskScore,
@@ -531,6 +558,10 @@ public class AdminController : ControllerBase
                 Country = prediction.Transaction.Country,
                 Category = prediction.Transaction.Category,
                 Amount = prediction.Transaction.Amount,
+                OldBalanceOrigin = prediction.Transaction.OldBalanceOrigin,
+                NewBalanceOrigin = prediction.Transaction.NewBalanceOrigin,
+                OldBalanceDestination = prediction.Transaction.OldBalanceDestination,
+                NewBalanceDestination = prediction.Transaction.NewBalanceDestination,
                 Currency = prediction.Transaction.Currency,
                 TransactionType = prediction.Transaction.TransactionType,
                 CreatedAt = prediction.Transaction.CreatedAt
@@ -574,18 +605,50 @@ public class AdminController : ControllerBase
             .FirstOrDefault();
     }
 
-    private async Task<TransactionRiskResult> ScoreTransactionAsync(Transaction transaction, CancellationToken cancellationToken)
+    private static TransactionBalanceValues ResolveBalances(Transaction transaction, AnalyzeTransactionRequest? request)
+    {
+        return new TransactionBalanceValues(
+            request?.OldBalanceOrigin ?? transaction.OldBalanceOrigin,
+            request?.NewBalanceOrigin ?? transaction.NewBalanceOrigin,
+            request?.OldBalanceDestination ?? transaction.OldBalanceDestination,
+            request?.NewBalanceDestination ?? transaction.NewBalanceDestination);
+    }
+
+    private static string[] ValidateBalances(TransactionBalanceValues balances)
+    {
+        var errors = new List<string>();
+        AddRequiredBalanceError(errors, balances.OldBalanceOrigin, "Old Balance Origin");
+        AddRequiredBalanceError(errors, balances.NewBalanceOrigin, "New Balance Origin");
+        AddRequiredBalanceError(errors, balances.OldBalanceDestination, "Old Balance Destination");
+        AddRequiredBalanceError(errors, balances.NewBalanceDestination, "New Balance Destination");
+        return errors.ToArray();
+    }
+
+    private static void AddRequiredBalanceError(List<string> errors, decimal? value, string label)
+    {
+        if (!value.HasValue)
+        {
+            errors.Add($"{label} is required before analyzing a stored transaction.");
+            return;
+        }
+
+        if (value.Value < 0)
+        {
+            errors.Add($"{label} cannot be negative.");
+        }
+    }
+
+    private static void ApplyBalances(Transaction transaction, CreatePredictionRequest request)
+    {
+        transaction.OldBalanceOrigin = request.OldBalanceOriginValue;
+        transaction.NewBalanceOrigin = request.NewBalanceOriginValue;
+        transaction.OldBalanceDestination = request.OldBalanceDestinationValue;
+        transaction.NewBalanceDestination = request.NewBalanceDestinationValue;
+    }
+
+    private async Task<TransactionRiskResult> ScoreTransactionAsync(Transaction transaction, CreatePredictionRequest mlRequest, CancellationToken cancellationToken)
     {
         var ruleResult = ScoreTransaction(transaction);
-        var mlRequest = new CreatePredictionRequest
-        {
-            TransactionType = NormalizeTransactionType(transaction.TransactionType),
-            Amount = transaction.Amount,
-            OldBalanceOrigin = transaction.Amount,
-            NewBalanceOrigin = 0,
-            OldBalanceDestination = 0,
-            NewBalanceDestination = transaction.Amount
-        };
 
         try
         {
@@ -711,24 +774,30 @@ public class AdminController : ControllerBase
             score,
             MapRiskLevel(score),
             status,
-            BuildDerivedPredictionFactors(transaction).Concat(BuildReasonSections(riskFactors, protectiveFactors)).ToArray(),
+            BuildStoredTransactionFactors(transaction).Concat(BuildReasonSections(riskFactors, protectiveFactors)).ToArray(),
             SuggestedActionForScore(score),
             score >= 70 ? 0.92 : score >= 40 ? 0.78 : 0.72);
     }
 
-    private static string[] BuildDerivedPredictionFactors(Transaction transaction)
+    private static string[] BuildStoredTransactionFactors(Transaction transaction)
     {
         var normalizedType = NormalizeTransactionType(transaction.TransactionType);
-        var originDelta = transaction.Amount;
-        var destinationDelta = transaction.Amount;
         var factors = new List<string>
         {
             $"Input Values|Transaction amount is {transaction.Amount:N2}.",
-            $"Input Values|Transaction type is {normalizedType}.",
-            $"Balance Movement|Saved transaction analysis uses derived origin balances: {transaction.Amount:N2} to 0.00, a decrease of {originDelta:N2}.",
-            $"Balance Movement|Saved transaction analysis uses derived destination balances: 0.00 to {transaction.Amount:N2}, an increase of {destinationDelta:N2}.",
-            "Risk Factors|Derived destination account starts with a zero balance for the ML transaction analysis."
+            $"Input Values|Transaction type is {normalizedType}."
         };
+
+        if (!HasCompleteBalanceData(transaction))
+        {
+            factors.Add("Balance Movement|Balance data was not provided, so balance-based risk factors were not evaluated.");
+            return factors.ToArray();
+        }
+
+        var originDelta = transaction.OldBalanceOrigin!.Value - transaction.NewBalanceOrigin!.Value;
+        var destinationDelta = transaction.NewBalanceDestination!.Value - transaction.OldBalanceDestination!.Value;
+        factors.Add($"Balance Movement|Origin balance changed from {transaction.OldBalanceOrigin:N2} to {transaction.NewBalanceOrigin:N2}, a decrease of {originDelta:N2}.");
+        factors.Add($"Balance Movement|Destination balance changed from {transaction.OldBalanceDestination:N2} to {transaction.NewBalanceDestination:N2}, an increase of {destinationDelta:N2}.");
 
         if ((normalizedType == "TRANSFER" || normalizedType == "CASH_OUT") && transaction.Amount > 100000)
         {
@@ -743,10 +812,31 @@ public class AdminController : ControllerBase
             factors.Add($"Protective Factors|Transaction type {normalizedType} is lower risk in this rule set.");
         }
 
-        factors.Add("Protective Factors|Derived origin balance movement is consistent with the transaction amount.");
-        factors.Add("Protective Factors|Derived destination balance movement is consistent with an incoming transfer.");
+        if (transaction.NewBalanceOrigin == 0)
+        {
+            factors.Add("Risk Factors|Origin account was emptied after the transaction.");
+        }
+
+        var originInconsistent = transaction.Amount > 0 && Math.Abs(originDelta - transaction.Amount) > transaction.Amount * 0.25m;
+        var destinationInconsistent = transaction.Amount > 0 && Math.Abs(destinationDelta - transaction.Amount) > transaction.Amount * 0.25m;
+        if (originInconsistent || destinationInconsistent)
+        {
+            factors.Add("Risk Factors|Balance movement differs materially from the transaction amount.");
+        }
+        else
+        {
+            factors.Add("Protective Factors|Provided balance movement is consistent with the transaction amount.");
+        }
 
         return factors.ToArray();
+    }
+
+    private static bool HasCompleteBalanceData(Transaction transaction)
+    {
+        return transaction.OldBalanceOrigin.HasValue
+            && transaction.NewBalanceOrigin.HasValue
+            && transaction.OldBalanceDestination.HasValue
+            && transaction.NewBalanceDestination.HasValue;
     }
 
     private async Task<bool> UpsertAlertAsync(Transaction transaction, Prediction prediction, CancellationToken cancellationToken)
@@ -916,6 +1006,8 @@ public class AdminController : ControllerBase
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
+
+    private sealed record TransactionBalanceValues(decimal? OldBalanceOrigin, decimal? NewBalanceOrigin, decimal? OldBalanceDestination, decimal? NewBalanceDestination);
 
     private sealed record TransactionRiskResult(int RiskScore, string RiskLevel, string Status, string[] Reasons, string SuggestedAction, double Confidence);
 }

@@ -19,6 +19,10 @@ public class AdminTransactionDto
     public string Country { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public decimal Amount { get; set; }
+    public decimal? OldBalanceOrigin { get; set; }
+    public decimal? NewBalanceOrigin { get; set; }
+    public decimal? OldBalanceDestination { get; set; }
+    public decimal? NewBalanceDestination { get; set; }
     public string Currency { get; set; } = string.Empty;
     public string TransactionType { get; set; } = string.Empty;
     public int? RiskScore { get; set; }
@@ -45,6 +49,10 @@ public class AdminPredictionDto
     public string Country { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public decimal Amount { get; set; }
+    public decimal? OldBalanceOrigin { get; set; }
+    public decimal? NewBalanceOrigin { get; set; }
+    public decimal? OldBalanceDestination { get; set; }
+    public decimal? NewBalanceDestination { get; set; }
     public string Currency { get; set; } = string.Empty;
     public string TransactionType { get; set; } = string.Empty;
     public int RiskScore { get; set; }
@@ -99,6 +107,10 @@ public class AdminTransactionInfoDto
     public string Country { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public decimal Amount { get; set; }
+    public decimal? OldBalanceOrigin { get; set; }
+    public decimal? NewBalanceOrigin { get; set; }
+    public decimal? OldBalanceDestination { get; set; }
+    public decimal? NewBalanceDestination { get; set; }
     public string Currency { get; set; } = string.Empty;
     public string TransactionType { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }

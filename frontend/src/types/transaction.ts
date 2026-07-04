@@ -9,6 +9,10 @@ export interface Transaction {
   category: string;
   country: string;
   amount: number;
+  oldBalanceOrigin?: number | null;
+  newBalanceOrigin?: number | null;
+  oldBalanceDestination?: number | null;
+  newBalanceDestination?: number | null;
   currency: string;
   riskScore: number | null;
   status: TransactionStatus;

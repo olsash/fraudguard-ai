@@ -1,5 +1,6 @@
 import { apiGet, apiPost } from "@/services/api";
 import type { AdminFilters, AdminPagedResult, AdminTransaction, AdminTransactionAnalysis, AdminTransactionDetail } from "@/types/admin";
+import type { TransactionBalanceInput } from "@/types/prediction";
 
 function toQuery(filters?: AdminFilters) {
   const params = new URLSearchParams();
@@ -31,7 +32,7 @@ export const adminTransactionService = {
     return apiGet<AdminTransactionDetail>(`/admin/transactions/${id}`);
   },
 
-  analyzeTransaction(id: number): Promise<AdminTransactionAnalysis> {
-    return apiPost<AdminTransactionAnalysis>(`/admin/transactions/${id}/analyze`, {});
+  analyzeTransaction(id: number, balances?: TransactionBalanceInput): Promise<AdminTransactionAnalysis> {
+    return apiPost<AdminTransactionAnalysis>(`/admin/transactions/${id}/analyze`, balances ?? {});
   },
 };

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -22,9 +23,11 @@ namespace FraudGuard.Api.Tests;
 public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
 {
     private readonly HttpClient _client;
+    private readonly PredictionApiFactory _factory;
 
     public PredictionEndpointTests(PredictionApiFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -130,6 +133,120 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         await AssertValidationError(response, expectedMessage);
     }
 
+    [Fact]
+    public async Task PredictTransaction_WithMissingBalances_ReturnsValidationAndKeepsNullBalances()
+    {
+        var transactionId = await CreateStoredTransactionAsync(2500m, "TRANSFER");
+
+        var response = await _client.PostAsJsonAsync($"/api/predictions/predict-transaction/{transactionId}", new { });
+
+        await AssertValidationError(response, "Old Balance Origin is required before analyzing a stored transaction.");
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var transaction = await dbContext.Transactions.Include(item => item.Predictions).FirstAsync(item => item.Id == transactionId);
+        Assert.Null(transaction.OldBalanceOrigin);
+        Assert.Null(transaction.NewBalanceOrigin);
+        Assert.Null(transaction.OldBalanceDestination);
+        Assert.Null(transaction.NewBalanceDestination);
+        Assert.Empty(transaction.Predictions);
+    }
+
+    [Fact]
+    public async Task PredictTransaction_WithProvidedBalances_SavesPredictionAndUpdatesTransaction()
+    {
+        var transactionId = await CreateStoredTransactionAsync(1000000m, "CASH_OUT");
+        var balances = StoredBalanceRequest();
+
+        var response = await _client.PostAsJsonAsync($"/api/predictions/predict-transaction/{transactionId}", balances);
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<TransactionPredictionResponseBody>();
+        Assert.NotNull(body);
+        Assert.Equal("fraud", body.Status);
+        Assert.Contains(body.Explanation, reason => reason.Contains("Origin balance changed from 1,000,000.00 to 0.00", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(body.Explanation, reason => reason.Contains("derived", StringComparison.OrdinalIgnoreCase));
+
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var transaction = await dbContext.Transactions.Include(item => item.Predictions).FirstAsync(item => item.Id == transactionId);
+        var prediction = Assert.Single(transaction.Predictions);
+        Assert.Equal(1000000m, transaction.OldBalanceOrigin);
+        Assert.Equal(0m, transaction.NewBalanceOrigin);
+        Assert.Equal(0m, transaction.OldBalanceDestination);
+        Assert.Equal(1000000m, transaction.NewBalanceDestination);
+        Assert.Equal(transaction.OldBalanceOrigin, prediction.OldBalanceOrigin);
+        Assert.Equal(transaction.NewBalanceOrigin, prediction.NewBalanceOrigin);
+        Assert.Equal(transaction.OldBalanceDestination, prediction.OldBalanceDestination);
+        Assert.Equal(transaction.NewBalanceDestination, prediction.NewBalanceDestination);
+    }
+
+    [Fact]
+    public async Task PredictTransaction_ReusesStoredBalancesOnFutureAnalyze()
+    {
+        var transactionId = await CreateStoredTransactionAsync(1000000m, "CASH_OUT");
+        var balances = StoredBalanceRequest();
+
+        var first = await _client.PostAsJsonAsync($"/api/predictions/predict-transaction/{transactionId}", balances);
+        first.EnsureSuccessStatusCode();
+        var second = await _client.PostAsJsonAsync($"/api/predictions/predict-transaction/{transactionId}", new { });
+        second.EnsureSuccessStatusCode();
+
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var predictions = await dbContext.Predictions
+            .Where(item => item.TransactionId == transactionId)
+            .OrderBy(item => item.Id)
+            .ToListAsync();
+
+        Assert.Equal(2, predictions.Count);
+        Assert.All(predictions, prediction =>
+        {
+            Assert.Equal(1000000m, prediction.OldBalanceOrigin);
+            Assert.Equal(0m, prediction.NewBalanceOrigin);
+            Assert.Equal(0m, prediction.OldBalanceDestination);
+            Assert.Equal(1000000m, prediction.NewBalanceDestination);
+        });
+    }
+
+    [Fact]
+    public async Task PredictionHistory_ForLegacyPredictionWithoutTransactionBalances_UsesNeutralBalanceBreakdown()
+    {
+        var transactionId = await CreateStoredTransactionAsync(1000m, "TRANSFER");
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            dbContext.Predictions.Add(new Prediction
+            {
+                UserId = 99,
+                TransactionId = transactionId,
+                TransactionType = "TRANSFER",
+                Amount = 1000m,
+                OldBalanceOrigin = 0m,
+                NewBalanceOrigin = 0m,
+                OldBalanceDestination = 0m,
+                NewBalanceDestination = 0m,
+                RiskScore = 45,
+                RiskLevel = "Medium",
+                IsFraud = false,
+                Confidence = 0.78,
+                Explanation = "[]",
+                SuggestedAction = "Manual verification recommended",
+                CreatedAt = DateTime.UtcNow
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var response = await _client.GetAsync("/api/predictions/my");
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<PredictionResponseBody[]>();
+        var prediction = Assert.Single(body!, item => item.TransactionId == transactionId);
+        var factor = Assert.Single(prediction.RiskBreakdown);
+        Assert.Equal("Neutral", factor.Impact);
+        Assert.Contains("Balance data was not provided", factor.Explanation);
+        Assert.DoesNotContain(prediction.RiskBreakdown, item => item.Explanation.Contains("Origin balance did not decrease", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static Dictionary<string, object> SafePredictionRequest()
     {
         return new Dictionary<string, object>
@@ -156,15 +273,65 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         };
     }
 
+    private async Task<int> CreateStoredTransactionAsync(decimal amount, string transactionType)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var transaction = new Transaction
+        {
+            UserId = 99,
+            Merchant = $"Test Merchant {Guid.NewGuid():N}",
+            Category = "Money Transfer",
+            Country = "United States",
+            Amount = amount,
+            Currency = "USD",
+            RiskScore = null,
+            Status = "pending",
+            TransactionType = transactionType,
+            Description = "Stored transaction analysis test",
+            CreatedAt = DateTime.UtcNow
+        };
+        dbContext.Transactions.Add(transaction);
+        await dbContext.SaveChangesAsync();
+        return transaction.Id;
+    }
+
+    private static Dictionary<string, object> StoredBalanceRequest()
+    {
+        return new Dictionary<string, object>
+        {
+            ["oldBalanceOrigin"] = 1000000,
+            ["newBalanceOrigin"] = 0,
+            ["oldBalanceDestination"] = 0,
+            ["newBalanceDestination"] = 1000000
+        };
+    }
+
     private static async Task AssertValidationError(HttpResponseMessage response, string expectedMessage)
     {
         var content = await response.Content.ReadAsStringAsync();
-        var validationBody = JsonSerializer.Deserialize<ValidationProblemResponse>(content, JsonOptions);
-        var errorBody = JsonSerializer.Deserialize<ErrorResponse>(content, JsonOptions);
-        var messages = validationBody?.Errors.SelectMany(error => error.Value).ToArray() ?? [];
-        if (!string.IsNullOrWhiteSpace(errorBody?.Message))
+        var messages = new List<string>();
+        using var document = JsonDocument.Parse(content);
+        if (document.RootElement.TryGetProperty("message", out var messageElement)
+            && messageElement.ValueKind == JsonValueKind.String
+            && !string.IsNullOrWhiteSpace(messageElement.GetString()))
         {
-            messages = [.. messages, errorBody.Message];
+            messages.Add(messageElement.GetString()!);
+        }
+
+        if (document.RootElement.TryGetProperty("errors", out var errorsElement))
+        {
+            if (errorsElement.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in errorsElement.EnumerateObject())
+                {
+                    messages.AddRange(property.Value.EnumerateArray().Select(item => item.GetString()).Where(item => !string.IsNullOrWhiteSpace(item))!);
+                }
+            }
+            else if (errorsElement.ValueKind == JsonValueKind.Array)
+            {
+                messages.AddRange(errorsElement.EnumerateArray().Select(item => item.GetString()).Where(item => !string.IsNullOrWhiteSpace(item))!);
+            }
         }
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -180,6 +347,8 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
 
     private sealed class PredictionResponseBody
     {
+        public int? TransactionId { get; set; }
+
         public string PredictedClass { get; set; } = string.Empty;
 
         public int RiskScore { get; set; }
@@ -197,6 +366,17 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         public string[] Reasons { get; set; } = [];
 
         public RiskBreakdownFactorBody[] RiskBreakdown { get; set; } = [];
+    }
+
+    private sealed class TransactionPredictionResponseBody
+    {
+        public int TransactionId { get; set; }
+
+        public int PredictionId { get; set; }
+
+        public string Status { get; set; } = string.Empty;
+
+        public string[] Explanation { get; set; } = [];
     }
 
     private sealed class RiskBreakdownFactorBody
@@ -221,6 +401,8 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
 
 public sealed class PredictionApiFactory : WebApplicationFactory<Program>
 {
+    private readonly InMemoryDatabaseRoot _databaseRoot = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -232,7 +414,7 @@ public sealed class PredictionApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<DbContextOptions>();
             services.RemoveAll<IDbContextOptionsConfiguration<AppDbContext>>();
             services.AddDbContext<AppDbContext>(options =>
-                options.UseInMemoryDatabase($"prediction-tests-{Guid.NewGuid()}"));
+                options.UseInMemoryDatabase("prediction-tests", _databaseRoot));
 
             services.AddAuthentication(TestAuthHandler.SchemeName)
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });

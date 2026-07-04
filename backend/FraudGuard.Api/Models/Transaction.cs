@@ -21,6 +21,14 @@ public class Transaction
 
     public decimal Amount { get; set; }
 
+    public decimal? OldBalanceOrigin { get; set; }
+
+    public decimal? NewBalanceOrigin { get; set; }
+
+    public decimal? OldBalanceDestination { get; set; }
+
+    public decimal? NewBalanceDestination { get; set; }
+
     [MaxLength(10)]
     public string Currency { get; set; } = "USD";
 

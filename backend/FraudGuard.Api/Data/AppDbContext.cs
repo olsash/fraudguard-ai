@@ -93,6 +93,10 @@ public class AppDbContext : DbContext
             entity.Property(transaction => transaction.Category).IsRequired().HasMaxLength(100);
             entity.Property(transaction => transaction.Country).IsRequired().HasMaxLength(100);
             entity.Property(transaction => transaction.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(transaction => transaction.OldBalanceOrigin).HasColumnType("decimal(18,2)");
+            entity.Property(transaction => transaction.NewBalanceOrigin).HasColumnType("decimal(18,2)");
+            entity.Property(transaction => transaction.OldBalanceDestination).HasColumnType("decimal(18,2)");
+            entity.Property(transaction => transaction.NewBalanceDestination).HasColumnType("decimal(18,2)");
             entity.Property(transaction => transaction.Currency).IsRequired().HasMaxLength(10);
             entity.Property(transaction => transaction.Status).IsRequired().HasMaxLength(20);
             entity.Property(transaction => transaction.TransactionType).IsRequired().HasMaxLength(30);

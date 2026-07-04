@@ -1,30 +1,15 @@
 import { apiDownload, apiGet, apiPost } from "@/services/api";
 import type {
-  PredictionInput,
   PredictionResult,
+  TransactionBalanceInput,
   TransactionPredictionResult,
 } from "@/types/prediction";
 
 export const predictionService = {
-  predict(input: PredictionInput): Promise<PredictionResult> {
-    return apiPost<PredictionResult>("/predictions", input);
-  },
-
-  advancedTest(input: PredictionInput): Promise<PredictionResult> {
-    return apiPost<PredictionResult>("/predictions/advanced-test", {
-      transactionType: input.transactionType,
-      amount: input.amount,
-      oldBalanceOrg: input.oldBalanceOrigin,
-      newBalanceOrig: input.newBalanceOrigin,
-      oldBalanceDest: input.oldBalanceDestination,
-      newBalanceDest: input.newBalanceDestination,
-    });
-  },
-
-  predictTransaction(transactionId: number): Promise<TransactionPredictionResult> {
+  predictTransaction(transactionId: number, balances?: TransactionBalanceInput): Promise<TransactionPredictionResult> {
     return apiPost<TransactionPredictionResult>(
       `/predictions/predict-transaction/${transactionId}`,
-      {},
+      balances ?? {},
     );
   },
 

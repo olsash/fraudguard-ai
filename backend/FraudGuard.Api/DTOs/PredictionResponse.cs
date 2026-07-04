@@ -96,3 +96,14 @@ public class TransactionPredictionResponse
 
     public DateTime CreatedAt { get; set; }
 }
+
+public class AnalyzeTransactionRequest
+{
+    public decimal? OldBalanceOrigin { get; set; }
+
+    public decimal? NewBalanceOrigin { get; set; }
+
+    public decimal? OldBalanceDestination { get; set; }
+
+    public decimal? NewBalanceDestination { get; set; }
+}

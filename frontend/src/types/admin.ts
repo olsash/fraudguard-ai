@@ -41,6 +41,10 @@ export interface AdminTransaction {
   country: string;
   category: string;
   amount: number;
+  oldBalanceOrigin?: number | null;
+  newBalanceOrigin?: number | null;
+  oldBalanceDestination?: number | null;
+  newBalanceDestination?: number | null;
   currency: string;
   transactionType: string;
   riskScore: number | null;
@@ -100,6 +104,10 @@ export interface AdminPredictionDetail extends AdminPrediction {
     country: string;
     category: string;
     amount: number;
+    oldBalanceOrigin?: number | null;
+    newBalanceOrigin?: number | null;
+    oldBalanceDestination?: number | null;
+    newBalanceDestination?: number | null;
     currency: string;
     transactionType: string;
     createdAt: string;

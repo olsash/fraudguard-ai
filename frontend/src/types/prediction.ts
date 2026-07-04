@@ -10,6 +10,13 @@ export interface PredictionInput {
   newBalanceDestination: number;
 }
 
+export interface TransactionBalanceInput {
+  oldBalanceOrigin: number;
+  newBalanceOrigin: number;
+  oldBalanceDestination: number;
+  newBalanceDestination: number;
+}
+
 export interface RiskBreakdownFactor {
   factor: string;
   impact: "High risk" | "Risk" | "Neutral" | "Protective" | string;
