@@ -1,6 +1,8 @@
 import { FraudSelect } from "@/components/common/FraudSelect";
 import { Topbar } from "@/components/layout/Topbar";
+import { bankingService } from "@/services/bankingService";
 import { transactionService } from "@/services/transactionService";
+import type { BankAccount, Beneficiary, Merchant } from "@/types/banking";
 import type { CreateTransactionInput, Transaction, TransactionFilters, TransactionStatus } from "@/types/transaction";
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronRight, Download, Loader2, Plus, Search, Sparkles, X } from "lucide-react";
@@ -9,11 +11,11 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/utils/formatters";
 
 const initialForm = {
-  merchant: "",
-  category: "",
-  country: "",
+  sourceBankAccountId: "",
+  merchantId: "",
+  beneficiaryId: "",
   amount: "",
-  currency: "EUR",
+  currency: "",
   transactionType: "PAYMENT",
   description: "",
 };
@@ -59,11 +61,33 @@ export default function TxPage() {
   const [form, setForm] = useState<TransactionForm>(initialForm);
   const [saving, setSaving] = useState(false);
   const [predictingId, setPredictingId] = useState<number | null>(null);
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
+  const [merchants, setMerchants] = useState<Merchant[]>([]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => void loadTransactions(), 250);
     return () => window.clearTimeout(timeout);
   }, [filters.search, filters.status, filters.fromDate, filters.toDate]);
+
+  useEffect(() => {
+    void loadBankingData();
+  }, []);
+
+  async function loadBankingData() {
+    try {
+      const [accountRows, beneficiaryRows, merchantRows] = await Promise.all([
+        bankingService.getAccounts(),
+        bankingService.getBeneficiaries(),
+        bankingService.getMerchants(),
+      ]);
+      setAccounts(accountRows);
+      setBeneficiaries(beneficiaryRows);
+      setMerchants(merchantRows);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to load banking selections.");
+    }
+  }
 
   async function loadTransactions() {
     setLoading(true);
@@ -89,13 +113,34 @@ export default function TxPage() {
       return;
     }
 
+    const sourceBankAccountId = Number(form.sourceBankAccountId);
+    if (!Number.isInteger(sourceBankAccountId) || sourceBankAccountId <= 0) {
+      setError("Select a source account.");
+      return;
+    }
+
+    const selectedAccount = accounts.find((account) => account.id === sourceBankAccountId);
+    const transactionType = form.transactionType;
+    const merchantId = Number(form.merchantId);
+    const beneficiaryId = Number(form.beneficiaryId);
+
+    if (transactionType === "PAYMENT" && (!Number.isInteger(merchantId) || merchantId <= 0)) {
+      setError("Select a merchant for payment transactions.");
+      return;
+    }
+
+    if (transactionType === "TRANSFER" && (!Number.isInteger(beneficiaryId) || beneficiaryId <= 0)) {
+      setError("Select a beneficiary for transfer transactions.");
+      return;
+    }
+
     const payload: CreateTransactionInput = {
-      merchant: form.merchant,
-      category: form.category,
-      country: form.country,
+      sourceBankAccountId,
+      merchantId: transactionType === "PAYMENT" ? merchantId : null,
+      beneficiaryId: transactionType === "TRANSFER" ? beneficiaryId : null,
       amount,
-      currency: form.currency || "EUR",
-      transactionType: form.transactionType,
+      currency: selectedAccount?.currency ?? "EUR",
+      transactionType,
       description: form.description || null,
     };
 
@@ -203,6 +248,9 @@ export default function TxPage() {
       {showCreate && (
         <CreateTransactionModal
           form={form}
+          accounts={accounts}
+          beneficiaries={beneficiaries}
+          merchants={merchants}
           saving={saving}
           onChange={setForm}
           onClose={() => setShowCreate(false)}
@@ -283,6 +331,7 @@ function TxModal({ tx, predicting, onPredict, onClose }: { tx: Transaction; pred
       <div className="grid grid-cols-2 gap-3 mt-6 text-sm">
         {[
           ["Merchant", tx.merchant], ["Category", tx.category], ["Country", tx.country],
+          ["Source account", tx.sourceAccount ?? "Not linked"], ["Beneficiary", tx.beneficiaryName ?? "Not applicable"],
           ["Amount", formatCurrency(tx.amount, tx.currency)], ["Risk score", tx.riskScore == null ? "Pending" : `${tx.riskScore}/100`],
           ["Time", formatDateTime(tx.createdAt)], ["Currency", tx.currency], ["Type", tx.transactionType],
         ].map(([key, value]) => <Metric key={key} label={key} value={value} />)}
@@ -314,19 +363,81 @@ function TxModal({ tx, predicting, onPredict, onClose }: { tx: Transaction; pred
   );
 }
 
-function CreateTransactionModal({ form, saving, onChange, onClose, onSubmit }: { form: TransactionForm; saving: boolean; onChange: (form: TransactionForm) => void; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
+function CreateTransactionModal({
+  form,
+  accounts,
+  beneficiaries,
+  merchants,
+  saving,
+  onChange,
+  onClose,
+  onSubmit,
+}: {
+  form: TransactionForm;
+  accounts: BankAccount[];
+  beneficiaries: Beneficiary[];
+  merchants: Merchant[];
+  saving: boolean;
+  onChange: (form: TransactionForm) => void;
+  onClose: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
   const update = (key: keyof TransactionForm, value: string) => onChange({ ...form, [key]: value });
+  const activeAccounts = accounts.filter((account) => account.isActive);
+  const selectedAccount = activeAccounts.find((account) => String(account.id) === form.sourceBankAccountId);
+  const selectedMerchant = merchants.find((merchant) => String(merchant.id) === form.merchantId);
+  const selectedBeneficiary = beneficiaries.find((beneficiary) => String(beneficiary.id) === form.beneficiaryId);
+
   return (
     <Modal title="Add Transaction" onClose={onClose}>
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid md:grid-cols-2 gap-3">
-          <Field label="Merchant" value={form.merchant} onChange={(value) => update("merchant", value)} required />
-          <SearchableSelect label="Category" value={form.category} options={categories} placeholder="Select category" onChange={(value) => update("category", value)} />
-          <SearchableSelect label="Country" value={form.country} options={countries} placeholder="Select country" onChange={(value) => update("country", value)} />
+          <Select
+            label="Source account"
+            value={form.sourceBankAccountId}
+            options={activeAccounts.map((account) => ({
+              value: String(account.id),
+              label: `${account.bankName} ${account.maskedAccountNumber} - ${formatCurrency(account.currentBalance, account.currency)}`,
+            }))}
+            placeholder="Select source account"
+            onChange={(value) => update("sourceBankAccountId", value)}
+          />
+          <Select label="Transaction Type" value={form.transactionType} options={["PAYMENT", "TRANSFER", "CASH_OUT", "CASH_IN", "DEBIT"]} onChange={(value) => {
+            onChange({ ...form, transactionType: value, merchantId: "", beneficiaryId: "" });
+          }} />
+          {form.transactionType === "PAYMENT" && (
+            <SearchableOptionSelect
+              label="Merchant"
+              value={form.merchantId}
+              options={merchants.map((merchant) => ({
+                value: String(merchant.id),
+                label: `${merchant.name} - ${merchant.category}, ${merchant.country}`,
+              }))}
+              placeholder="Search merchants"
+              onChange={(value) => update("merchantId", value)}
+            />
+          )}
+          {form.transactionType === "TRANSFER" && (
+            <SearchableOptionSelect
+              label="Beneficiary"
+              value={form.beneficiaryId}
+              options={beneficiaries.map((beneficiary) => ({
+                value: String(beneficiary.id),
+                label: `${beneficiary.fullName} - ${beneficiary.bankName} ${beneficiary.maskedAccountReference}`,
+              }))}
+              placeholder="Search beneficiaries"
+              onChange={(value) => update("beneficiaryId", value)}
+            />
+          )}
           <Field label="Amount" type="number" value={form.amount} onChange={(value) => update("amount", value)} required min="0.01" step="0.01" />
-          <Field label="Currency" value={form.currency} onChange={(value) => update("currency", value)} required />
-          <Select label="Transaction Type" value={form.transactionType} options={["PAYMENT", "TRANSFER", "CASH_OUT", "CASH_IN", "DEBIT"]} onChange={(value) => update("transactionType", value)} />
+          <Field label="Currency" value={selectedAccount?.currency ?? ""} onChange={() => undefined} required readOnly />
         </div>
+        {(selectedMerchant || selectedBeneficiary) && (
+          <div className="glass rounded-lg p-3 text-sm text-muted-foreground">
+            {selectedMerchant && <span>{selectedMerchant.category} merchant in {selectedMerchant.country}. Risk level: {selectedMerchant.riskLevel}.</span>}
+            {selectedBeneficiary && <span>Transfer to {selectedBeneficiary.bankName} account {selectedBeneficiary.maskedAccountReference}.</span>}
+          </div>
+        )}
         <label className="block">
           <span className="text-xs text-muted-foreground">Description</span>
           <textarea value={form.description} onChange={(event) => update("description", event.target.value)} className="mt-1 min-h-20 w-full glass rounded-lg px-3 py-2.5 text-sm bg-transparent outline-none focus:ring-1 focus:ring-primary/60" />
@@ -354,14 +465,16 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
   );
 }
 
-function Field({ label, value, onChange, type = "text", required, min, step }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean; min?: string; step?: string }) {
+function Field({ label, value, onChange, type = "text", required, min, step, readOnly }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean; min?: string; step?: string; readOnly?: boolean }) {
   return (
     <label className="block">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <input type={type} value={value} required={required} min={min} step={step} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full glass rounded-lg px-3 py-2.5 text-sm bg-transparent outline-none focus:ring-1 focus:ring-primary/60" />
+      <input type={type} value={value} required={required} min={min} step={step} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full glass rounded-lg px-3 py-2.5 text-sm bg-transparent outline-none focus:ring-1 focus:ring-primary/60 read-only:text-muted-foreground" />
     </label>
   );
 }
+
+type SelectOption = { value: string; label: string };
 
 function SearchableSelect({
   label,
@@ -440,7 +553,84 @@ function SearchableSelect({
   );
 }
 
-function Select({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+function SearchableOptionSelect({
+  label,
+  value,
+  options,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: SelectOption[];
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const selected = options.find((option) => option.value === value);
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return term ? options.filter((option) => option.label.toLowerCase().includes(term)) : options;
+  }, [options, query]);
+
+  return (
+    <label className="block relative">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <input
+        value={open ? query : selected?.label ?? ""}
+        required
+        placeholder={placeholder}
+        onFocus={() => {
+          setOpen(true);
+          setQuery("");
+        }}
+        onChange={(event) => {
+          setQuery(event.target.value);
+          setOpen(true);
+        }}
+        onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+        className="mt-1 w-full glass rounded-lg px-3 py-2.5 text-sm bg-background/60 text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/60"
+      />
+      {open && (
+        <div className="scrollbar-thin absolute z-[80] mt-2 max-h-60 w-full overflow-y-auto rounded-xl border border-border/80 bg-popover/95 p-1 pr-2 shadow-[0_24px_70px_-32px_black] backdrop-blur-xl">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
+          ) : filtered.map((option) => (
+            <button
+              type="button"
+              key={option.value}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                onChange(option.value);
+                setQuery("");
+                setOpen(false);
+              }}
+              className={`block w-full truncate rounded-lg px-3 py-2 text-left text-sm transition-colors ${option.value === value ? "bg-primary/15 text-primary" : "text-foreground hover:bg-primary/10 hover:text-primary"}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </label>
+  );
+}
+
+function Select({
+  label,
+  value,
+  options,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[] | SelectOption[];
+  placeholder?: string;
+  onChange: (value: string) => void;
+}) {
+  const normalizedOptions = options.map((option) => typeof option === "string" ? { value: option, label: option } : option);
   return (
     <label className="block">
       <span className="text-xs text-muted-foreground">{label}</span>
@@ -448,7 +638,8 @@ function Select({ label, value, options, onChange }: { label: string; value: str
         <FraudSelect
           value={value}
           onValueChange={onChange}
-          options={options.map((option) => ({ value: option, label: option }))}
+          options={normalizedOptions}
+          placeholder={placeholder}
           ariaLabel={label}
           triggerClassName="min-h-10 w-full px-3 py-2.5 text-sm"
         />

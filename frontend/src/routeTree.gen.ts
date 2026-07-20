@@ -26,7 +26,9 @@ import { Route as AppPredictFraudRouteImport } from './routes/app/predict-fraud'
 import { Route as AppPredictRouteImport } from './routes/app/predict'
 import { Route as AppPipelineRouteImport } from './routes/app/pipeline'
 import { Route as AppModelsRouteImport } from './routes/app/models'
+import { Route as AppBeneficiariesRouteImport } from './routes/app/beneficiaries'
 import { Route as AppAlertsRouteImport } from './routes/app/alerts'
+import { Route as AppAccountsRouteImport } from './routes/app/accounts'
 import { Route as AnalystTransactionsRouteImport } from './routes/analyst/transactions'
 import { Route as AnalystReviewQueueRouteImport } from './routes/analyst/review-queue'
 import { Route as AnalystReportsRouteImport } from './routes/analyst/reports'
@@ -128,9 +130,19 @@ const AppModelsRoute = AppModelsRouteImport.update({
   path: '/app/models',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppBeneficiariesRoute = AppBeneficiariesRouteImport.update({
+  id: '/app/beneficiaries',
+  path: '/app/beneficiaries',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppAlertsRoute = AppAlertsRouteImport.update({
   id: '/app/alerts',
   path: '/app/alerts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppAccountsRoute = AppAccountsRouteImport.update({
+  id: '/app/accounts',
+  path: '/app/accounts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalystTransactionsRoute = AnalystTransactionsRouteImport.update({
@@ -230,7 +242,9 @@ export interface FileRoutesByFullPath {
   '/analyst/reports': typeof AnalystReportsRoute
   '/analyst/review-queue': typeof AnalystReviewQueueRoute
   '/analyst/transactions': typeof AnalystTransactionsRoute
+  '/app/accounts': typeof AppAccountsRoute
   '/app/alerts': typeof AppAlertsRoute
+  '/app/beneficiaries': typeof AppBeneficiariesRoute
   '/app/models': typeof AppModelsRoute
   '/app/pipeline': typeof AppPipelineRoute
   '/app/predict': typeof AppPredictRoute
@@ -265,7 +279,9 @@ export interface FileRoutesByTo {
   '/analyst/reports': typeof AnalystReportsRoute
   '/analyst/review-queue': typeof AnalystReviewQueueRoute
   '/analyst/transactions': typeof AnalystTransactionsRoute
+  '/app/accounts': typeof AppAccountsRoute
   '/app/alerts': typeof AppAlertsRoute
+  '/app/beneficiaries': typeof AppBeneficiariesRoute
   '/app/models': typeof AppModelsRoute
   '/app/pipeline': typeof AppPipelineRoute
   '/app/predict': typeof AppPredictRoute
@@ -301,7 +317,9 @@ export interface FileRoutesById {
   '/analyst/reports': typeof AnalystReportsRoute
   '/analyst/review-queue': typeof AnalystReviewQueueRoute
   '/analyst/transactions': typeof AnalystTransactionsRoute
+  '/app/accounts': typeof AppAccountsRoute
   '/app/alerts': typeof AppAlertsRoute
+  '/app/beneficiaries': typeof AppBeneficiariesRoute
   '/app/models': typeof AppModelsRoute
   '/app/pipeline': typeof AppPipelineRoute
   '/app/predict': typeof AppPredictRoute
@@ -338,7 +356,9 @@ export interface FileRouteTypes {
     | '/analyst/reports'
     | '/analyst/review-queue'
     | '/analyst/transactions'
+    | '/app/accounts'
     | '/app/alerts'
+    | '/app/beneficiaries'
     | '/app/models'
     | '/app/pipeline'
     | '/app/predict'
@@ -373,7 +393,9 @@ export interface FileRouteTypes {
     | '/analyst/reports'
     | '/analyst/review-queue'
     | '/analyst/transactions'
+    | '/app/accounts'
     | '/app/alerts'
+    | '/app/beneficiaries'
     | '/app/models'
     | '/app/pipeline'
     | '/app/predict'
@@ -408,7 +430,9 @@ export interface FileRouteTypes {
     | '/analyst/reports'
     | '/analyst/review-queue'
     | '/analyst/transactions'
+    | '/app/accounts'
     | '/app/alerts'
+    | '/app/beneficiaries'
     | '/app/models'
     | '/app/pipeline'
     | '/app/predict'
@@ -444,7 +468,9 @@ export interface RootRouteChildren {
   AnalystReportsRoute: typeof AnalystReportsRoute
   AnalystReviewQueueRoute: typeof AnalystReviewQueueRoute
   AnalystTransactionsRoute: typeof AnalystTransactionsRoute
+  AppAccountsRoute: typeof AppAccountsRoute
   AppAlertsRoute: typeof AppAlertsRoute
+  AppBeneficiariesRoute: typeof AppBeneficiariesRoute
   AppModelsRoute: typeof AppModelsRoute
   AppPipelineRoute: typeof AppPipelineRoute
   AppPredictRoute: typeof AppPredictRoute
@@ -580,11 +606,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/beneficiaries': {
+      id: '/app/beneficiaries'
+      path: '/app/beneficiaries'
+      fullPath: '/app/beneficiaries'
+      preLoaderRoute: typeof AppBeneficiariesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/alerts': {
       id: '/app/alerts'
       path: '/app/alerts'
       fullPath: '/app/alerts'
       preLoaderRoute: typeof AppAlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/accounts': {
+      id: '/app/accounts'
+      path: '/app/accounts'
+      fullPath: '/app/accounts'
+      preLoaderRoute: typeof AppAccountsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analyst/transactions': {
@@ -716,7 +756,9 @@ const rootRouteChildren: RootRouteChildren = {
   AnalystReportsRoute: AnalystReportsRoute,
   AnalystReviewQueueRoute: AnalystReviewQueueRoute,
   AnalystTransactionsRoute: AnalystTransactionsRoute,
+  AppAccountsRoute: AppAccountsRoute,
   AppAlertsRoute: AppAlertsRoute,
+  AppBeneficiariesRoute: AppBeneficiariesRoute,
   AppModelsRoute: AppModelsRoute,
   AppPipelineRoute: AppPipelineRoute,
   AppPredictRoute: AppPredictRoute,

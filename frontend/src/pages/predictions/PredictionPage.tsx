@@ -6,7 +6,6 @@ import { transactionService } from "@/services/transactionService";
 import type {
   PredictionResult,
   RiskBreakdownFactor,
-  TransactionBalanceInput,
   TransactionPredictionResult,
   TransactionType,
 } from "@/types/prediction";
@@ -24,32 +23,12 @@ import {
   ShieldCheck,
   Sparkles,
   type LucideIcon,
-  WalletCards,
   X,
   Zap,
 } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-type BalanceForm = {
-  oldBalanceOrigin: string;
-  newBalanceOrigin: string;
-  oldBalanceDestination: string;
-  newBalanceDestination: string;
-};
-type BalanceValidationResult =
-  | { request: TransactionBalanceInput; message: null }
-  | { request: null; message: string };
-
-const balanceFields: Array<{
-  key: keyof BalanceForm;
-  label: string;
-}> = [
-  { key: "oldBalanceOrigin", label: "Old Balance Origin" },
-  { key: "newBalanceOrigin", label: "New Balance Origin" },
-  { key: "oldBalanceDestination", label: "Old Balance Destination" },
-  { key: "newBalanceDestination", label: "New Balance Destination" },
-];
 const transactionTypes: TransactionType[] = ["CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"];
 
 export default function Predict() {
@@ -57,19 +36,11 @@ export default function Predict() {
   const [transactionsLoading, setTransactionsLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [exportingHistory, setExportingHistory] = useState(false);
-  const [balanceModalOpen, setBalanceModalOpen] = useState(false);
-  const [balanceError, setBalanceError] = useState<string | null>(null);
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [history, setHistory] = useState<PredictionResult[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<PredictionResult | null>(null);
-  const [balanceForm, setBalanceForm] = useState<BalanceForm>({
-    oldBalanceOrigin: "",
-    newBalanceOrigin: "",
-    oldBalanceDestination: "",
-    newBalanceDestination: "",
-  });
   const [error, setError] = useState<string | null>(null);
   const [transactionsError, setTransactionsError] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -137,22 +108,14 @@ export default function Predict() {
     }
 
     if (!hasCompleteBalances(selectedTransaction)) {
-      setBalanceForm({
-        oldBalanceOrigin: formatOptionalNumber(selectedTransaction.oldBalanceOrigin),
-        newBalanceOrigin: formatOptionalNumber(selectedTransaction.newBalanceOrigin),
-        oldBalanceDestination: formatOptionalNumber(selectedTransaction.oldBalanceDestination),
-        newBalanceDestination: formatOptionalNumber(selectedTransaction.newBalanceDestination),
-      });
-      setBalanceModalOpen(true);
-      setBalanceError(null);
-      setError(null);
+      setError("This transaction does not have account-derived balance data. Create transactions from My Accounts so balances can be evaluated without manual entry.");
       return;
     }
 
     await runStoredTransactionAnalysis();
   }
 
-  async function runStoredTransactionAnalysis(balances?: TransactionBalanceInput) {
+  async function runStoredTransactionAnalysis() {
     if (!selectedTransaction) {
       setError("Choose a transaction first.");
       return;
@@ -163,7 +126,7 @@ export default function Predict() {
     setError(null);
 
     try {
-      const analysis = await predictionService.predictTransaction(selectedTransaction.id, balances);
+      const analysis = await predictionService.predictTransaction(selectedTransaction.id);
       const [refreshedTransaction, refreshedHistory] = await Promise.all([
         transactionService.getTransactionById(selectedTransaction.id),
         predictionService.getMyHistory(),
@@ -182,19 +145,6 @@ export default function Predict() {
     } finally {
       setLoading(false);
     }
-  }
-
-  async function submitBalanceModal(event: FormEvent) {
-    event.preventDefault();
-    const validation = validateBalanceRequest(balanceForm);
-    if (!validation.request) {
-      setBalanceError(validation.message);
-      return;
-    }
-
-    setBalanceError(null);
-    setBalanceModalOpen(false);
-    await runStoredTransactionAnalysis(validation.request);
   }
 
   return (
@@ -298,17 +248,6 @@ export default function Predict() {
           onClose={() => setSelectedHistoryItem(null)}
         />
       )}
-      {balanceModalOpen && selectedTransaction && (
-        <BalanceModal
-          transaction={selectedTransaction}
-          form={balanceForm}
-          error={balanceError}
-          submitting={loading}
-          onChange={(key, value) => setBalanceForm((current) => ({ ...current, [key]: value }))}
-          onClose={() => setBalanceModalOpen(false)}
-          onSubmit={(event) => void submitBalanceModal(event)}
-        />
-      )}
     </>
   );
 }
@@ -334,37 +273,6 @@ function downloadBlob(file: Blob, fileName: string) {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-}
-
-function validateBalanceRequest(form: BalanceForm): BalanceValidationResult {
-  const values = {} as Record<keyof BalanceForm, number>;
-  for (const field of balanceFields) {
-    const rawValue = form[field.key].trim();
-    if (rawValue.length === 0) {
-      return { request: null, message: `${field.label} is required.` };
-    }
-
-    const value = Number(rawValue);
-    if (!Number.isFinite(value)) {
-      return { request: null, message: `${field.label} must be a numeric value.` };
-    }
-
-    if (value < 0) {
-      return { request: null, message: `${field.label} cannot be negative.` };
-    }
-
-    values[field.key] = value;
-  }
-
-  return {
-    request: {
-      oldBalanceOrigin: values.oldBalanceOrigin,
-      newBalanceOrigin: values.newBalanceOrigin,
-      oldBalanceDestination: values.oldBalanceDestination,
-      newBalanceDestination: values.newBalanceDestination,
-    },
-    message: null,
-  };
 }
 
 function buildAnalyzedTransactionResult(
@@ -411,10 +319,6 @@ function hasCompleteBalances(transaction: Transaction) {
     && transaction.newBalanceOrigin != null
     && transaction.oldBalanceDestination != null
     && transaction.newBalanceDestination != null;
-}
-
-function formatOptionalNumber(value: number | null | undefined) {
-  return value == null ? "" : String(value);
 }
 
 function normalizeTransactionType(value: string): TransactionType {
@@ -603,97 +507,6 @@ function Input({
         />
       </div>
     </label>
-  );
-}
-
-function BalanceModal({
-  transaction,
-  form,
-  error,
-  submitting,
-  onChange,
-  onClose,
-  onSubmit,
-}: {
-  transaction: Transaction;
-  form: BalanceForm;
-  error: string | null;
-  submitting: boolean;
-  onChange: (key: keyof BalanceForm, value: string) => void;
-  onClose: () => void;
-  onSubmit: (event: FormEvent) => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
-      <form
-        onSubmit={onSubmit}
-        onClick={(event) => event.stopPropagation()}
-        className="glass-strong w-full max-w-2xl rounded-2xl p-6"
-      >
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs text-muted-foreground">Transaction TX-{transaction.id}</p>
-            <p className="font-display text-lg font-semibold">Provide balance values</p>
-          </div>
-          <button type="button" onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-secondary">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          <Input
-            label="Transaction Type"
-            icon={WalletCards}
-            value={normalizeTransactionType(transaction.transactionType)}
-            onChange={() => undefined}
-            readOnly
-            type="text"
-          />
-          <Input
-            label="Amount"
-            icon={CreditCard}
-            value={String(transaction.amount)}
-            onChange={() => undefined}
-            readOnly
-          />
-          <Input
-            label="Old Balance Origin"
-            value={form.oldBalanceOrigin}
-            onChange={(value) => onChange("oldBalanceOrigin", value)}
-          />
-          <Input
-            label="New Balance Origin"
-            value={form.newBalanceOrigin}
-            onChange={(value) => onChange("newBalanceOrigin", value)}
-          />
-          <Input
-            label="Old Balance Destination"
-            value={form.oldBalanceDestination}
-            onChange={(value) => onChange("oldBalanceDestination", value)}
-          />
-          <Input
-            label="New Balance Destination"
-            value={form.newBalanceDestination}
-            onChange={(value) => onChange("newBalanceDestination", value)}
-          />
-        </div>
-
-        {error && (
-          <div className="mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
-          </div>
-        )}
-
-        <div className="mt-6 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="glass rounded-lg px-4 py-2 text-sm">
-            Cancel
-          </button>
-          <button type="submit" disabled={submitting} className="bg-gradient-primary text-primary-foreground rounded-lg px-4 py-2 text-sm disabled:opacity-60">
-            {submitting ? "Analyzing..." : "Run Analysis"}
-          </button>
-        </div>
-      </form>
-    </div>
   );
 }
 

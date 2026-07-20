@@ -10,6 +10,16 @@ public class TransactionResponseDto
 
     public string? UserName { get; set; }
 
+    public int? SourceBankAccountId { get; set; }
+
+    public string? SourceAccount { get; set; }
+
+    public int? BeneficiaryId { get; set; }
+
+    public string? BeneficiaryName { get; set; }
+
+    public int? MerchantId { get; set; }
+
     public string Merchant { get; set; } = string.Empty;
 
     public string Category { get; set; } = string.Empty;
@@ -49,17 +59,20 @@ public class TransactionResponseDto
 
 public class CreateTransactionRequestDto
 {
-    [Required]
+    public int? SourceBankAccountId { get; set; }
+
+    public int? BeneficiaryId { get; set; }
+
+    public int? MerchantId { get; set; }
+
     [MaxLength(150)]
-    public string Merchant { get; set; } = string.Empty;
+    public string? Merchant { get; set; }
 
-    [Required]
     [MaxLength(100)]
-    public string Category { get; set; } = string.Empty;
+    public string? Category { get; set; }
 
-    [Required]
     [MaxLength(100)]
-    public string Country { get; set; } = string.Empty;
+    public string? Country { get; set; }
 
     [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0.")]
     public decimal Amount { get; set; }

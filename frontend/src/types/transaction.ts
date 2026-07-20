@@ -5,6 +5,11 @@ export interface Transaction {
   id: number;
   userId: number;
   userName?: string | null;
+  sourceBankAccountId?: number | null;
+  sourceAccount?: string | null;
+  beneficiaryId?: number | null;
+  beneficiaryName?: string | null;
+  merchantId?: number | null;
   merchant: string;
   category: string;
   country: string;
@@ -33,9 +38,12 @@ export interface TransactionFilters {
 }
 
 export interface CreateTransactionInput {
-  merchant: string;
-  category: string;
-  country: string;
+  sourceBankAccountId?: number | null;
+  beneficiaryId?: number | null;
+  merchantId?: number | null;
+  merchant?: string | null;
+  category?: string | null;
+  country?: string | null;
   amount: number;
   currency: string;
   transactionType: string;

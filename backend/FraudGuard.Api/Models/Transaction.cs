@@ -10,6 +10,18 @@ public class Transaction
 
     public User? User { get; set; }
 
+    public int? SourceBankAccountId { get; set; }
+
+    public BankAccount? SourceBankAccount { get; set; }
+
+    public int? BeneficiaryId { get; set; }
+
+    public Beneficiary? Beneficiary { get; set; }
+
+    public int? MerchantId { get; set; }
+
+    public Merchant? MerchantRecord { get; set; }
+
     [MaxLength(150)]
     public string Merchant { get; set; } = string.Empty;
 

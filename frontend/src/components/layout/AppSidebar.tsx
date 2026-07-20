@@ -3,12 +3,15 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Radar, Receipt, Bell,
   Users, Settings, ShieldAlert, Activity, LogOut, UserCircle, BarChart3, ClipboardList, FileSearch, FileText,
+  CreditCard, UserCheck,
 } from "lucide-react";
 import { Brand } from "@/components/common/Brand";
 import { AUTH_USER_CHANGED_EVENT, authService, type AuthUser } from "@/services/authService";
 
 const userNav = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/app/accounts", label: "My Accounts", icon: CreditCard },
+  { to: "/app/beneficiaries", label: "Beneficiaries", icon: UserCheck },
   { to: "/app/transactions", label: "Transactions", icon: Receipt },
   { to: "/app/predict", label: "Predictions", icon: Radar },
   { to: "/app/alerts", label: "Alerts", icon: Bell },

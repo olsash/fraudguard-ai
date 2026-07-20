@@ -20,6 +20,14 @@ public class AppDbContext : DbContext
 
     public DbSet<SystemLog> SystemLogs => Set<SystemLog>();
 
+    public DbSet<Bank> Banks => Set<Bank>();
+
+    public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
+
+    public DbSet<Beneficiary> Beneficiaries => Set<Beneficiary>();
+
+    public DbSet<Merchant> Merchants => Set<Merchant>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -59,6 +67,76 @@ public class AppDbContext : DbContext
                 IsActive = true,
                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             });
+
+        modelBuilder.Entity<Bank>(entity =>
+        {
+            entity.HasKey(bank => bank.Id);
+            entity.Property(bank => bank.Name).IsRequired().HasMaxLength(150);
+            entity.Property(bank => bank.Country).IsRequired().HasMaxLength(100);
+            entity.Property(bank => bank.SwiftCode).IsRequired().HasMaxLength(20);
+            entity.Property(bank => bank.IsActive).IsRequired();
+            entity.Property(bank => bank.CreatedAt).IsRequired();
+            entity.HasIndex(bank => bank.SwiftCode).IsUnique();
+        });
+
+        modelBuilder.Entity<BankAccount>(entity =>
+        {
+            entity.HasKey(account => account.Id);
+            entity.Property(account => account.AccountNumber).IsRequired().HasMaxLength(34);
+            entity.Property(account => account.IBAN).IsRequired().HasMaxLength(34);
+            entity.Property(account => account.Currency).IsRequired().HasMaxLength(10);
+            entity.Property(account => account.CurrentBalance).HasColumnType("decimal(18,2)");
+            entity.Property(account => account.AccountType).IsRequired().HasMaxLength(40);
+            entity.Property(account => account.IsActive).IsRequired();
+            entity.Property(account => account.CreatedAt).IsRequired();
+            entity.Property(account => account.RowVersion).IsRowVersion();
+            entity.HasIndex(account => account.AccountNumber).IsUnique();
+            entity.HasIndex(account => account.IBAN).IsUnique();
+            entity.HasOne(account => account.User)
+                .WithMany()
+                .HasForeignKey(account => account.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(account => account.Bank)
+                .WithMany(bank => bank.BankAccounts)
+                .HasForeignKey(account => account.BankId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Beneficiary>(entity =>
+        {
+            entity.HasKey(beneficiary => beneficiary.Id);
+            entity.Property(beneficiary => beneficiary.FullName).IsRequired().HasMaxLength(150);
+            entity.Property(beneficiary => beneficiary.MaskedAccountReference).IsRequired().HasMaxLength(34);
+            entity.Property(beneficiary => beneficiary.CreatedAt).IsRequired();
+            entity.HasIndex(beneficiary => new { beneficiary.UserId, beneficiary.FullName, beneficiary.MaskedAccountReference });
+            entity.HasOne(beneficiary => beneficiary.User)
+                .WithMany()
+                .HasForeignKey(beneficiary => beneficiary.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(beneficiary => beneficiary.Bank)
+                .WithMany()
+                .HasForeignKey(beneficiary => beneficiary.BankId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(beneficiary => beneficiary.DestinationBankAccount)
+                .WithMany()
+                .HasForeignKey(beneficiary => beneficiary.DestinationBankAccountId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<Merchant>(entity =>
+        {
+            entity.HasKey(merchant => merchant.Id);
+            entity.Property(merchant => merchant.Name).IsRequired().HasMaxLength(150);
+            entity.Property(merchant => merchant.Category).IsRequired().HasMaxLength(100);
+            entity.Property(merchant => merchant.Country).IsRequired().HasMaxLength(100);
+            entity.Property(merchant => merchant.RiskLevel).IsRequired().HasMaxLength(30);
+            entity.Property(merchant => merchant.CreatedAt).IsRequired();
+            entity.HasIndex(merchant => merchant.Name);
+            entity.HasOne(merchant => merchant.SettlementBankAccount)
+                .WithMany()
+                .HasForeignKey(merchant => merchant.SettlementBankAccountId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
 
         modelBuilder.Entity<Prediction>(entity =>
         {
@@ -107,10 +185,52 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(transaction => transaction.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(transaction => transaction.SourceBankAccount)
+                .WithMany()
+                .HasForeignKey(transaction => transaction.SourceBankAccountId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(transaction => transaction.Beneficiary)
+                .WithMany()
+                .HasForeignKey(transaction => transaction.BeneficiaryId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(transaction => transaction.MerchantRecord)
+                .WithMany()
+                .HasForeignKey(transaction => transaction.MerchantId)
+                .OnDelete(DeleteBehavior.NoAction);
             entity.HasIndex(transaction => transaction.UserId);
+            entity.HasIndex(transaction => transaction.SourceBankAccountId);
+            entity.HasIndex(transaction => transaction.BeneficiaryId);
+            entity.HasIndex(transaction => transaction.MerchantId);
             entity.HasIndex(transaction => transaction.CreatedAt);
             entity.HasIndex(transaction => transaction.Status);
         });
+
+        // Demo banking data only. These are synthetic account numbers and IBANs with no live banking integration.
+        modelBuilder.Entity<Bank>().HasData(
+            new Bank { Id = 1, Name = "Raiffeisen Bank Kosovo", Country = "Kosovo", SwiftCode = "RBKODEMO", IsActive = true, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Bank { Id = 2, Name = "ProCredit Bank Kosovo", Country = "Kosovo", SwiftCode = "PCBKKDEMO", IsActive = true, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Bank { Id = 3, Name = "NLB Banka", Country = "Kosovo", SwiftCode = "NLBADEMO", IsActive = true, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Bank { Id = 4, Name = "TEB Bank", Country = "Kosovo", SwiftCode = "TEBKDEMO", IsActive = true, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Bank { Id = 5, Name = "BKT Kosovo", Country = "Kosovo", SwiftCode = "BKTKDEMO", IsActive = true, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Bank { Id = 6, Name = "Banka Ekonomike", Country = "Kosovo", SwiftCode = "BEKODEMO", IsActive = true, CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) });
+
+        modelBuilder.Entity<BankAccount>().HasData(
+            new BankAccount { Id = 1, UserId = 1, BankId = 1, AccountNumber = "FGD-1000004821", IBAN = "XK051212000000004821", Currency = "EUR", CurrentBalance = 12850.45m, AccountType = "Checking", IsActive = true, CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc) },
+            new BankAccount { Id = 2, UserId = 1, BankId = 2, AccountNumber = "FGD-1000007394", IBAN = "XK051212000000007394", Currency = "EUR", CurrentBalance = 5400.00m, AccountType = "Savings", IsActive = true, CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc) },
+            new BankAccount { Id = 3, UserId = 2, BankId = 3, AccountNumber = "FGD-2000001188", IBAN = "XK051212000000001188", Currency = "EUR", CurrentBalance = 25000.00m, AccountType = "Operations", IsActive = true, CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc) },
+            new BankAccount { Id = 4, UserId = 1, BankId = 4, AccountNumber = "FGD-1000006650", IBAN = "XK051212000000006650", Currency = "USD", CurrentBalance = 2400.25m, AccountType = "Travel", IsActive = false, CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc) },
+            new BankAccount { Id = 5, UserId = 2, BankId = 5, AccountNumber = "FGD-MERCH-4102", IBAN = "XK051212000000014102", Currency = "EUR", CurrentBalance = 82000.00m, AccountType = "Merchant Settlement", IsActive = true, CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc) },
+            new BankAccount { Id = 6, UserId = 2, BankId = 6, AccountNumber = "FGD-MERCH-9820", IBAN = "XK051212000000019820", Currency = "EUR", CurrentBalance = 64000.00m, AccountType = "Merchant Settlement", IsActive = true, CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc) });
+
+        modelBuilder.Entity<Beneficiary>().HasData(
+            new Beneficiary { Id = 1, UserId = 1, FullName = "Demo Family Transfer", BankId = 3, DestinationBankAccountId = 3, MaskedAccountReference = "•••• 1188", IsTrusted = true, CreatedAt = new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc) },
+            new Beneficiary { Id = 2, UserId = 1, FullName = "Demo Supplier Account", BankId = 6, DestinationBankAccountId = null, MaskedAccountReference = "•••• 7742", IsTrusted = false, CreatedAt = new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc) });
+
+        modelBuilder.Entity<Merchant>().HasData(
+            new Merchant { Id = 1, Name = "Demo Market Prishtina", Category = "Retail", Country = "Kosovo", SettlementBankAccountId = 5, RiskLevel = "Low", IsActive = true, CreatedAt = new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc) },
+            new Merchant { Id = 2, Name = "Demo Travel Agency", Category = "Travel", Country = "Kosovo", SettlementBankAccountId = 6, RiskLevel = "Medium", IsActive = true, CreatedAt = new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc) },
+            new Merchant { Id = 3, Name = "Demo Electronics Store", Category = "E-Commerce", Country = "Kosovo", SettlementBankAccountId = 5, RiskLevel = "Low", IsActive = true, CreatedAt = new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc) },
+            new Merchant { Id = 4, Name = "Demo Crypto Exchange", Category = "Crypto", Country = "Kosovo", SettlementBankAccountId = 6, RiskLevel = "High", IsActive = true, CreatedAt = new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc) });
 
         modelBuilder.Entity<FraudAlert>(entity =>
         {
