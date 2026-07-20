@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.DTOs;
+using FraudGuard.Api.Security;
 using FraudGuard.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -59,7 +60,7 @@ public class SettingsController : ControllerBase
             return Unauthorized(new { message = "Invalid or inactive account." });
         }
 
-        if (user.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+        if (user.Role.Equals(ApplicationRoles.Admin, StringComparison.OrdinalIgnoreCase))
         {
             return BadRequest(new { message = "Admin accounts cannot be deleted from here." });
         }

@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 
+using FraudGuard.Api.Security;
+
 namespace FraudGuard.Api.Models;
 
 public class User
@@ -15,7 +17,7 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
 
     [MaxLength(50)]
-    public string Role { get; set; } = "User";
+    public string Role { get; set; } = ApplicationRoles.User;
 
     [MaxLength(50)]
     public string? PhoneNumber { get; set; }

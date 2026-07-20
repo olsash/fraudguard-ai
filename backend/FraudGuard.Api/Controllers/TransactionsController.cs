@@ -4,6 +4,7 @@ using FraudGuard.Api.Data;
 using FraudGuard.Api.DTOs;
 using FraudGuard.Api.Models;
 using FraudGuard.Api.Services;
+using FraudGuard.Api.Security;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -114,7 +115,7 @@ public class TransactionsController : ControllerBase
         return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, ToResponse(created));
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = ApplicationRoles.AdminOrFraudAnalyst)]
     [HttpPut("{id:int}/status")]
     public async Task<ActionResult<TransactionResponseDto>> UpdateStatus(int id, UpdateTransactionStatusRequestDto request, CancellationToken cancellationToken)
     {
@@ -186,7 +187,7 @@ public class TransactionsController : ControllerBase
             .Include(transaction => transaction.Predictions)
             .AsQueryable();
 
-        return User.IsInRole("Admin")
+        return ApplicationRoles.IsPrivilegedReviewRole(User)
             ? query
             : query.Where(transaction => transaction.UserId == userId);
     }

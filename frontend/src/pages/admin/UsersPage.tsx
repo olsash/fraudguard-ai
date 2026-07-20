@@ -1,6 +1,7 @@
 import { FraudSelect } from "@/components/common/FraudSelect";
 import { Topbar } from "@/components/layout/Topbar";
 import { adminUserService } from "@/services/adminUserService";
+import { authService } from "@/services/authService";
 import type { AdminUser, AdminUserDetails, AdminUserRole, AdminUserStatus, CreateAdminUserInput, UpdateAdminUserInput } from "@/types/adminUser";
 import { ChevronRight, Eye, Loader2, Pencil, Search, Trash2, UserPlus, X } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -15,6 +16,14 @@ const blankForm = {
   phoneNumber: "",
   role: "User" as AdminUserRole,
   status: "Active" as AdminUserStatus,
+};
+
+const roleOptions: AdminUserRole[] = ["User", "FraudAnalyst", "Admin"];
+const roleFilterOptions: ("all" | AdminUserRole)[] = ["all", "Admin", "FraudAnalyst", "User"];
+const roleLabels: Record<AdminUserRole, string> = {
+  Admin: "Admin",
+  FraudAnalyst: "Fraud Analyst",
+  User: "User",
 };
 
 type UserForm = typeof blankForm;
@@ -46,6 +55,16 @@ export default function UsersPage() {
       return matchesSearch && matchesRole && matchesStatus;
     });
   }, [users, q, roleFilter, statusFilter]);
+
+  const roleCounts = useMemo(() => {
+    return users.reduce<Record<AdminUserRole, number>>(
+      (counts, user) => {
+        counts[user.role] += 1;
+        return counts;
+      },
+      { Admin: 0, FraudAnalyst: 0, User: 0 },
+    );
+  }, [users]);
 
   async function loadUsers() {
     setLoading(true);
@@ -115,6 +134,23 @@ export default function UsersPage() {
       }
 
       if (formMode === "edit" && editingUser) {
+        const currentUser = authService.getCurrentUser();
+        const isSelfAdminDemotion = currentUser?.id === editingUser.id
+          && editingUser.role === "Admin"
+          && form.role !== "Admin";
+
+        if (isSelfAdminDemotion) {
+          toast.error("You cannot remove your own Admin role.");
+          return;
+        }
+
+        if (editingUser.role === "Admin" && form.role !== "Admin") {
+          const confirmed = window.confirm(`Change ${editingUser.fullName} from Admin to ${roleLabels[form.role]}?`);
+          if (!confirmed) {
+            return;
+          }
+        }
+
         const payload: UpdateAdminUserInput = {
           fullName: form.fullName,
           email: form.email,
@@ -159,7 +195,12 @@ export default function UsersPage() {
             <Search className="h-4 w-4 text-muted-foreground" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or email..." className="flex-1 bg-transparent text-sm outline-none" />
           </div>
-          <SegmentedFilter value={roleFilter} values={["all", "User", "Admin"]} onChange={(value) => setRoleFilter(value as "all" | AdminUserRole)} />
+          <SegmentedFilter
+            value={roleFilter}
+            values={roleFilterOptions}
+            labelForValue={(value) => value === "all" ? "All roles" : roleLabels[value as AdminUserRole]}
+            onChange={(value) => setRoleFilter(value as "all" | AdminUserRole)}
+          />
           <SegmentedFilter value={statusFilter} values={["all", "Active", "Inactive"]} onChange={(value) => setStatusFilter(value as "all" | AdminUserStatus)} />
           <button onClick={openCreate} className="bg-gradient-primary text-primary-foreground rounded-lg px-4 py-2 text-sm flex items-center gap-2">
             <UserPlus className="h-4 w-4" /> Add user
@@ -169,6 +210,15 @@ export default function UsersPage() {
         {loading && <StatePanel icon={Loader2} title="Loading users" message="Fetching registered users from FraudGuard API." spin />}
         {!loading && error && <StatePanel title="Users unavailable" message={error} destructive />}
         {!loading && !error && (
+          <>
+          <div className="grid gap-3 md:grid-cols-3">
+            {roleOptions.map((role) => (
+              <div key={role} className="glass rounded-2xl p-4">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">{roleLabels[role]}</p>
+                <p className="mt-1 font-mono text-2xl font-semibold">{roleCounts[role]}</p>
+              </div>
+            ))}
+          </div>
           <div className="glass max-w-full rounded-2xl overflow-hidden">
             <div className="scrollbar-thin max-w-full overflow-x-auto">
               <table className="w-full text-sm min-w-[1120px]">
@@ -221,6 +271,7 @@ export default function UsersPage() {
               </table>
             </div>
           </div>
+          </>
         )}
       </main>
 
@@ -246,7 +297,17 @@ export default function UsersPage() {
   );
 }
 
-function SegmentedFilter({ value, values, onChange }: { value: string; values: string[]; onChange: (value: string) => void }) {
+function SegmentedFilter({
+  value,
+  values,
+  onChange,
+  labelForValue,
+}: {
+  value: string;
+  values: string[];
+  onChange: (value: string) => void;
+  labelForValue?: (value: string) => string;
+}) {
   return (
     <div className="flex items-center gap-1">
       {values.map((item) => (
@@ -255,7 +316,7 @@ function SegmentedFilter({ value, values, onChange }: { value: string; values: s
           onClick={() => onChange(item)}
           className={`text-xs px-3 py-1.5 rounded-lg capitalize ${value === item ? "bg-primary text-primary-foreground" : "glass hover:ring-1 hover:ring-primary/40"}`}
         >
-          {item}
+          {labelForValue ? labelForValue(item) : item}
         </button>
       ))}
     </div>
@@ -289,7 +350,7 @@ function UserFormModal({
         {mode === "create" && <Field label="Password" type="password" value={form.password} onChange={(value) => update("password", value)} required minLength={6} />}
         <Field label="Phone number" value={form.phoneNumber} onChange={(value) => update("phoneNumber", value)} />
         <div className="grid md:grid-cols-2 gap-3">
-          <Select label="Role" value={form.role} options={["User", "Admin"]} onChange={(value) => update("role", value)} />
+          <Select label="Role" value={form.role} options={roleOptions} onChange={(value) => update("role", value)} />
           {mode === "edit" && <Select label="Status" value={form.status} options={["Active", "Inactive"]} onChange={(value) => update("status", value)} />}
         </div>
         <div className="flex justify-end gap-2 pt-2">
@@ -405,7 +466,7 @@ function Select({ label, value, options, onChange }: { label: string; value: str
         <FraudSelect
           value={value}
           onValueChange={onChange}
-          options={options.map((option) => ({ value: option, label: option }))}
+          options={options.map((option) => ({ value: option, label: roleLabels[option as AdminUserRole] ?? option }))}
           ariaLabel={label}
           triggerClassName="min-h-10 w-full px-3 py-2.5 text-sm"
         />
@@ -424,7 +485,13 @@ function Avatar({ name, large }: { name: string; large?: boolean }) {
 }
 
 function RoleBadge({ role }: { role: AdminUserRole }) {
-  return <span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-md ${role === "Admin" ? "bg-accent/20 text-accent" : "bg-secondary text-muted-foreground"}`}>{role}</span>;
+  const className = role === "Admin"
+    ? "bg-accent/20 text-accent"
+    : role === "FraudAnalyst"
+      ? "bg-primary/15 text-primary"
+      : "bg-secondary text-muted-foreground";
+
+  return <span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-md ${className}`}>{roleLabels[role]}</span>;
 }
 
 function StatusBadge({ status }: { status: AdminUserStatus }) {

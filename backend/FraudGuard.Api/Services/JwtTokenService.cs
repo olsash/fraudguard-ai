@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using FraudGuard.Api.Models;
+using FraudGuard.Api.Security;
 using Microsoft.IdentityModel.Tokens;
 
 namespace FraudGuard.Api.Services;
@@ -23,13 +24,15 @@ public class JwtTokenService : IJwtTokenService
         var audience = jwtSettings["Audience"];
         var expiresInMinutes = int.TryParse(jwtSettings["ExpiresInMinutes"], out var minutes) ? minutes : 120;
 
+        var role = ApplicationRoles.Normalize(user.Role) ?? user.Role;
+
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email),
             new(ClaimTypes.Email, user.Email),
-            new(ClaimTypes.Role, user.Role)
+            new(ClaimTypes.Role, role)
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));

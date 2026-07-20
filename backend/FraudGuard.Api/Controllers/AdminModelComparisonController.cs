@@ -3,13 +3,14 @@ using System.Text;
 using System.Text.Json;
 using FraudGuard.Api.Configuration;
 using FraudGuard.Api.DTOs;
+using FraudGuard.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FraudGuard.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = ApplicationRoles.Admin)]
 [Route("api/admin/model-comparison")]
 public class AdminModelComparisonController : ControllerBase
 {

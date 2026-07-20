@@ -39,7 +39,7 @@ const riskColors: Record<string, string> = {
   Critical: "oklch(0.66 0.24 25)",
 };
 
-export default function AdminDash() {
+export default function AdminDash({ variant = "admin" }: { variant?: "admin" | "analyst" }) {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export default function AdminDash() {
         }
       } catch (err) {
         if (active) {
-          setError(err instanceof Error ? err.message : "Unable to load admin dashboard data.");
+          setError(err instanceof Error ? err.message : `Unable to load ${variant} dashboard data.`);
         }
       } finally {
         if (active) {
@@ -72,14 +72,17 @@ export default function AdminDash() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [variant]);
 
   return (
     <>
-      <Topbar title="Admin Overview" subtitle="Enterprise control plane - global fraud detection metrics" />
+      <Topbar
+        title={variant === "analyst" ? "Analyst Dashboard" : "Admin Overview"}
+        subtitle={variant === "analyst" ? "Fraud review queue and model prediction activity" : "Enterprise control plane - global fraud detection metrics"}
+      />
       <main className="flex-1 p-4 md:p-8 space-y-6">
-        {loading && <StatePanel title="Loading admin dashboard" message="Fetching global prediction statistics from FraudGuard API." />}
-        {!loading && error && <StatePanel title="Admin dashboard unavailable" message={error} destructive />}
+        {loading && <StatePanel title={`Loading ${variant} dashboard`} message="Fetching global prediction statistics from FraudGuard API." />}
+        {!loading && error && <StatePanel title={`${variant === "analyst" ? "Analyst" : "Admin"} dashboard unavailable`} message={error} destructive />}
         {!loading && !error && summary && <AdminDashboardContent summary={summary} />}
       </main>
     </>

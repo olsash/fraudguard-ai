@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.DTOs;
 using FraudGuard.Api.Models;
+using FraudGuard.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -31,7 +32,7 @@ public class DashboardController : ControllerBase
             return Unauthorized(new { message = "Invalid token." });
         }
 
-        return Ok(await BuildSummaryAsync(userId.Value, User.IsInRole("Admin"), cancellationToken));
+        return Ok(await BuildSummaryAsync(userId.Value, ApplicationRoles.IsPrivilegedReviewRole(User), cancellationToken));
     }
 
     [HttpGet("user")]

@@ -1,6 +1,6 @@
 import type { RecentPrediction } from "@/types/dashboard";
 
-export type AdminUserRole = "User" | "Admin";
+export type AdminUserRole = "User" | "FraudAnalyst" | "Admin";
 export type AdminUserStatus = "Active" | "Inactive";
 
 export interface AdminUser {

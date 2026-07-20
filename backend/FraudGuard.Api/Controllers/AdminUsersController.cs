@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.DTOs;
 using FraudGuard.Api.Models;
+using FraudGuard.Api.Security;
 using FraudGuard.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace FraudGuard.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = ApplicationRoles.Admin)]
 [Route("api/admin/users")]
 public class AdminUsersController : ControllerBase
 {
@@ -77,10 +78,10 @@ public class AdminUsersController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<AdminUserDto>> CreateUser(CreateAdminUserDto request, CancellationToken cancellationToken)
     {
-        var role = NormalizeRole(request.Role);
+        var role = ApplicationRoles.Normalize(request.Role);
         if (role is null)
         {
-            return BadRequest(new { message = "Role must be User or Admin." });
+            return BadRequest(new { message = "Role must be Admin, FraudAnalyst, or User." });
         }
 
         var email = NormalizeEmail(request.Email);
@@ -116,10 +117,18 @@ public class AdminUsersController : ControllerBase
             return NotFound(new { message = "User not found." });
         }
 
-        var role = NormalizeRole(request.Role);
+        var role = ApplicationRoles.Normalize(request.Role);
         if (role is null)
         {
-            return BadRequest(new { message = "Role must be User or Admin." });
+            return BadRequest(new { message = "Role must be Admin, FraudAnalyst, or User." });
+        }
+
+        var currentUserId = GetCurrentUserId();
+        if (currentUserId == id
+            && user.Role == ApplicationRoles.Admin
+            && role != ApplicationRoles.Admin)
+        {
+            return BadRequest(new { message = "You cannot remove your own Admin role." });
         }
 
         var status = NormalizeStatus(request.Status);
@@ -209,7 +218,7 @@ public class AdminUsersController : ControllerBase
             Id = user.Id,
             FullName = user.FullName,
             Email = user.Email,
-            Role = user.Role,
+            Role = ApplicationRoles.Normalize(user.Role) ?? user.Role,
             PhoneNumber = user.PhoneNumber,
             CreatedAt = user.CreatedAt,
             LastLoginAt = user.LastLoginAt,
@@ -250,16 +259,6 @@ public class AdminUsersController : ControllerBase
     private static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    }
-
-    private static string? NormalizeRole(string role)
-    {
-        return role.Trim().ToLowerInvariant() switch
-        {
-            "user" => "User",
-            "admin" => "Admin",
-            _ => null
-        };
     }
 
     private static string? NormalizeStatus(string? status)

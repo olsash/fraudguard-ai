@@ -97,7 +97,7 @@ export const usersList = Array.from({ length: 24 }).map((_, i) => ({
   id: `usr_${1000 + i}`,
   name: ["Aisha Khan","Lucas Martin","Sofia Rossi","Yuki Tanaka","Omar Said","Emma Wilson","Noah Brown","Mei Chen","Liam Walker","Zara Ali","Diego Costa","Hana Park"][i % 12] + (i > 11 ? " " + (i+1) : ""),
   email: `user${i + 1}@bank.io`,
-  role: i % 7 === 0 ? "Admin" : i % 5 === 0 ? "Analyst" : "User",
+  role: i % 7 === 0 ? "Admin" : i % 5 === 0 ? "FraudAnalyst" : "User",
   status: i % 9 === 0 ? "suspended" : "active",
   risk: Math.round(Math.random() * 100),
   created: new Date(Date.now() - i * 86400000 * 3).toISOString(),

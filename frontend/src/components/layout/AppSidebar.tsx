@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Radar, Receipt, Bell,
-  Users, Settings, ShieldAlert, Activity, LogOut, UserCircle, BarChart3,
+  Users, Settings, ShieldAlert, Activity, LogOut, UserCircle, BarChart3, ClipboardList, FileSearch, FileText,
 } from "lucide-react";
 import { Brand } from "@/components/common/Brand";
 import { AUTH_USER_CHANGED_EVENT, authService, type AuthUser } from "@/services/authService";
@@ -28,10 +28,23 @@ const adminNav = [
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
-export function AppSidebar({ variant = "user" }: { variant?: "user" | "admin" }) {
+const analystNav = [
+  { to: "/analyst", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/analyst/review-queue", label: "Review Queue", icon: ClipboardList },
+  { to: "/analyst/transactions", label: "Transactions", icon: Receipt },
+  { to: "/analyst/alerts", label: "Fraud Alerts", icon: ShieldAlert },
+  { to: "/analyst/investigations", label: "Investigations", icon: FileSearch },
+  { to: "/analyst/predictions", label: "Predictions", icon: Radar },
+  { to: "/analyst/reports", label: "Reports", icon: FileText },
+  { to: "/analyst/profile", label: "Profile", icon: UserCircle },
+];
+
+type SidebarVariant = "user" | "admin" | "analyst";
+
+export function AppSidebar({ variant = "user" }: { variant?: SidebarVariant }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-  const nav = variant === "admin" ? adminNav : userNav;
+  const nav = variant === "admin" ? adminNav : variant === "analyst" ? analystNav : userNav;
 
   useEffect(() => {
     const refreshUser = () => setCurrentUser(authService.getCurrentUser());
@@ -40,22 +53,23 @@ export function AppSidebar({ variant = "user" }: { variant?: "user" | "admin" })
     return () => window.removeEventListener(AUTH_USER_CHANGED_EVENT, refreshUser);
   }, []);
 
-  const profileTo = variant === "admin" ? "/admin/profile" : "/app/profile";
-  const displayName = currentUser?.name ?? (variant === "admin" ? "Admin User" : "FraudGuard User");
-  const initials = currentUser?.initials ?? (variant === "admin" ? "AU" : "FU");
-  const roleLabel = currentUser?.role === "admin" ? "Administrator" : "User";
+  const profileTo = variant === "admin" ? "/admin/profile" : variant === "analyst" ? "/analyst/profile" : "/app/profile";
+  const displayName = currentUser?.name ?? (variant === "admin" ? "Admin User" : variant === "analyst" ? "Fraud Analyst" : "FraudGuard User");
+  const initials = currentUser?.initials ?? (variant === "admin" ? "AU" : variant === "analyst" ? "FA" : "FU");
+  const roleLabel = currentUser?.role === "admin" ? "Administrator" : currentUser?.role === "fraudAnalyst" ? "Fraud Analyst" : "User";
+  const consoleLabel = variant === "admin" ? "Admin Console" : variant === "analyst" ? "Analyst Workspace" : "Fraud Workspace";
 
   return (
     <aside className="hidden md:flex sticky top-0 h-screen w-64 shrink-0 flex-col border-r border-border bg-sidebar/80 backdrop-blur-xl">
       <div className="p-5 border-b border-border shrink-0">
         <Link to="/"><Brand /></Link>
         <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-          {variant === "admin" ? "Admin Console" : "Fraud Workspace"}
+          {consoleLabel}
         </p>
       </div>
       <nav className="min-h-0 flex-1 p-3 space-y-1 overflow-y-auto scrollbar-thin">
         {nav.map((item) => {
-          const active = pathname === item.to || (item.to !== "/app" && item.to !== "/admin" && pathname.startsWith(item.to));
+          const active = pathname === item.to || (item.to !== "/app" && item.to !== "/admin" && item.to !== "/analyst" && pathname.startsWith(item.to));
           return (
             <Link
               key={item.to}

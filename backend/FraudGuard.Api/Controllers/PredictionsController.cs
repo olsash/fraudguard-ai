@@ -6,6 +6,7 @@ using System.Text.Json;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.DTOs;
 using FraudGuard.Api.Models;
+using FraudGuard.Api.Security;
 using FraudGuard.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -105,7 +106,7 @@ public class PredictionsController : ControllerBase
         }
 
         var transactionQuery = _dbContext.Transactions.AsQueryable();
-        if (!User.IsInRole("Admin"))
+        if (!ApplicationRoles.IsPrivilegedReviewRole(User))
         {
             transactionQuery = transactionQuery.Where(transaction => transaction.UserId == userId.Value);
         }
@@ -218,7 +219,7 @@ public class PredictionsController : ControllerBase
         return CsvFile(predictions, "prediction-history.csv");
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = ApplicationRoles.AdminOrFraudAnalyst)]
     [HttpGet("admin")]
     public async Task<ActionResult<IEnumerable<PredictionResponse>>> Admin(CancellationToken cancellationToken)
     {
@@ -231,7 +232,7 @@ public class PredictionsController : ControllerBase
         return Ok(predictions.Select(ToResponse));
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = ApplicationRoles.AdminOrFraudAnalyst)]
     [HttpGet("admin/export")]
     public async Task<IActionResult> ExportAdminHistory(CancellationToken cancellationToken)
     {

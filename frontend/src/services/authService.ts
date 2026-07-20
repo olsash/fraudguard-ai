@@ -1,6 +1,6 @@
 import { apiConfig } from "@/config/apiConfig";
 
-export type AuthRole = "user" | "admin";
+export type AuthRole = "user" | "fraudAnalyst" | "admin";
 
 export interface AuthUser {
   id: number;
@@ -14,7 +14,7 @@ export interface BackendAuthUser {
   id: number;
   fullName: string;
   email: string;
-  role: "User" | "Admin" | string;
+  role: "User" | "FraudAnalyst" | "Admin" | string;
 }
 
 interface AuthResponse {
@@ -69,13 +69,26 @@ function getInitials(fullName: string) {
   return initials || "FG";
 }
 
+export function normalizeAuthRole(role: string | null | undefined): AuthRole {
+  const normalized = (role ?? "").replace(/[\s_-]/g, "").toLowerCase();
+  if (normalized === "admin") return "admin";
+  if (normalized === "fraudanalyst" || normalized === "analyst") return "fraudAnalyst";
+  return "user";
+}
+
+function getRedirectForRole(role: AuthRole) {
+  if (role === "admin") return "/admin" as const;
+  if (role === "fraudAnalyst") return "/analyst" as const;
+  return "/app" as const;
+}
+
 export function mapBackendUser(user: BackendAuthUser): AuthUser {
   return {
     id: user.id,
     name: user.fullName,
     initials: getInitials(user.fullName),
     email: user.email,
-    role: user.role.toLowerCase() === "admin" ? "admin" : "user",
+    role: normalizeAuthRole(user.role),
   };
 }
 
@@ -124,7 +137,8 @@ export const authService = {
     if (!rawUser) return null;
 
     try {
-      return JSON.parse(rawUser) as AuthUser;
+      const user = JSON.parse(rawUser) as AuthUser;
+      return { ...user, role: normalizeAuthRole(user.role) };
     } catch {
       clearAuthStorage();
       return null;
@@ -139,7 +153,12 @@ export const authService = {
   getCurrentRole: (): AuthRole | null => {
     if (!canUseStorage()) return null;
     const role = window.localStorage.getItem(AUTH_ROLE_KEY);
-    return role === "admin" || role === "user" ? role : null;
+    if (!role) return null;
+
+    const normalized = role.replace(/[\s_-]/g, "").toLowerCase();
+    return normalized === "admin" || normalized === "fraudanalyst" || normalized === "analyst" || normalized === "user"
+      ? normalizeAuthRole(role)
+      : null;
   },
 
   signIn: async (email: string, password: string) => {
@@ -165,7 +184,7 @@ export const authService = {
       serviceUnavailable: "Login service is currently unavailable. Please try again.",
     });
     const user = mapBackendUser(data.user);
-    const redirectTo = user.role === "admin" ? "/admin" : "/app";
+    const redirectTo = getRedirectForRole(user.role);
 
     storeSession(data.token, user);
 

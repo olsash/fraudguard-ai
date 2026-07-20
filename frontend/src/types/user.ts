@@ -4,7 +4,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: "Admin" | "Analyst" | "User";
+  role: "Admin" | "FraudAnalyst" | "User";
   status: UserStatus;
   risk: number;
   created: string;

@@ -1,4 +1,5 @@
 using FraudGuard.Api.Models;
+using FraudGuard.Api.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace FraudGuard.Api.Data;
@@ -44,7 +45,7 @@ public class AppDbContext : DbContext
                 FullName = "Credit User",
                 Email = "user@credit.com",
                 PasswordHash = "$2a$11$753ccYgfz2QJHlSCTMG2a.Swts8DhWf9WAQJQtEz3HN3AUsIHMIXO",
-                Role = "User",
+                Role = ApplicationRoles.User,
                 IsActive = true,
                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             },
@@ -54,7 +55,7 @@ public class AppDbContext : DbContext
                 FullName = "Credit Admin",
                 Email = "admin@credit.com",
                 PasswordHash = "$2a$11$hMS2w0HZwNwlHWet4HN1Ce.tzShAq1G7pJ30aYBQawVUxjn3a.IJC",
-                Role = "Admin",
+                Role = ApplicationRoles.Admin,
                 IsActive = true,
                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             });

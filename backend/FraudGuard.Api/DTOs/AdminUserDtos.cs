@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FraudGuard.Api.Security;
 
 namespace FraudGuard.Api.DTOs;
 
@@ -53,7 +54,7 @@ public class CreateAdminUserDto
     public string? PhoneNumber { get; set; }
 
     [Required]
-    public string Role { get; set; } = "User";
+    public string Role { get; set; } = ApplicationRoles.User;
 }
 
 public class UpdateAdminUserDto
@@ -71,7 +72,7 @@ public class UpdateAdminUserDto
     public string? PhoneNumber { get; set; }
 
     [Required]
-    public string Role { get; set; } = "User";
+    public string Role { get; set; } = ApplicationRoles.User;
 
     public string? Status { get; set; }
 }

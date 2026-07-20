@@ -4,6 +4,12 @@ import { useNavigate } from "@tanstack/react-router";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { authService, type AuthRole } from "@/services/authService";
 
+function canAccess(requiredRole: AuthRole, actualRole: AuthRole) {
+  if (requiredRole === "admin") return actualRole === "admin";
+  if (requiredRole === "fraudAnalyst") return actualRole === "admin" || actualRole === "fraudAnalyst";
+  return actualRole === "user";
+}
+
 function useRequireRole(requiredRole: AuthRole) {
   const navigate = useNavigate();
 
@@ -15,13 +21,8 @@ function useRequireRole(requiredRole: AuthRole) {
       return;
     }
 
-    if (requiredRole === "admin" && user.role !== "admin") {
-      void navigate({ to: "/app", replace: true });
-      return;
-    }
-
-    if (requiredRole === "user" && user.role === "admin") {
-      void navigate({ to: "/admin", replace: true });
+    if (!canAccess(requiredRole, user.role)) {
+      void navigate({ to: "/unauthorized", replace: true });
     }
   }, [navigate, requiredRole]);
 }
@@ -43,6 +44,17 @@ export function AdminShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen w-full max-w-full overflow-x-hidden">
       <AppSidebar variant="admin" />
+      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">{children}</div>
+    </div>
+  );
+}
+
+export function AnalystShell({ children }: { children: ReactNode }) {
+  useRequireRole("fraudAnalyst");
+
+  return (
+    <div className="flex min-h-screen w-full max-w-full overflow-x-hidden">
+      <AppSidebar variant="analyst" />
       <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">{children}</div>
     </div>
   );

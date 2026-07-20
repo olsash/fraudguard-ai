@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -5,6 +6,8 @@ using System.Text.Json;
 using System.Text.Encodings.Web;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.Models;
+using FraudGuard.Api.Security;
+using FraudGuard.Api.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -12,6 +15,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -247,6 +251,132 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         Assert.DoesNotContain(prediction.RiskBreakdown, item => item.Explanation.Contains("Origin balance did not decrease", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Theory]
+    [InlineData("FraudAnalyst")]
+    [InlineData("fraudanalyst")]
+    [InlineData("fraudAnalyst")]
+    [InlineData("fraud analyst")]
+    public void ApplicationRoles_NormalizesFraudAnalystVariants(string role)
+    {
+        Assert.Equal(ApplicationRoles.FraudAnalyst, ApplicationRoles.Normalize(role));
+    }
+
+    [Fact]
+    public void JwtTokenService_AddsNormalizedFraudAnalystRoleClaim()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:Secret"] = "fraudguard-test-secret-with-enough-length",
+                ["Jwt:Issuer"] = "FraudGuard.Tests",
+                ["Jwt:Audience"] = "FraudGuard.Tests",
+                ["Jwt:ExpiresInMinutes"] = "30"
+            })
+            .Build();
+        var service = new JwtTokenService(configuration);
+
+        var token = service.CreateToken(new User
+        {
+            Id = 501,
+            FullName = "Analyst User",
+            Email = "analyst-jwt@example.com",
+            PasswordHash = "unused",
+            Role = "fraudanalyst",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
+        Assert.Contains(jwt.Claims, claim =>
+            claim.Type == ClaimTypes.Role && claim.Value == ApplicationRoles.FraudAnalyst);
+    }
+
+    [Fact]
+    public async Task AdminUsers_AllowsAdminToCreateFraudAnalyst()
+    {
+        var adminClient = _factory.CreateClient();
+        adminClient.DefaultRequestHeaders.Add("X-Test-User-Id", "100");
+        adminClient.DefaultRequestHeaders.Add("X-Test-Role", ApplicationRoles.Admin);
+        var email = $"analyst-{Guid.NewGuid():N}@example.com";
+
+        var response = await adminClient.PostAsJsonAsync("/api/admin/users", new
+        {
+            fullName = "Created Fraud Analyst",
+            email,
+            password = "analyst123",
+            role = "fraudAnalyst"
+        });
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<AdminUserResponseBody>();
+        Assert.Equal(ApplicationRoles.FraudAnalyst, body?.Role);
+    }
+
+    [Fact]
+    public async Task AdminUsers_AllowsAdminToChangeUserToFraudAnalyst()
+    {
+        var userId = await CreateUserAsync(ApplicationRoles.User);
+        var adminClient = _factory.CreateClient();
+        adminClient.DefaultRequestHeaders.Add("X-Test-User-Id", "100");
+        adminClient.DefaultRequestHeaders.Add("X-Test-Role", ApplicationRoles.Admin);
+
+        var response = await adminClient.PutAsJsonAsync($"/api/admin/users/{userId}", new
+        {
+            fullName = "Converted User",
+            email = $"converted-{Guid.NewGuid():N}@example.com",
+            phoneNumber = (string?)null,
+            role = ApplicationRoles.FraudAnalyst,
+            status = "Active"
+        });
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<AdminUserResponseBody>();
+        Assert.Equal(ApplicationRoles.FraudAnalyst, body?.Role);
+    }
+
+    [Fact]
+    public async Task AdminUsers_PreventsCurrentAdminFromRemovingOwnAdminRole()
+    {
+        var adminClient = _factory.CreateClient();
+        adminClient.DefaultRequestHeaders.Add("X-Test-User-Id", "100");
+        adminClient.DefaultRequestHeaders.Add("X-Test-Role", ApplicationRoles.Admin);
+
+        var response = await adminClient.PutAsJsonAsync("/api/admin/users/100", new
+        {
+            fullName = "Prediction Test Admin",
+            email = "prediction-admin@example.com",
+            phoneNumber = (string?)null,
+            role = ApplicationRoles.FraudAnalyst,
+            status = "Active"
+        });
+
+        await AssertValidationError(response, "You cannot remove your own Admin role.");
+    }
+
+    [Fact]
+    public async Task FraudAnalyst_CannotAccessAdminUserManagement()
+    {
+        var analystClient = _factory.CreateClient();
+        analystClient.DefaultRequestHeaders.Add("X-Test-User-Id", "101");
+        analystClient.DefaultRequestHeaders.Add("X-Test-Role", ApplicationRoles.FraudAnalyst);
+
+        var response = await analystClient.GetAsync("/api/admin/users");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task FraudAnalyst_CanAccessReviewPredictionEndpoints()
+    {
+        var analystClient = _factory.CreateClient();
+        analystClient.DefaultRequestHeaders.Add("X-Test-User-Id", "101");
+        analystClient.DefaultRequestHeaders.Add("X-Test-Role", ApplicationRoles.FraudAnalyst);
+
+        var response = await analystClient.GetAsync("/api/admin/transactions");
+
+        response.EnsureSuccessStatusCode();
+    }
+
     private static Dictionary<string, object> SafePredictionRequest()
     {
         return new Dictionary<string, object>
@@ -294,6 +424,24 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         dbContext.Transactions.Add(transaction);
         await dbContext.SaveChangesAsync();
         return transaction.Id;
+    }
+
+    private async Task<int> CreateUserAsync(string role)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var user = new User
+        {
+            FullName = $"Test User {Guid.NewGuid():N}",
+            Email = $"user-{Guid.NewGuid():N}@example.com",
+            PasswordHash = "unused",
+            Role = role,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+        dbContext.Users.Add(user);
+        await dbContext.SaveChangesAsync();
+        return user.Id;
     }
 
     private static Dictionary<string, object> StoredBalanceRequest()
@@ -393,6 +541,13 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         public string Message { get; set; } = string.Empty;
     }
 
+    private sealed class AdminUserResponseBody
+    {
+        public int Id { get; set; }
+
+        public string Role { get; set; } = string.Empty;
+    }
+
     private sealed class ValidationProblemResponse
     {
         public Dictionary<string, string[]> Errors { get; set; } = [];
@@ -430,13 +585,33 @@ public sealed class PredictionApiFactory : WebApplicationFactory<Program>
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             dbContext.Database.EnsureDeleted();
             dbContext.Database.EnsureCreated();
-            dbContext.Users.Add(new User
+            dbContext.Users.AddRange(new User
             {
                 Id = 99,
                 FullName = "Prediction Test User",
                 Email = "prediction-test@example.com",
                 PasswordHash = "unused",
-                Role = "User",
+                Role = ApplicationRoles.User,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new User
+            {
+                Id = 100,
+                FullName = "Prediction Test Admin",
+                Email = "prediction-admin@example.com",
+                PasswordHash = "unused",
+                Role = ApplicationRoles.Admin,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new User
+            {
+                Id = 101,
+                FullName = "Prediction Test Analyst",
+                Email = "prediction-analyst@example.com",
+                PasswordHash = "unused",
+                Role = ApplicationRoles.FraudAnalyst,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             });
@@ -459,11 +634,23 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
+        var userId = Request.Headers.TryGetValue("X-Test-User-Id", out var userIdHeader)
+            ? userIdHeader.ToString()
+            : "99";
+        var userName = userId == "100"
+            ? "Prediction Test Admin"
+            : userId == "101"
+                ? "Prediction Test Analyst"
+                : "Prediction Test User";
+        var role = Request.Headers.TryGetValue("X-Test-Role", out var roleHeader)
+            ? roleHeader.ToString()
+            : ApplicationRoles.User;
+
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, "99"),
-            new Claim(ClaimTypes.Name, "Prediction Test User"),
-            new Claim(ClaimTypes.Role, "User")
+            new Claim(ClaimTypes.NameIdentifier, userId),
+            new Claim(ClaimTypes.Name, userName),
+            new Claim(ClaimTypes.Role, role)
         };
         var identity = new ClaimsIdentity(claims, SchemeName);
         var principal = new ClaimsPrincipal(identity);

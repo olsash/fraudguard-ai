@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FraudGuard.Api.Data;
 using FraudGuard.Api.DTOs;
 using FraudGuard.Api.Models;
+using FraudGuard.Api.Security;
 using FraudGuard.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -40,7 +41,7 @@ public class AlertsController : ControllerBase
             .Include(alert => alert.User)
             .AsQueryable();
 
-        if (!User.IsInRole("Admin"))
+        if (!ApplicationRoles.IsPrivilegedReviewRole(User))
         {
             query = query.Where(alert => alert.UserId == userId.Value);
         }
@@ -64,7 +65,7 @@ public class AlertsController : ControllerBase
         return Ok(ToDto(alert));
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = ApplicationRoles.AdminOrFraudAnalyst)]
     [HttpPut("{id:int}/status")]
     public async Task<ActionResult<FraudAlertDto>> UpdateStatus(
         int id,
@@ -90,7 +91,7 @@ public class AlertsController : ControllerBase
         return Ok(ToDto(alert));
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = ApplicationRoles.Admin)]
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> DeleteAlert(int id, CancellationToken cancellationToken)
     {
@@ -137,7 +138,7 @@ public class AlertsController : ControllerBase
             query = query.AsNoTracking();
         }
 
-        if (!User.IsInRole("Admin"))
+        if (!ApplicationRoles.IsPrivilegedReviewRole(User))
         {
             query = query.Where(alert => alert.UserId == userId.Value);
         }

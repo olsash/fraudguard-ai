@@ -57,6 +57,10 @@ function WorkspaceLink({
     return <Link to="/admin" className={className}>{children}</Link>;
   }
 
+  if (role === "fraudAnalyst") {
+    return <Link to="/analyst" className={className}>{children}</Link>;
+  }
+
   if (role === "user") {
     return <Link to="/app" className={className}>{children}</Link>;
   }

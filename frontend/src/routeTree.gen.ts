@@ -9,11 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UnauthorizedRouteImport } from './routes/unauthorized'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
+import { Route as AnalystIndexRouteImport } from './routes/analyst/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AppTransactionsRouteImport } from './routes/app/transactions'
 import { Route as AppThesisRouteImport } from './routes/app/thesis'
@@ -25,6 +27,13 @@ import { Route as AppPredictRouteImport } from './routes/app/predict'
 import { Route as AppPipelineRouteImport } from './routes/app/pipeline'
 import { Route as AppModelsRouteImport } from './routes/app/models'
 import { Route as AppAlertsRouteImport } from './routes/app/alerts'
+import { Route as AnalystTransactionsRouteImport } from './routes/analyst/transactions'
+import { Route as AnalystReviewQueueRouteImport } from './routes/analyst/review-queue'
+import { Route as AnalystReportsRouteImport } from './routes/analyst/reports'
+import { Route as AnalystProfileRouteImport } from './routes/analyst/profile'
+import { Route as AnalystPredictionsRouteImport } from './routes/analyst/predictions'
+import { Route as AnalystInvestigationsRouteImport } from './routes/analyst/investigations'
+import { Route as AnalystAlertsRouteImport } from './routes/analyst/alerts'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminTransactionsRouteImport } from './routes/admin/transactions'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
@@ -34,6 +43,11 @@ import { Route as AdminModelComparisonRouteImport } from './routes/admin/model-c
 import { Route as AdminLogsRouteImport } from './routes/admin/logs'
 import { Route as AdminAlertsRouteImport } from './routes/admin/alerts'
 
+const UnauthorizedRoute = UnauthorizedRouteImport.update({
+  id: '/unauthorized',
+  path: '/unauthorized',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -57,6 +71,11 @@ const IndexRoute = IndexRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/app/',
   path: '/app/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalystIndexRoute = AnalystIndexRouteImport.update({
+  id: '/analyst/',
+  path: '/analyst/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -114,6 +133,41 @@ const AppAlertsRoute = AppAlertsRouteImport.update({
   path: '/app/alerts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AnalystTransactionsRoute = AnalystTransactionsRouteImport.update({
+  id: '/analyst/transactions',
+  path: '/analyst/transactions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalystReviewQueueRoute = AnalystReviewQueueRouteImport.update({
+  id: '/analyst/review-queue',
+  path: '/analyst/review-queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalystReportsRoute = AnalystReportsRouteImport.update({
+  id: '/analyst/reports',
+  path: '/analyst/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalystProfileRoute = AnalystProfileRouteImport.update({
+  id: '/analyst/profile',
+  path: '/analyst/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalystPredictionsRoute = AnalystPredictionsRouteImport.update({
+  id: '/analyst/predictions',
+  path: '/analyst/predictions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalystInvestigationsRoute = AnalystInvestigationsRouteImport.update({
+  id: '/analyst/investigations',
+  path: '/analyst/investigations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalystAlertsRoute = AnalystAlertsRouteImport.update({
+  id: '/analyst/alerts',
+  path: '/analyst/alerts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -160,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/unauthorized': typeof UnauthorizedRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/model-comparison': typeof AdminModelComparisonRoute
@@ -168,6 +223,13 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/analyst/alerts': typeof AnalystAlertsRoute
+  '/analyst/investigations': typeof AnalystInvestigationsRoute
+  '/analyst/predictions': typeof AnalystPredictionsRoute
+  '/analyst/profile': typeof AnalystProfileRoute
+  '/analyst/reports': typeof AnalystReportsRoute
+  '/analyst/review-queue': typeof AnalystReviewQueueRoute
+  '/analyst/transactions': typeof AnalystTransactionsRoute
   '/app/alerts': typeof AppAlertsRoute
   '/app/models': typeof AppModelsRoute
   '/app/pipeline': typeof AppPipelineRoute
@@ -179,6 +241,7 @@ export interface FileRoutesByFullPath {
   '/app/thesis': typeof AppThesisRoute
   '/app/transactions': typeof AppTransactionsRoute
   '/admin/': typeof AdminIndexRoute
+  '/analyst/': typeof AnalystIndexRoute
   '/app/': typeof AppIndexRoute
 }
 export interface FileRoutesByTo {
@@ -186,6 +249,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/unauthorized': typeof UnauthorizedRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/model-comparison': typeof AdminModelComparisonRoute
@@ -194,6 +258,13 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/analyst/alerts': typeof AnalystAlertsRoute
+  '/analyst/investigations': typeof AnalystInvestigationsRoute
+  '/analyst/predictions': typeof AnalystPredictionsRoute
+  '/analyst/profile': typeof AnalystProfileRoute
+  '/analyst/reports': typeof AnalystReportsRoute
+  '/analyst/review-queue': typeof AnalystReviewQueueRoute
+  '/analyst/transactions': typeof AnalystTransactionsRoute
   '/app/alerts': typeof AppAlertsRoute
   '/app/models': typeof AppModelsRoute
   '/app/pipeline': typeof AppPipelineRoute
@@ -205,6 +276,7 @@ export interface FileRoutesByTo {
   '/app/thesis': typeof AppThesisRoute
   '/app/transactions': typeof AppTransactionsRoute
   '/admin': typeof AdminIndexRoute
+  '/analyst': typeof AnalystIndexRoute
   '/app': typeof AppIndexRoute
 }
 export interface FileRoutesById {
@@ -213,6 +285,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/unauthorized': typeof UnauthorizedRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/model-comparison': typeof AdminModelComparisonRoute
@@ -221,6 +294,13 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/analyst/alerts': typeof AnalystAlertsRoute
+  '/analyst/investigations': typeof AnalystInvestigationsRoute
+  '/analyst/predictions': typeof AnalystPredictionsRoute
+  '/analyst/profile': typeof AnalystProfileRoute
+  '/analyst/reports': typeof AnalystReportsRoute
+  '/analyst/review-queue': typeof AnalystReviewQueueRoute
+  '/analyst/transactions': typeof AnalystTransactionsRoute
   '/app/alerts': typeof AppAlertsRoute
   '/app/models': typeof AppModelsRoute
   '/app/pipeline': typeof AppPipelineRoute
@@ -232,6 +312,7 @@ export interface FileRoutesById {
   '/app/thesis': typeof AppThesisRoute
   '/app/transactions': typeof AppTransactionsRoute
   '/admin/': typeof AdminIndexRoute
+  '/analyst/': typeof AnalystIndexRoute
   '/app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
@@ -241,6 +322,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/register'
+    | '/unauthorized'
     | '/admin/alerts'
     | '/admin/logs'
     | '/admin/model-comparison'
@@ -249,6 +331,13 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
+    | '/analyst/alerts'
+    | '/analyst/investigations'
+    | '/analyst/predictions'
+    | '/analyst/profile'
+    | '/analyst/reports'
+    | '/analyst/review-queue'
+    | '/analyst/transactions'
     | '/app/alerts'
     | '/app/models'
     | '/app/pipeline'
@@ -260,6 +349,7 @@ export interface FileRouteTypes {
     | '/app/thesis'
     | '/app/transactions'
     | '/admin/'
+    | '/analyst/'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -267,6 +357,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/register'
+    | '/unauthorized'
     | '/admin/alerts'
     | '/admin/logs'
     | '/admin/model-comparison'
@@ -275,6 +366,13 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
+    | '/analyst/alerts'
+    | '/analyst/investigations'
+    | '/analyst/predictions'
+    | '/analyst/profile'
+    | '/analyst/reports'
+    | '/analyst/review-queue'
+    | '/analyst/transactions'
     | '/app/alerts'
     | '/app/models'
     | '/app/pipeline'
@@ -286,6 +384,7 @@ export interface FileRouteTypes {
     | '/app/thesis'
     | '/app/transactions'
     | '/admin'
+    | '/analyst'
     | '/app'
   id:
     | '__root__'
@@ -293,6 +392,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/register'
+    | '/unauthorized'
     | '/admin/alerts'
     | '/admin/logs'
     | '/admin/model-comparison'
@@ -301,6 +401,13 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
+    | '/analyst/alerts'
+    | '/analyst/investigations'
+    | '/analyst/predictions'
+    | '/analyst/profile'
+    | '/analyst/reports'
+    | '/analyst/review-queue'
+    | '/analyst/transactions'
     | '/app/alerts'
     | '/app/models'
     | '/app/pipeline'
@@ -312,6 +419,7 @@ export interface FileRouteTypes {
     | '/app/thesis'
     | '/app/transactions'
     | '/admin/'
+    | '/analyst/'
     | '/app/'
   fileRoutesById: FileRoutesById
 }
@@ -320,6 +428,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  UnauthorizedRoute: typeof UnauthorizedRoute
   AdminAlertsRoute: typeof AdminAlertsRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminModelComparisonRoute: typeof AdminModelComparisonRoute
@@ -328,6 +437,13 @@ export interface RootRouteChildren {
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  AnalystAlertsRoute: typeof AnalystAlertsRoute
+  AnalystInvestigationsRoute: typeof AnalystInvestigationsRoute
+  AnalystPredictionsRoute: typeof AnalystPredictionsRoute
+  AnalystProfileRoute: typeof AnalystProfileRoute
+  AnalystReportsRoute: typeof AnalystReportsRoute
+  AnalystReviewQueueRoute: typeof AnalystReviewQueueRoute
+  AnalystTransactionsRoute: typeof AnalystTransactionsRoute
   AppAlertsRoute: typeof AppAlertsRoute
   AppModelsRoute: typeof AppModelsRoute
   AppPipelineRoute: typeof AppPipelineRoute
@@ -339,11 +455,19 @@ export interface RootRouteChildren {
   AppThesisRoute: typeof AppThesisRoute
   AppTransactionsRoute: typeof AppTransactionsRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AnalystIndexRoute: typeof AnalystIndexRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/unauthorized': {
+      id: '/unauthorized'
+      path: '/unauthorized'
+      fullPath: '/unauthorized'
+      preLoaderRoute: typeof UnauthorizedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -377,6 +501,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analyst/': {
+      id: '/analyst/'
+      path: '/analyst'
+      fullPath: '/analyst/'
+      preLoaderRoute: typeof AnalystIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -456,6 +587,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAlertsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/analyst/transactions': {
+      id: '/analyst/transactions'
+      path: '/analyst/transactions'
+      fullPath: '/analyst/transactions'
+      preLoaderRoute: typeof AnalystTransactionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analyst/review-queue': {
+      id: '/analyst/review-queue'
+      path: '/analyst/review-queue'
+      fullPath: '/analyst/review-queue'
+      preLoaderRoute: typeof AnalystReviewQueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analyst/reports': {
+      id: '/analyst/reports'
+      path: '/analyst/reports'
+      fullPath: '/analyst/reports'
+      preLoaderRoute: typeof AnalystReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analyst/profile': {
+      id: '/analyst/profile'
+      path: '/analyst/profile'
+      fullPath: '/analyst/profile'
+      preLoaderRoute: typeof AnalystProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analyst/predictions': {
+      id: '/analyst/predictions'
+      path: '/analyst/predictions'
+      fullPath: '/analyst/predictions'
+      preLoaderRoute: typeof AnalystPredictionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analyst/investigations': {
+      id: '/analyst/investigations'
+      path: '/analyst/investigations'
+      fullPath: '/analyst/investigations'
+      preLoaderRoute: typeof AnalystInvestigationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analyst/alerts': {
+      id: '/analyst/alerts'
+      path: '/analyst/alerts'
+      fullPath: '/analyst/alerts'
+      preLoaderRoute: typeof AnalystAlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/users': {
       id: '/admin/users'
       path: '/admin/users'
@@ -520,6 +700,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  UnauthorizedRoute: UnauthorizedRoute,
   AdminAlertsRoute: AdminAlertsRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminModelComparisonRoute: AdminModelComparisonRoute,
@@ -528,6 +709,13 @@ const rootRouteChildren: RootRouteChildren = {
   AdminSettingsRoute: AdminSettingsRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
   AdminUsersRoute: AdminUsersRoute,
+  AnalystAlertsRoute: AnalystAlertsRoute,
+  AnalystInvestigationsRoute: AnalystInvestigationsRoute,
+  AnalystPredictionsRoute: AnalystPredictionsRoute,
+  AnalystProfileRoute: AnalystProfileRoute,
+  AnalystReportsRoute: AnalystReportsRoute,
+  AnalystReviewQueueRoute: AnalystReviewQueueRoute,
+  AnalystTransactionsRoute: AnalystTransactionsRoute,
   AppAlertsRoute: AppAlertsRoute,
   AppModelsRoute: AppModelsRoute,
   AppPipelineRoute: AppPipelineRoute,
@@ -539,6 +727,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppThesisRoute: AppThesisRoute,
   AppTransactionsRoute: AppTransactionsRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AnalystIndexRoute: AnalystIndexRoute,
   AppIndexRoute: AppIndexRoute,
 }
 export const routeTree = rootRouteImport

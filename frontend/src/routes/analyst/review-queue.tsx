@@ -1,0 +1,12 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+import { AnalystShell } from "@/components/layout/AppShell";
+import Page from "@/pages/admin/AdminTransactionsPage";
+
+export const Route = createFileRoute("/analyst/review-queue")({
+  component: () => (
+    <AnalystShell>
+      <Page />
+    </AnalystShell>
+  ),
+});
