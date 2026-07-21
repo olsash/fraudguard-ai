@@ -44,6 +44,7 @@ import { Route as AdminPredictionsRouteImport } from './routes/admin/predictions
 import { Route as AdminModelComparisonRouteImport } from './routes/admin/model-comparison'
 import { Route as AdminLogsRouteImport } from './routes/admin/logs'
 import { Route as AdminAlertsRouteImport } from './routes/admin/alerts'
+import { Route as AnalystInvestigationsCaseIdRouteImport } from './routes/analyst/investigations.$caseId'
 
 const UnauthorizedRoute = UnauthorizedRouteImport.update({
   id: '/unauthorized',
@@ -220,6 +221,12 @@ const AdminAlertsRoute = AdminAlertsRouteImport.update({
   path: '/admin/alerts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AnalystInvestigationsCaseIdRoute =
+  AnalystInvestigationsCaseIdRouteImport.update({
+    id: '/$caseId',
+    path: '/$caseId',
+    getParentRoute: () => AnalystInvestigationsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -236,7 +243,7 @@ export interface FileRoutesByFullPath {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/analyst/alerts': typeof AnalystAlertsRoute
-  '/analyst/investigations': typeof AnalystInvestigationsRoute
+  '/analyst/investigations': typeof AnalystInvestigationsRouteWithChildren
   '/analyst/predictions': typeof AnalystPredictionsRoute
   '/analyst/profile': typeof AnalystProfileRoute
   '/analyst/reports': typeof AnalystReportsRoute
@@ -257,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/analyst/': typeof AnalystIndexRoute
   '/app/': typeof AppIndexRoute
+  '/analyst/investigations/$caseId': typeof AnalystInvestigationsCaseIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -273,7 +281,7 @@ export interface FileRoutesByTo {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/analyst/alerts': typeof AnalystAlertsRoute
-  '/analyst/investigations': typeof AnalystInvestigationsRoute
+  '/analyst/investigations': typeof AnalystInvestigationsRouteWithChildren
   '/analyst/predictions': typeof AnalystPredictionsRoute
   '/analyst/profile': typeof AnalystProfileRoute
   '/analyst/reports': typeof AnalystReportsRoute
@@ -294,6 +302,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/analyst': typeof AnalystIndexRoute
   '/app': typeof AppIndexRoute
+  '/analyst/investigations/$caseId': typeof AnalystInvestigationsCaseIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -311,7 +320,7 @@ export interface FileRoutesById {
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
   '/analyst/alerts': typeof AnalystAlertsRoute
-  '/analyst/investigations': typeof AnalystInvestigationsRoute
+  '/analyst/investigations': typeof AnalystInvestigationsRouteWithChildren
   '/analyst/predictions': typeof AnalystPredictionsRoute
   '/analyst/profile': typeof AnalystProfileRoute
   '/analyst/reports': typeof AnalystReportsRoute
@@ -332,6 +341,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/analyst/': typeof AnalystIndexRoute
   '/app/': typeof AppIndexRoute
+  '/analyst/investigations/$caseId': typeof AnalystInvestigationsCaseIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -371,6 +381,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/analyst/'
     | '/app/'
+    | '/analyst/investigations/$caseId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -408,6 +419,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/analyst'
     | '/app'
+    | '/analyst/investigations/$caseId'
   id:
     | '__root__'
     | '/'
@@ -445,6 +457,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/analyst/'
     | '/app/'
+    | '/analyst/investigations/$caseId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -462,7 +475,7 @@ export interface RootRouteChildren {
   AdminTransactionsRoute: typeof AdminTransactionsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AnalystAlertsRoute: typeof AnalystAlertsRoute
-  AnalystInvestigationsRoute: typeof AnalystInvestigationsRoute
+  AnalystInvestigationsRoute: typeof AnalystInvestigationsRouteWithChildren
   AnalystPredictionsRoute: typeof AnalystPredictionsRoute
   AnalystProfileRoute: typeof AnalystProfileRoute
   AnalystReportsRoute: typeof AnalystReportsRoute
@@ -732,8 +745,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAlertsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/analyst/investigations/$caseId': {
+      id: '/analyst/investigations/$caseId'
+      path: '/$caseId'
+      fullPath: '/analyst/investigations/$caseId'
+      preLoaderRoute: typeof AnalystInvestigationsCaseIdRouteImport
+      parentRoute: typeof AnalystInvestigationsRoute
+    }
   }
 }
+
+interface AnalystInvestigationsRouteChildren {
+  AnalystInvestigationsCaseIdRoute: typeof AnalystInvestigationsCaseIdRoute
+}
+
+const AnalystInvestigationsRouteChildren: AnalystInvestigationsRouteChildren = {
+  AnalystInvestigationsCaseIdRoute: AnalystInvestigationsCaseIdRoute,
+}
+
+const AnalystInvestigationsRouteWithChildren =
+  AnalystInvestigationsRoute._addFileChildren(
+    AnalystInvestigationsRouteChildren,
+  )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -750,7 +783,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminTransactionsRoute: AdminTransactionsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AnalystAlertsRoute: AnalystAlertsRoute,
-  AnalystInvestigationsRoute: AnalystInvestigationsRoute,
+  AnalystInvestigationsRoute: AnalystInvestigationsRouteWithChildren,
   AnalystPredictionsRoute: AnalystPredictionsRoute,
   AnalystProfileRoute: AnalystProfileRoute,
   AnalystReportsRoute: AnalystReportsRoute,

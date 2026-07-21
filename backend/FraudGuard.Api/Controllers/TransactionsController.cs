@@ -21,11 +21,16 @@ public class TransactionsController : ControllerBase
     private static readonly string[] FinalStatuses = ["safe", "review", "fraud"];
 
     private readonly AppDbContext _dbContext;
+    private readonly IFraudPredictionService _predictionService;
     private readonly ISystemLogService _systemLogService;
 
-    public TransactionsController(AppDbContext dbContext, ISystemLogService systemLogService)
+    public TransactionsController(
+        AppDbContext dbContext,
+        IFraudPredictionService predictionService,
+        ISystemLogService systemLogService)
     {
         _dbContext = dbContext;
+        _predictionService = predictionService;
         _systemLogService = systemLogService;
     }
 
@@ -83,18 +88,71 @@ public class TransactionsController : ControllerBase
             return Unauthorized(new { message = "Invalid token." });
         }
 
+        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+        {
+            var normalizedKey = NormalizeOptional(request.IdempotencyKey);
+            var existing = await _dbContext.Transactions
+                .AsNoTracking()
+                .Include(item => item.User)
+                .Include(item => item.SourceBankAccount)
+                .Include(item => item.Beneficiary)
+                .Include(item => item.Predictions)
+                .FirstOrDefaultAsync(item => item.UserId == userId.Value && item.IdempotencyKey == normalizedKey, cancellationToken);
+
+            if (existing is not null)
+            {
+                return Ok(ToResponse(existing));
+            }
+
+            request.IdempotencyKey = normalizedKey;
+        }
+
         if (request.Amount <= 0)
         {
             return BadRequest(new { message = "Amount must be greater than 0." });
         }
 
         var transactionType = request.TransactionType.Trim().ToUpperInvariant();
+        if (transactionType is not ("PAYMENT" or "TRANSFER" or "CASH_OUT" or "CASH_IN" or "DEBIT"))
+        {
+            return BadRequest(new { message = "Transaction type must be one of CASH_IN, CASH_OUT, DEBIT, PAYMENT, TRANSFER." });
+        }
+
+        if (!request.SourceBankAccountId.HasValue)
+        {
+            return BadRequest(new { message = "Select a source account." });
+        }
+
+        var executionStrategy = _dbContext.Database.CreateExecutionStrategy();
+        return await executionStrategy.ExecuteAsync(async () =>
+        {
+            await using var dbTransaction = IsInMemoryDatabase()
+                ? null
+                : await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+            var result = await CreateTransactionCoreAsync(userId.Value, transactionType, request, cancellationToken);
+
+            if (dbTransaction is not null)
+            {
+                await dbTransaction.CommitAsync(cancellationToken);
+            }
+
+            return result;
+        });
+    }
+
+    private async Task<ActionResult<TransactionResponseDto>> CreateTransactionCoreAsync(
+        int userId,
+        string transactionType,
+        CreateTransactionRequestDto request,
+        CancellationToken cancellationToken)
+    {
         var sourceAccount = request.SourceBankAccountId.HasValue
             ? await _dbContext.BankAccounts
                 .Include(account => account.Bank)
                 .FirstOrDefaultAsync(account =>
                     account.Id == request.SourceBankAccountId.Value
-                    && account.UserId == userId.Value
+                    && account.UserId == userId
                     && account.IsActive,
                     cancellationToken)
             : null;
@@ -106,6 +164,16 @@ public class TransactionsController : ControllerBase
         if (request.SourceBankAccountId.HasValue && sourceAccount is null)
         {
             return BadRequest(new { message = "Select an active source account that belongs to your profile." });
+        }
+
+        if (sourceAccount is null)
+        {
+            return BadRequest(new { message = "Select an active source account that belongs to your profile." });
+        }
+
+        if (!IsSupportedCurrency(sourceAccount.Currency))
+        {
+            return BadRequest(new { message = $"Currency {sourceAccount.Currency} is not supported by this demo workflow." });
         }
 
         if (transactionType == "PAYMENT")
@@ -137,7 +205,7 @@ public class TransactionsController : ControllerBase
             beneficiary = await _dbContext.Beneficiaries
                 .Include(item => item.Bank)
                 .Include(item => item.DestinationBankAccount)
-                .FirstOrDefaultAsync(item => item.Id == request.BeneficiaryId.Value && item.UserId == userId.Value, cancellationToken);
+                .FirstOrDefaultAsync(item => item.Id == request.BeneficiaryId.Value && item.UserId == userId, cancellationToken);
 
             if (beneficiary is null)
             {
@@ -147,32 +215,25 @@ public class TransactionsController : ControllerBase
             destinationAccount = beneficiary.DestinationBankAccount;
         }
 
-        if (sourceAccount is not null && transactionType is "PAYMENT" or "TRANSFER" or "CASH_OUT" or "DEBIT" && sourceAccount.CurrentBalance < request.Amount)
+        if (destinationAccount is not null && !string.Equals(sourceAccount.Currency, destinationAccount.Currency, StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { message = "Source and destination account currencies must match." });
+        }
+
+        if (transactionType is "PAYMENT" or "TRANSFER" or "CASH_OUT" or "DEBIT" && sourceAccount.CurrentBalance < request.Amount)
         {
             return BadRequest(new { message = "Source account balance is insufficient for this transaction." });
         }
 
-        var oldOrigin = sourceAccount?.CurrentBalance;
+        var oldOrigin = sourceAccount.CurrentBalance;
         var newOrigin = CalculateNewOriginBalance(oldOrigin, request.Amount, transactionType);
         var oldDestination = destinationAccount?.CurrentBalance ?? 0m;
         var newDestination = CalculateNewDestinationBalance(oldDestination, request.Amount, transactionType, destinationAccount is not null);
 
-        if (sourceAccount is not null && newOrigin.HasValue)
-        {
-            sourceAccount.CurrentBalance = newOrigin.Value;
-            sourceAccount.UpdatedAt = DateTime.UtcNow;
-        }
-
-        if (destinationAccount is not null && newDestination.HasValue)
-        {
-            destinationAccount.CurrentBalance = newDestination.Value;
-            destinationAccount.UpdatedAt = DateTime.UtcNow;
-        }
-
         var transaction = new Transaction
         {
-            UserId = userId.Value,
-            SourceBankAccountId = sourceAccount?.Id,
+            UserId = userId,
+            SourceBankAccountId = sourceAccount.Id,
             BeneficiaryId = beneficiary?.Id,
             MerchantId = merchant?.Id,
             Merchant = merchant?.Name ?? beneficiary?.FullName ?? request.Merchant?.Trim() ?? string.Empty,
@@ -181,11 +242,13 @@ public class TransactionsController : ControllerBase
             Amount = request.Amount,
             OldBalanceOrigin = oldOrigin,
             NewBalanceOrigin = newOrigin,
-            OldBalanceDestination = newDestination.HasValue ? oldDestination : null,
+            OldBalanceDestination = oldDestination,
             NewBalanceDestination = newDestination,
-            Currency = sourceAccount?.Currency ?? NormalizeCurrency(request.Currency),
+            Currency = sourceAccount.Currency,
             RiskScore = null,
             Status = "pending",
+            ProcessingStatus = "PendingAnalysis",
+            IdempotencyKey = NormalizeOptional(request.IdempotencyKey),
             TransactionType = transactionType,
             Description = NormalizeOptional(request.Description),
             CreatedAt = DateTime.UtcNow
@@ -198,15 +261,107 @@ public class TransactionsController : ControllerBase
             return BadRequest(new { message = "Merchant, category, and country are required when no database-backed merchant or beneficiary is selected." });
         }
 
+        var predictionRequest = new CreatePredictionRequest
+        {
+            TransactionType = transaction.TransactionType,
+            Amount = transaction.Amount,
+            OldBalanceOrigin = transaction.OldBalanceOrigin,
+            NewBalanceOrigin = transaction.NewBalanceOrigin,
+            OldBalanceDestination = transaction.OldBalanceDestination,
+            NewBalanceDestination = transaction.NewBalanceDestination
+        };
+
+        FraudPredictionResult predictionResult;
+        try
+        {
+            predictionResult = await _predictionService.PredictAsync(predictionRequest, cancellationToken);
+        }
+        catch (FraudPredictionInputException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (FraudPredictionException ex)
+        {
+            transaction.ProcessingStatus = "Failed";
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
+        }
+
+        var processingStatus = MapProcessingStatus(predictionResult);
+        transaction.RiskScore = predictionResult.RiskScore;
+        transaction.Status = MapTransactionStatus(processingStatus);
+        transaction.ProcessingStatus = processingStatus;
+
         _dbContext.Transactions.Add(transaction);
         await _dbContext.SaveChangesAsync(cancellationToken);
-        await _systemLogService.LogAsync("Success", "transaction", $"Transaction TX-{transaction.Id} created for {transaction.Merchant}.", transaction.UserId, null, cancellationToken);
+
+        var prediction = new Prediction
+        {
+            UserId = transaction.UserId,
+            TransactionId = transaction.Id,
+            TransactionType = transaction.TransactionType,
+            Amount = transaction.Amount,
+            OldBalanceOrigin = predictionRequest.OldBalanceOriginValue,
+            NewBalanceOrigin = predictionRequest.NewBalanceOriginValue,
+            OldBalanceDestination = predictionRequest.OldBalanceDestinationValue,
+            NewBalanceDestination = predictionRequest.NewBalanceDestinationValue,
+            RiskScore = predictionResult.RiskScore,
+            RiskLevel = predictionResult.RiskLevel,
+            IsFraud = predictionResult.IsFraud,
+            Confidence = predictionResult.Confidence,
+            Explanation = JsonSerializer.Serialize(predictionResult.Reasons),
+            SuggestedAction = predictionResult.SuggestedAction,
+            CreatedAt = DateTime.UtcNow
+        };
+        _dbContext.Predictions.Add(prediction);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        FraudAlert? alert = null;
+        if (processingStatus == "Completed")
+        {
+            sourceAccount.CurrentBalance = newOrigin.GetValueOrDefault();
+            sourceAccount.UpdatedAt = DateTime.UtcNow;
+            if (destinationAccount is not null && newDestination.HasValue)
+            {
+                destinationAccount.CurrentBalance = newDestination.Value;
+                destinationAccount.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _systemLogService.LogAsync("Success", "transaction", $"Transaction TX-{transaction.Id} completed after low-risk ML analysis.", transaction.UserId, null, cancellationToken);
+        }
+        else if (processingStatus == "PendingReview")
+        {
+            alert = CreateAlert(transaction, prediction, "Transaction Requires Analyst Review");
+            _dbContext.FraudAlerts.Add(alert);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            _dbContext.FraudCases.Add(new FraudCase
+            {
+                TransactionId = transaction.Id,
+                PredictionId = prediction.Id,
+                FraudAlertId = alert.Id,
+                Status = "Open",
+                Priority = PriorityForRisk(prediction.RiskScore),
+                ModelRiskScore = prediction.RiskScore,
+                ModelDecision = prediction.IsFraud ? "Fraud" : "Review",
+                CreatedAt = DateTime.UtcNow
+            });
+            await _systemLogService.LogAsync("Warning", "transaction", $"Transaction TX-{transaction.Id} is pending analyst review.", transaction.UserId, null, cancellationToken);
+        }
+        else
+        {
+            alert = CreateAlert(transaction, prediction, "High Risk Transaction Rejected");
+            _dbContext.FraudAlerts.Add(alert);
+            await _systemLogService.LogAsync("Warning", "transaction", $"Transaction TX-{transaction.Id} rejected by ML analysis before balance updates.", transaction.UserId, null, cancellationToken);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
         var created = await _dbContext.Transactions
             .AsNoTracking()
             .Include(item => item.User)
             .Include(item => item.SourceBankAccount)
             .Include(item => item.Beneficiary)
+            .Include(item => item.Predictions)
             .FirstAsync(item => item.Id == transaction.Id, cancellationToken);
 
         return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, ToResponse(created));
@@ -359,6 +514,7 @@ public class TransactionsController : ControllerBase
             Currency = transaction.Currency,
             RiskScore = transaction.RiskScore,
             Status = transaction.Status,
+            ProcessingStatus = transaction.ProcessingStatus,
             TransactionType = transaction.TransactionType,
             CreatedAt = transaction.CreatedAt,
             Description = transaction.Description,
@@ -384,6 +540,16 @@ public class TransactionsController : ControllerBase
     private static string NormalizeCurrency(string? currency)
     {
         return string.IsNullOrWhiteSpace(currency) ? "USD" : currency.Trim().ToUpperInvariant();
+    }
+
+    private static bool IsSupportedCurrency(string currency)
+    {
+        return NormalizeCurrency(currency) is "EUR" or "USD";
+    }
+
+    private bool IsInMemoryDatabase()
+    {
+        return _dbContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private static string? NormalizeOptional(string? value)
@@ -422,6 +588,47 @@ public class TransactionsController : ControllerBase
         }
 
         return hasDestinationAccount ? oldBalance : null;
+    }
+
+    private static string MapProcessingStatus(FraudPredictionResult result)
+    {
+        if (result.IsFraud || result.RiskScore >= 70)
+        {
+            return "Rejected";
+        }
+
+        return result.RiskScore >= 40 ? "PendingReview" : "Completed";
+    }
+
+    private static string MapTransactionStatus(string processingStatus)
+    {
+        return processingStatus switch
+        {
+            "Completed" => "safe",
+            "PendingReview" => "review",
+            "Rejected" => "fraud",
+            _ => "pending"
+        };
+    }
+
+    private static string PriorityForRisk(int riskScore)
+    {
+        return riskScore >= 85 ? "Critical" : riskScore >= 70 ? "High" : riskScore >= 40 ? "Medium" : "Low";
+    }
+
+    private static FraudAlert CreateAlert(Transaction transaction, Prediction prediction, string title)
+    {
+        return new FraudAlert
+        {
+            UserId = transaction.UserId,
+            TransactionId = transaction.Id,
+            PredictionId = prediction.Id,
+            Title = title,
+            Severity = prediction.RiskScore >= 85 ? "critical" : "high",
+            Status = "open",
+            RiskScore = prediction.RiskScore,
+            CreatedAt = DateTime.UtcNow
+        };
     }
 
     private static string Mask(string value)

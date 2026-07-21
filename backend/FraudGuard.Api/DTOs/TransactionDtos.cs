@@ -42,6 +42,8 @@ public class TransactionResponseDto
 
     public string Status { get; set; } = string.Empty;
 
+    public string ProcessingStatus { get; set; } = string.Empty;
+
     public string TransactionType { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
@@ -86,6 +88,9 @@ public class CreateTransactionRequestDto
 
     [MaxLength(500)]
     public string? Description { get; set; }
+
+    [MaxLength(100)]
+    public string? IdempotencyKey { get; set; }
 }
 
 public class UpdateTransactionStatusRequestDto

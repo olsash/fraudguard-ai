@@ -28,6 +28,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Merchant> Merchants => Set<Merchant>();
 
+    public DbSet<FraudCase> FraudCases => Set<FraudCase>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -178,6 +180,8 @@ public class AppDbContext : DbContext
             entity.Property(transaction => transaction.NewBalanceDestination).HasColumnType("decimal(18,2)");
             entity.Property(transaction => transaction.Currency).IsRequired().HasMaxLength(10);
             entity.Property(transaction => transaction.Status).IsRequired().HasMaxLength(20);
+            entity.Property(transaction => transaction.ProcessingStatus).IsRequired().HasMaxLength(30);
+            entity.Property(transaction => transaction.IdempotencyKey).HasMaxLength(100);
             entity.Property(transaction => transaction.TransactionType).IsRequired().HasMaxLength(30);
             entity.Property(transaction => transaction.Description).HasMaxLength(500);
             entity.Property(transaction => transaction.CreatedAt).IsRequired();
@@ -203,6 +207,9 @@ public class AppDbContext : DbContext
             entity.HasIndex(transaction => transaction.MerchantId);
             entity.HasIndex(transaction => transaction.CreatedAt);
             entity.HasIndex(transaction => transaction.Status);
+            entity.HasIndex(transaction => new { transaction.UserId, transaction.IdempotencyKey })
+                .IsUnique()
+                .HasFilter("[IdempotencyKey] IS NOT NULL");
         });
 
         // Demo banking data only. These are synthetic account numbers and IBANs with no live banking integration.
@@ -287,6 +294,7 @@ public class AppDbContext : DbContext
                 Currency = "USD",
                 RiskScore = 18,
                 Status = "safe",
+                ProcessingStatus = "Completed",
                 TransactionType = "PAYMENT",
                 CreatedAt = new DateTime(2026, 1, 2, 10, 15, 0, DateTimeKind.Utc),
                 Description = "Office equipment purchase"
@@ -302,6 +310,7 @@ public class AppDbContext : DbContext
                 Currency = "USD",
                 RiskScore = 78,
                 Status = "fraud",
+                ProcessingStatus = "Rejected",
                 TransactionType = "TRANSFER",
                 CreatedAt = new DateTime(2026, 1, 3, 2, 35, 0, DateTimeKind.Utc),
                 Description = "High-value transfer to new destination"
@@ -317,9 +326,42 @@ public class AppDbContext : DbContext
                 Currency = "USD",
                 RiskScore = 44,
                 Status = "review",
+                ProcessingStatus = "PendingReview",
                 TransactionType = "PAYMENT",
                 CreatedAt = new DateTime(2026, 1, 4, 18, 20, 0, DateTimeKind.Utc),
                 Description = "Travel booking flagged for review"
             });
+
+        modelBuilder.Entity<FraudCase>(entity =>
+        {
+            entity.HasKey(fraudCase => fraudCase.Id);
+            entity.Property(fraudCase => fraudCase.Status).IsRequired().HasMaxLength(30);
+            entity.Property(fraudCase => fraudCase.Priority).IsRequired().HasMaxLength(20);
+            entity.Property(fraudCase => fraudCase.ModelDecision).IsRequired().HasMaxLength(30);
+            entity.Property(fraudCase => fraudCase.FinalDecision).HasMaxLength(30);
+            entity.Property(fraudCase => fraudCase.AnalystComment).HasMaxLength(2000);
+            entity.Property(fraudCase => fraudCase.CreatedAt).IsRequired();
+            entity.HasOne(fraudCase => fraudCase.Transaction)
+                .WithMany()
+                .HasForeignKey(fraudCase => fraudCase.TransactionId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(fraudCase => fraudCase.Prediction)
+                .WithMany()
+                .HasForeignKey(fraudCase => fraudCase.PredictionId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(fraudCase => fraudCase.FraudAlert)
+                .WithMany()
+                .HasForeignKey(fraudCase => fraudCase.FraudAlertId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(fraudCase => fraudCase.AssignedAnalyst)
+                .WithMany()
+                .HasForeignKey(fraudCase => fraudCase.AssignedAnalystId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasIndex(fraudCase => fraudCase.TransactionId).IsUnique();
+            entity.HasIndex(fraudCase => fraudCase.AssignedAnalystId);
+            entity.HasIndex(fraudCase => fraudCase.Status);
+            entity.HasIndex(fraudCase => fraudCase.Priority);
+            entity.HasIndex(fraudCase => fraudCase.CreatedAt);
+        });
     }
 }

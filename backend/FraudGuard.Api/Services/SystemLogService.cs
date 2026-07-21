@@ -65,7 +65,7 @@ public class SystemLogService : ISystemLogService
     private static string NormalizeSource(string source)
     {
         var normalized = source.Trim().ToLowerInvariant();
-        return normalized is "auth" or "api" or "admin" or "prediction" or "transaction" or "alert" or "profile" or "settings"
+        return normalized is "auth" or "api" or "admin" or "prediction" or "transaction" or "alert" or "case" or "profile" or "settings"
             ? normalized
             : "api";
     }

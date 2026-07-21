@@ -377,6 +377,127 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         response.EnsureSuccessStatusCode();
     }
 
+    [Fact]
+    public async Task CreateTransaction_WithSafePayment_CompletesAndUpdatesBalancesAtomically()
+    {
+        var accountId = await CreateDemoAccountAsync(1000m);
+        var client = CreateUserOneClient();
+
+        var response = await client.PostAsJsonAsync("/api/transactions", new
+        {
+            sourceBankAccountId = accountId,
+            merchantId = 1,
+            amount = 42.75m,
+            currency = "EUR",
+            transactionType = "PAYMENT",
+            description = "Safe server controlled test",
+            idempotencyKey = Guid.NewGuid().ToString("N")
+        });
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<TransactionResponseBody>();
+        Assert.NotNull(body);
+        Assert.Equal("Completed", body.ProcessingStatus);
+        Assert.Equal("safe", body.Status);
+        Assert.NotNull(body.LatestPredictionId);
+
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var account = await dbContext.BankAccounts.FirstAsync(item => item.Id == accountId);
+        var transaction = await dbContext.Transactions.Include(item => item.Predictions).FirstAsync(item => item.Id == body.Id);
+        Assert.Equal(957.25m, account.CurrentBalance);
+        Assert.Equal(1000m, transaction.OldBalanceOrigin);
+        Assert.Equal(957.25m, transaction.NewBalanceOrigin);
+        Assert.Single(transaction.Predictions);
+    }
+
+    [Fact]
+    public async Task CreateTransaction_WithInsufficientFunds_ReturnsValidationAndDoesNotCreateTransaction()
+    {
+        var accountId = await CreateDemoAccountAsync(10m);
+        var client = CreateUserOneClient();
+
+        var response = await client.PostAsJsonAsync("/api/transactions", new
+        {
+            sourceBankAccountId = accountId,
+            merchantId = 1,
+            amount = 42.75m,
+            currency = "EUR",
+            transactionType = "PAYMENT",
+            idempotencyKey = Guid.NewGuid().ToString("N")
+        });
+
+        await AssertValidationError(response, "Source account balance is insufficient");
+
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var account = await dbContext.BankAccounts.FirstAsync(item => item.Id == accountId);
+        Assert.Equal(10m, account.CurrentBalance);
+    }
+
+    [Fact]
+    public async Task CreateTransaction_WithDuplicateIdempotencyKey_ReturnsExistingTransaction()
+    {
+        var accountId = await CreateDemoAccountAsync(1000m);
+        var idempotencyKey = Guid.NewGuid().ToString("N");
+        var client = CreateUserOneClient();
+        var payload = new
+        {
+            sourceBankAccountId = accountId,
+            merchantId = 1,
+            amount = 42.75m,
+            currency = "EUR",
+            transactionType = "PAYMENT",
+            idempotencyKey
+        };
+
+        var first = await client.PostAsJsonAsync("/api/transactions", payload);
+        var second = await client.PostAsJsonAsync("/api/transactions", payload);
+
+        first.EnsureSuccessStatusCode();
+        second.EnsureSuccessStatusCode();
+        var firstBody = await first.Content.ReadFromJsonAsync<TransactionResponseBody>();
+        var secondBody = await second.Content.ReadFromJsonAsync<TransactionResponseBody>();
+        Assert.Equal(firstBody?.Id, secondBody?.Id);
+
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.Equal(1, await dbContext.Transactions.CountAsync(item => item.IdempotencyKey == idempotencyKey));
+    }
+
+    [Fact]
+    public async Task CreateTransaction_WithHighRiskTransfer_RejectsBeforeBalanceUpdates()
+    {
+        var accountId = await CreateDemoAccountAsync(1_250_000m);
+        var client = CreateUserOneClient();
+
+        var response = await client.PostAsJsonAsync("/api/transactions", new
+        {
+            sourceBankAccountId = accountId,
+            beneficiaryId = 1,
+            amount = 1_000_000m,
+            currency = "EUR",
+            transactionType = "TRANSFER",
+            description = "High risk transfer test",
+            idempotencyKey = Guid.NewGuid().ToString("N")
+        });
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<TransactionResponseBody>();
+        Assert.NotNull(body);
+        Assert.Equal("Rejected", body.ProcessingStatus);
+        Assert.Equal("fraud", body.Status);
+
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var account = await dbContext.BankAccounts.FirstAsync(item => item.Id == accountId);
+        var transaction = await dbContext.Transactions.Include(item => item.Predictions).FirstAsync(item => item.Id == body.Id);
+        Assert.Equal(1_250_000m, account.CurrentBalance);
+        Assert.Equal(1_250_000m, transaction.OldBalanceOrigin);
+        Assert.Equal(250_000m, transaction.NewBalanceOrigin);
+        Assert.Single(transaction.Predictions);
+    }
+
     private static Dictionary<string, object> SafePredictionRequest()
     {
         return new Dictionary<string, object>
@@ -442,6 +563,36 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         dbContext.Users.Add(user);
         await dbContext.SaveChangesAsync();
         return user.Id;
+    }
+
+    private HttpClient CreateUserOneClient()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-User-Id", "1");
+        client.DefaultRequestHeaders.Add("X-Test-Role", ApplicationRoles.User);
+        return client;
+    }
+
+    private async Task<int> CreateDemoAccountAsync(decimal balance)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var suffix = Random.Shared.Next(100000, 999999).ToString();
+        var account = new BankAccount
+        {
+            UserId = 1,
+            BankId = 1,
+            AccountNumber = $"FGD-TEST-{suffix}",
+            IBAN = $"XK051212000TEST{suffix}",
+            Currency = "EUR",
+            CurrentBalance = balance,
+            AccountType = "Checking",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+        dbContext.BankAccounts.Add(account);
+        await dbContext.SaveChangesAsync();
+        return account.Id;
     }
 
     private static Dictionary<string, object> StoredBalanceRequest()
@@ -525,6 +676,17 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         public string Status { get; set; } = string.Empty;
 
         public string[] Explanation { get; set; } = [];
+    }
+
+    private sealed class TransactionResponseBody
+    {
+        public int Id { get; set; }
+
+        public string Status { get; set; } = string.Empty;
+
+        public string ProcessingStatus { get; set; } = string.Empty;
+
+        public int? LatestPredictionId { get; set; }
     }
 
     private sealed class RiskBreakdownFactorBody

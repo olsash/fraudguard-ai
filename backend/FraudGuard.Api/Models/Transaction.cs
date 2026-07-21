@@ -50,6 +50,12 @@ public class Transaction
     public string Status { get; set; } = "pending";
 
     [MaxLength(30)]
+    public string ProcessingStatus { get; set; } = "PendingAnalysis";
+
+    [MaxLength(100)]
+    public string? IdempotencyKey { get; set; }
+
+    [MaxLength(30)]
     public string TransactionType { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

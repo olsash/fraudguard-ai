@@ -142,14 +142,21 @@ export default function TxPage() {
       currency: selectedAccount?.currency ?? "EUR",
       transactionType,
       description: form.description || null,
+      idempotencyKey: crypto.randomUUID(),
     };
 
     setSaving(true);
     setError(null);
 
     try {
-      await transactionService.createTransaction(payload);
-      toast.success("Transaction created. Click Predict to analyze fraud risk.");
+      const created = await transactionService.createTransaction(payload);
+      toast.success(created.processingStatus === "Completed"
+        ? "Transaction analyzed and completed."
+        : created.processingStatus === "PendingReview"
+          ? "Transaction analyzed and sent to analyst review."
+          : created.processingStatus === "Rejected"
+            ? "Transaction analyzed and rejected before balance updates."
+            : "Transaction submitted for analysis.");
       setShowCreate(false);
       setForm(initialForm);
       await loadTransactions();
@@ -231,7 +238,7 @@ export default function TxPage() {
                             disabled={predictingId === transaction.id}
                             className="rounded px-2 py-1 text-xs glass hover:ring-1 hover:ring-primary/40 disabled:opacity-60"
                           >
-                            {predictingId === transaction.id ? "Scoring..." : transaction.latestPredictionId ? "Re-analyze" : "Run Analysis"}
+                            {predictingId === transaction.id ? "Scoring..." : transaction.latestPredictionId ? "View Analysis" : "Analysis Pending"}
                           </button>
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </div>
@@ -333,6 +340,7 @@ function TxModal({ tx, predicting, onPredict, onClose }: { tx: Transaction; pred
           ["Merchant", tx.merchant], ["Category", tx.category], ["Country", tx.country],
           ["Source account", tx.sourceAccount ?? "Not linked"], ["Beneficiary", tx.beneficiaryName ?? "Not applicable"],
           ["Amount", formatCurrency(tx.amount, tx.currency)], ["Risk score", tx.riskScore == null ? "Pending" : `${tx.riskScore}/100`],
+          ["Processing", tx.processingStatus],
           ["Time", formatDateTime(tx.createdAt)], ["Currency", tx.currency], ["Type", tx.transactionType],
         ].map(([key, value]) => <Metric key={key} label={key} value={value} />)}
       </div>
@@ -355,7 +363,7 @@ function TxModal({ tx, predicting, onPredict, onClose }: { tx: Transaction; pred
       </div>
       <div className="mt-6 flex justify-end gap-2">
         <button onClick={onPredict} disabled={predicting} className="bg-gradient-primary text-primary-foreground rounded-lg px-4 py-2 text-sm disabled:opacity-60">
-          {predicting ? "Scoring..." : tx.latestPredictionId ? "Re-analyze" : "Run Analysis"}
+          {predicting ? "Opening..." : "Open prediction history"}
         </button>
         <button onClick={onClose} className="glass rounded-lg px-4 py-2 text-sm">Close</button>
       </div>

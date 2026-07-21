@@ -1,4 +1,5 @@
 export type TransactionStatus = "pending" | "safe" | "review" | "fraud";
+export type TransactionProcessingStatus = "PendingAnalysis" | "PendingReview" | "Completed" | "Rejected" | "Failed";
 export type FinalTransactionStatus = Exclude<TransactionStatus, "pending">;
 
 export interface Transaction {
@@ -21,6 +22,7 @@ export interface Transaction {
   currency: string;
   riskScore: number | null;
   status: TransactionStatus;
+  processingStatus: TransactionProcessingStatus;
   transactionType: string;
   createdAt: string;
   description?: string | null;
@@ -48,6 +50,7 @@ export interface CreateTransactionInput {
   currency: string;
   transactionType: string;
   description?: string | null;
+  idempotencyKey?: string | null;
 }
 
 export interface TransactionSummary {
