@@ -47,6 +47,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ISystemLogService, SystemLogService>();
+builder.Services.AddScoped<IDevelopmentSimulatedBankAccountService, DevelopmentSimulatedBankAccountService>();
 builder.Services.AddSingleton<IFraudPredictionService, OnnxFraudPredictionService>();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
@@ -102,6 +103,14 @@ if (app.Environment.IsDevelopment())
 
     try
     {
+        if (dbContext.Database.IsRelational())
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+
+        await DevelopmentDemoUserSeeder.SeedAsync(dbContext, app.Logger);
+        await MerchantDevelopmentSeeder.SeedAsync(dbContext, app.Logger);
+
         if (!dbContext.SystemLogs.Any())
         {
             dbContext.SystemLogs.AddRange(
@@ -137,7 +146,8 @@ if (app.Environment.IsDevelopment())
     }
     catch (Exception ex)
     {
-        app.Logger.LogDebug(ex, "Skipped development system log seeding.");
+        app.Logger.LogError(ex, "Development database migration or seeding failed.");
+        throw;
     }
 }
 

@@ -10,8 +10,9 @@ dotnet run
 
 Default accounts:
 
-- `admin@credit.com` / `admin123`
-- `user@credit.com` / `user123`
+- `admin@fraudguard.com` / `admin123`
+- `analyst@fraudguard.com` / `analyst123` (Development only)
+- `user@fraudguard.com` / `user123`
 
 Login endpoint:
 

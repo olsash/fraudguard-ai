@@ -31,9 +31,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   useRequireRole("user");
 
   return (
-    <div className="flex min-h-screen w-full max-w-full overflow-x-hidden">
+    <div className="flex h-screen h-dvh w-full max-w-full overflow-hidden">
       <AppSidebar variant="user" />
-      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">{children}</div>
+      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden">{children}</div>
     </div>
   );
 }
@@ -42,9 +42,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
   useRequireRole("admin");
 
   return (
-    <div className="flex min-h-screen w-full max-w-full overflow-x-hidden">
+    <div className="flex h-screen h-dvh w-full max-w-full overflow-hidden">
       <AppSidebar variant="admin" />
-      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">{children}</div>
+      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden">{children}</div>
     </div>
   );
 }
@@ -53,9 +53,9 @@ export function AnalystShell({ children }: { children: ReactNode }) {
   useRequireRole("fraudAnalyst");
 
   return (
-    <div className="flex min-h-screen w-full max-w-full overflow-x-hidden">
+    <div className="flex h-screen h-dvh w-full max-w-full overflow-hidden">
       <AppSidebar variant="analyst" />
-      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">{children}</div>
+      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-y-auto overflow-x-hidden">{children}</div>
     </div>
   );
 }

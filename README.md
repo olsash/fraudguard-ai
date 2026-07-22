@@ -348,8 +348,9 @@ http://localhost:5000/api
 
 Default development accounts:
 
-- `admin@credit.com` / `admin123`
-- `user@credit.com` / `user123`
+- `admin@fraudguard.com` / `admin123`
+- `analyst@fraudguard.com` / `analyst123`
+- `user@fraudguard.com` / `user123`
 
 The backend loads `MLModels/fraud_model.onnx` and `MLModels/fraud_model.metadata.json` at startup. If either artifact is missing, startup fails with the expected path. The backend no longer calls `http://localhost:8000` for prediction.
 

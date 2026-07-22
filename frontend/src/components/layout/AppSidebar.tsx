@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Radar, Receipt, Bell,
   Users, Settings, ShieldAlert, Activity, LogOut, UserCircle, BarChart3, ClipboardList, FileSearch, FileText,
-  CreditCard, UserCheck,
+  CreditCard, UserCheck, Store,
 } from "lucide-react";
 import { Brand } from "@/components/common/Brand";
 import { AUTH_USER_CHANGED_EVENT, authService, type AuthUser } from "@/services/authService";
@@ -22,6 +22,7 @@ const userNav = [
 const adminNav = [
   { to: "/admin", label: "Admin Dashboard", icon: LayoutDashboard },
   { to: "/admin/users", label: "Users", icon: Users },
+  { to: "/admin/merchants", label: "Merchants", icon: Store },
   { to: "/admin/transactions", label: "Transactions", icon: Receipt },
   { to: "/admin/predictions", label: "Predictions", icon: Radar },
   { to: "/admin/model-comparison", label: "Model Comparison", icon: BarChart3 },
@@ -35,7 +36,7 @@ const analystNav = [
   { to: "/analyst", label: "Dashboard", icon: LayoutDashboard },
   { to: "/analyst/review-queue", label: "Review Queue", icon: ClipboardList },
   { to: "/analyst/transactions", label: "Transactions", icon: Receipt },
-  { to: "/analyst/alerts", label: "Fraud Alerts", icon: ShieldAlert },
+  { to: "/analyst/fraud-alerts", label: "Fraud Alerts", icon: ShieldAlert },
   { to: "/analyst/investigations", label: "Investigations", icon: FileSearch },
   { to: "/analyst/predictions", label: "Predictions", icon: Radar },
   { to: "/analyst/reports", label: "Reports", icon: FileText },
@@ -46,6 +47,7 @@ type SidebarVariant = "user" | "admin" | "analyst";
 
 export function AppSidebar({ variant = "user" }: { variant?: SidebarVariant }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const nav = variant === "admin" ? adminNav : variant === "analyst" ? analystNav : userNav;
 
@@ -62,15 +64,20 @@ export function AppSidebar({ variant = "user" }: { variant?: SidebarVariant }) {
   const roleLabel = currentUser?.role === "admin" ? "Administrator" : currentUser?.role === "fraudAnalyst" ? "Fraud Analyst" : "User";
   const consoleLabel = variant === "admin" ? "Admin Console" : variant === "analyst" ? "Analyst Workspace" : "Fraud Workspace";
 
+  function signOut() {
+    authService.signOut();
+    void navigate({ to: "/login", replace: true });
+  }
+
   return (
-    <aside className="hidden md:flex sticky top-0 h-screen w-64 shrink-0 flex-col border-r border-border bg-sidebar/80 backdrop-blur-xl">
+    <aside className="hidden h-screen h-dvh w-64 shrink-0 flex-col border-r border-border bg-sidebar/80 backdrop-blur-xl md:flex">
       <div className="p-5 border-b border-border shrink-0">
         <Link to="/"><Brand /></Link>
         <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
           {consoleLabel}
         </p>
       </div>
-      <nav className="min-h-0 flex-1 p-3 space-y-1 overflow-y-auto scrollbar-thin">
+      <nav className="min-h-0 flex-1 overflow-y-auto p-3 space-y-1 scrollbar-thin">
         {nav.map((item) => {
           const active = pathname === item.to || (item.to !== "/app" && item.to !== "/admin" && item.to !== "/analyst" && pathname.startsWith(item.to));
           return (
@@ -98,13 +105,13 @@ export function AppSidebar({ variant = "user" }: { variant?: SidebarVariant }) {
             <p className="text-xs text-muted-foreground truncate">{roleLabel}</p>
           </div>
         </Link>
-        <Link
-          to="/login"
-          onClick={() => authService.signOut()}
-          className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-destructive"
+        <button
+          type="button"
+          onClick={signOut}
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/60"
         >
           <LogOut className="h-3.5 w-3.5"/> Sign out
-        </Link>
+        </button>
       </div>
     </aside>
   );

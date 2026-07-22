@@ -1,3 +1,4 @@
+import { AnalystDecisionDialog } from "@/components/analyst/AnalystDecisionDialog";
 import { FraudSelect } from "@/components/common/FraudSelect";
 import { Topbar } from "@/components/layout/Topbar";
 import { fraudCaseService } from "@/services/fraudCaseService";
@@ -8,7 +9,7 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-const initialFilters: FraudCaseFilters = { page: 1, pageSize: 10, sortBy: "createdAt", sortDirection: "desc" };
+const initialFilters: FraudCaseFilters = { page: 1, pageSize: 10, sort: "priority", direction: "desc" };
 
 export default function ReviewQueuePage() {
   const [filters, setFilters] = useState<FraudCaseFilters>(initialFilters);
@@ -16,11 +17,12 @@ export default function ReviewQueuePage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<number | null>(null);
+  const [claimCase, setClaimCase] = useState<FraudCase | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void loadCases();
-  }, [filters.status, filters.priority, filters.transactionType, filters.minRisk, filters.maxRisk, filters.assigned, filters.fromDate, filters.toDate, filters.sortBy, filters.sortDirection, filters.page]);
+  }, [filters.search, filters.status, filters.priority, filters.transactionType, filters.minRisk, filters.maxRisk, filters.assignment, filters.from, filters.to, filters.sort, filters.direction, filters.page, filters.pageSize]);
 
   async function loadCases() {
     setLoading(true);
@@ -40,13 +42,19 @@ export default function ReviewQueuePage() {
     setProcessingId(id);
     try {
       await fraudCaseService.claim(id);
-      toast.success(`Case FC-${id} claimed.`);
+      setClaimCase(null);
+      toast.success("Case assigned to you successfully.");
       await loadCases();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Unable to claim case.");
+      const message = err instanceof Error ? err.message : "Unable to claim case.";
+      toast.error(message.includes("already") ? "This case has already been assigned to another analyst." : message);
     } finally {
       setProcessingId(null);
     }
+  }
+
+  function hasActiveFilters() {
+    return Boolean(filters.search || filters.status || filters.priority || filters.transactionType || filters.assignment || filters.minRisk || filters.maxRisk || filters.from || filters.to);
   }
 
   const page = Number(filters.page ?? 1);
@@ -58,16 +66,22 @@ export default function ReviewQueuePage() {
       <Topbar title="Review Queue" subtitle={`${total} fraud case${total === 1 ? "" : "s"}`} />
       <main className="flex-1 min-w-0 overflow-x-hidden p-4 md:p-8 space-y-4">
         <div className="glass rounded-2xl p-4 grid gap-3 lg:grid-cols-6">
-          <Select label="Status" value={filters.status ?? "all"} options={["all", "Open", "Assigned", "UnderReview", "Escalated", "Resolved"]} onChange={(status) => setFilters({ ...filters, status, page: 1 })} />
+          <Field label="Search" type="text" value={filters.search ?? ""} onChange={(search) => setFilters({ ...filters, search, page: 1 })} />
+          <Select label="Status" value={filters.status ?? "all"} options={["all", "Open", "UnderReview", "Resolved"]} onChange={(status) => setFilters({ ...filters, status, page: 1 })} />
           <Select label="Priority" value={filters.priority ?? "all"} options={["all", "Critical", "High", "Medium", "Low"]} onChange={(priority) => setFilters({ ...filters, priority, page: 1 })} />
           <Select label="Type" value={filters.transactionType ?? "all"} options={["all", "PAYMENT", "TRANSFER", "CASH_OUT", "CASH_IN", "DEBIT"]} onChange={(transactionType) => setFilters({ ...filters, transactionType, page: 1 })} />
-          <Select label="Assignment" value={filters.assigned ?? "all"} options={["all", "mine", "unassigned"]} onChange={(assigned) => setFilters({ ...filters, assigned, page: 1 })} />
+          <Select label="Assignment" value={filters.assignment ?? "all"} options={["all", "unassigned", "assignedToMe", "assignedToOthers"]} onChange={(assignment) => setFilters({ ...filters, assignment, page: 1 })} />
           <Field label="Min risk" value={filters.minRisk ?? ""} onChange={(minRisk) => setFilters({ ...filters, minRisk, page: 1 })} />
           <Field label="Max risk" value={filters.maxRisk ?? ""} onChange={(maxRisk) => setFilters({ ...filters, maxRisk, page: 1 })} />
-          <Field label="From" type="date" value={filters.fromDate ?? ""} onChange={(fromDate) => setFilters({ ...filters, fromDate, page: 1 })} />
-          <Field label="To" type="date" value={filters.toDate ?? ""} onChange={(toDate) => setFilters({ ...filters, toDate, page: 1 })} />
-          <Select label="Sort" value={filters.sortBy ?? "createdAt"} options={["createdAt", "risk", "priority", "status"]} onChange={(sortBy) => setFilters({ ...filters, sortBy })} />
-          <Select label="Direction" value={filters.sortDirection ?? "desc"} options={["desc", "asc"]} onChange={(sortDirection) => setFilters({ ...filters, sortDirection })} />
+          <Field label="From" type="date" value={filters.from ?? ""} onChange={(from) => setFilters({ ...filters, from, page: 1 })} />
+          <Field label="To" type="date" value={filters.to ?? ""} onChange={(to) => setFilters({ ...filters, to, page: 1 })} />
+          <Select label="Sort" value={filters.sort ?? "priority"} options={["priority", "createdAt", "risk", "status"]} onChange={(sort) => setFilters({ ...filters, sort })} />
+          <Select label="Direction" value={filters.direction ?? "desc"} options={["desc", "asc"]} onChange={(direction) => setFilters({ ...filters, direction })} />
+          <Select label="Page size" value={String(filters.pageSize ?? 10)} options={["10", "20", "50"]} onChange={(pageSize) => setFilters({ ...filters, pageSize: Number(pageSize), page: 1 })} />
+          <div className="flex items-end gap-2">
+            <button onClick={() => void loadCases()} className="h-10 rounded-lg bg-gradient-primary px-3 text-sm text-primary-foreground">Apply Filters</button>
+            <button onClick={() => setFilters(initialFilters)} className="h-10 rounded-lg glass px-3 text-sm">Clear</button>
+          </div>
         </div>
 
         {loading && <StatePanel title="Loading review queue" message="Fetching fraud cases." />}
@@ -81,11 +95,11 @@ export default function ReviewQueuePage() {
                 </thead>
                 <tbody>
                   {items.length === 0 ? (
-                    <tr><td colSpan={11} className="px-4 py-10 text-center text-muted-foreground">No cases match these filters</td></tr>
+                    <tr><td colSpan={11} className="px-4 py-10 text-center text-muted-foreground">{hasActiveFilters() ? "No fraud cases match the selected filters." : "No fraud cases currently require review."}</td></tr>
                   ) : items.map((item) => (
                     <tr key={item.id} className="border-t border-border">
-                      <Td>FC-{item.id}</Td>
-                      <Td>TX-{item.transactionId}</Td>
+                      <Td>{item.caseReference}</Td>
+                      <Td>{item.transactionReference}</Td>
                       <Td>{item.customerName}</Td>
                       <Td>{formatCurrency(item.amount, item.currency)}</Td>
                       <Td>{item.transactionType}</Td>
@@ -96,12 +110,19 @@ export default function ReviewQueuePage() {
                       <Td>{new Date(item.createdAt).toLocaleString()}</Td>
                       <Td>
                         <div className="flex items-center gap-2">
-                          {!item.assignedAnalystId && (
-                            <button disabled={processingId === item.id} onClick={() => void claim(item.id)} className="glass rounded-lg px-2 py-1 text-xs hover:ring-1 hover:ring-primary/40 disabled:opacity-60">
+                          {item.canClaim && (
+                            <button disabled={processingId === item.id} onClick={() => setClaimCase(item)} className="glass rounded-lg px-2 py-1 text-xs hover:ring-1 hover:ring-primary/40 disabled:opacity-60">
                               {processingId === item.id ? "Claiming" : "Claim"}
                             </button>
                           )}
-                          <Link to="/analyst/investigations/$caseId" params={{ caseId: String(item.id) }} className="text-primary hover:underline">Review</Link>
+                          <Link
+                            to="/analyst/investigations/$caseId"
+                            params={{ caseId: String(item.id) }}
+                            search={item.canReview ? undefined : { mode: "readonly" }}
+                            className="text-primary hover:underline"
+                          >
+                            {item.canReview ? "Continue Review" : "View Read-Only"}
+                          </Link>
                         </div>
                       </Td>
                     </tr>
@@ -119,6 +140,15 @@ export default function ReviewQueuePage() {
           </div>
         )}
       </main>
+      <AnalystDecisionDialog
+        caseItem={claimCase}
+        decision={claimCase ? "claim" : null}
+        loading={Boolean(claimCase && processingId === claimCase.id)}
+        onOpenChange={(open) => {
+          if (!open) setClaimCase(null);
+        }}
+        onConfirm={() => claimCase ? claim(claimCase.id) : Promise.resolve()}
+      />
     </>
   );
 }

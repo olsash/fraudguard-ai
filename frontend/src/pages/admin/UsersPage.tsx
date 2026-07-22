@@ -1,3 +1,4 @@
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { FraudSelect } from "@/components/common/FraudSelect";
 import { Topbar } from "@/components/layout/Topbar";
 import { adminUserService } from "@/services/adminUserService";
@@ -27,6 +28,12 @@ const roleLabels: Record<AdminUserRole, string> = {
 };
 
 type UserForm = typeof blankForm;
+type PendingSaveConfirmation = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  destructive?: boolean;
+};
 
 export default function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -36,12 +43,14 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<"all" | AdminUserRole>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | AdminUserStatus>("all");
   const [formMode, setFormMode] = useState<"create" | "edit" | null>(null);
+  const [formTitle, setFormTitle] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [form, setForm] = useState<UserForm>(blankForm);
   const [saving, setSaving] = useState(false);
   const [details, setDetails] = useState<AdminUserDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [pendingSaveConfirmation, setPendingSaveConfirmation] = useState<PendingSaveConfirmation | null>(null);
 
   useEffect(() => {
     void loadUsers();
@@ -83,14 +92,16 @@ export default function UsersPage() {
     }
   }
 
-  function openCreate() {
-    setForm(blankForm);
+  function openCreate(role: AdminUserRole = "User") {
+    setForm({ ...blankForm, role });
     setEditingUser(null);
+    setFormTitle(role === "FraudAnalyst" ? "Add Fraud Analyst" : null);
     setFormMode("create");
   }
 
   function openEdit(user: AdminUser) {
     setEditingUser(user);
+    setFormTitle(null);
     setForm({
       fullName: user.fullName,
       email: user.email,
@@ -117,6 +128,30 @@ export default function UsersPage() {
 
   async function saveUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    await persistUser(false);
+  }
+
+  async function persistUser(skipConfirmation: boolean) {
+    if (formMode === "edit" && editingUser) {
+      const currentUser = authService.getCurrentUser();
+      const isSelfAdminDemotion = currentUser?.id === editingUser.id
+        && editingUser.role === "Admin"
+        && form.role !== "Admin";
+
+      if (isSelfAdminDemotion) {
+        toast.error("You cannot remove your own Admin role.");
+        return;
+      }
+    }
+
+    if (!skipConfirmation) {
+      const confirmation = getSaveConfirmation();
+      if (confirmation) {
+        setPendingSaveConfirmation(confirmation);
+        return;
+      }
+    }
+
     setSaving(true);
 
     try {
@@ -134,23 +169,6 @@ export default function UsersPage() {
       }
 
       if (formMode === "edit" && editingUser) {
-        const currentUser = authService.getCurrentUser();
-        const isSelfAdminDemotion = currentUser?.id === editingUser.id
-          && editingUser.role === "Admin"
-          && form.role !== "Admin";
-
-        if (isSelfAdminDemotion) {
-          toast.error("You cannot remove your own Admin role.");
-          return;
-        }
-
-        if (editingUser.role === "Admin" && form.role !== "Admin") {
-          const confirmed = window.confirm(`Change ${editingUser.fullName} from Admin to ${roleLabels[form.role]}?`);
-          if (!confirmed) {
-            return;
-          }
-        }
-
         const payload: UpdateAdminUserInput = {
           fullName: form.fullName,
           email: form.email,
@@ -165,11 +183,41 @@ export default function UsersPage() {
 
       setFormMode(null);
       setEditingUser(null);
+      setFormTitle(null);
+      setPendingSaveConfirmation(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Unable to save user.");
     } finally {
       setSaving(false);
     }
+  }
+
+  function getSaveConfirmation(): PendingSaveConfirmation | null {
+    if (formMode !== "edit" || !editingUser) {
+      return null;
+    }
+
+    if (editingUser.role === "Admin" && form.role !== "Admin") {
+      return {
+        title: "Change Admin Role",
+        description: `Change ${editingUser.fullName} from Admin to ${roleLabels[form.role]}? This removes Admin permissions from that account.`,
+        confirmLabel: "Change Role",
+        destructive: true,
+      };
+    }
+
+    const removingAnalystAccess = editingUser.role === "FraudAnalyst" && form.role !== "FraudAnalyst";
+    const deactivatingAnalyst = editingUser.role === "FraudAnalyst" && form.status === "Inactive" && editingUser.status !== "Inactive";
+    if ((removingAnalystAccess || deactivatingAnalyst) && editingUser.openAssignedCases > 0) {
+      return {
+        title: "Analyst Has Open Cases",
+        description: `${editingUser.fullName} has ${editingUser.openAssignedCases} open assigned case(s). Continue without reassigning them first?`,
+        confirmLabel: "Continue",
+        destructive: true,
+      };
+    }
+
+    return null;
   }
 
   async function deleteUser() {
@@ -202,8 +250,11 @@ export default function UsersPage() {
             onChange={(value) => setRoleFilter(value as "all" | AdminUserRole)}
           />
           <SegmentedFilter value={statusFilter} values={["all", "Active", "Inactive"]} onChange={(value) => setStatusFilter(value as "all" | AdminUserStatus)} />
-          <button onClick={openCreate} className="bg-gradient-primary text-primary-foreground rounded-lg px-4 py-2 text-sm flex items-center gap-2">
-            <UserPlus className="h-4 w-4" /> Add user
+          <button onClick={() => openCreate("FraudAnalyst")} className="glass rounded-lg px-4 py-2 text-sm flex items-center gap-2 hover:ring-1 hover:ring-primary/40">
+            <UserPlus className="h-4 w-4" /> Add Fraud Analyst
+          </button>
+          <button onClick={() => openCreate()} className="bg-gradient-primary text-primary-foreground rounded-lg px-4 py-2 text-sm flex items-center gap-2">
+            <UserPlus className="h-4 w-4" /> Add User
           </button>
         </div>
 
@@ -232,6 +283,7 @@ export default function UsersPage() {
                     <Th>Average Risk Score</Th>
                     <Th>Highest Risk Score</Th>
                     <Th>Fraud Count</Th>
+                    <Th>Open Cases</Th>
                     <Th>Created At</Th>
                     <Th>Actions</Th>
                   </tr>
@@ -239,7 +291,7 @@ export default function UsersPage() {
                 <tbody>
                   {rows.length === 0 ? (
                     <tr className="border-t border-border">
-                      <td colSpan={10} className="px-4 py-10 text-center text-sm text-muted-foreground">No users found.</td>
+                      <td colSpan={11} className="px-4 py-10 text-center text-sm text-muted-foreground">No users found.</td>
                     </tr>
                   ) : rows.map((user) => (
                     <tr key={user.id} className="border-t border-border hover:bg-secondary/40">
@@ -256,6 +308,7 @@ export default function UsersPage() {
                       <Td><RiskBar value={Math.round(user.averageRiskScore)} /></Td>
                       <Td><RiskBar value={user.highestRiskScore} /></Td>
                       <Td className={user.fraudPredictionsCount > 0 ? "font-mono text-destructive" : "font-mono text-muted-foreground"}>{user.fraudPredictionsCount}</Td>
+                      <Td className={user.openAssignedCases > 0 ? "font-mono text-primary" : "font-mono text-muted-foreground"}>{user.openAssignedCases}</Td>
                       <Td className="text-xs text-muted-foreground">{formatDate(user.createdAt)}</Td>
                       <Td>
                         <div className="flex gap-1">
@@ -278,10 +331,14 @@ export default function UsersPage() {
       {formMode && (
         <UserFormModal
           mode={formMode}
+          title={formTitle}
           form={form}
           saving={saving}
           onChange={setForm}
-          onClose={() => setFormMode(null)}
+          onClose={() => {
+            setFormMode(null);
+            setFormTitle(null);
+          }}
           onSubmit={saveUser}
         />
       )}
@@ -293,6 +350,18 @@ export default function UsersPage() {
       {deleteTarget && (
         <DeleteDialog user={deleteTarget} onCancel={() => setDeleteTarget(null)} onConfirm={() => void deleteUser()} />
       )}
+      <ConfirmDialog
+        open={Boolean(pendingSaveConfirmation)}
+        title={pendingSaveConfirmation?.title ?? ""}
+        description={pendingSaveConfirmation?.description ?? ""}
+        confirmLabel={pendingSaveConfirmation?.confirmLabel}
+        destructive={pendingSaveConfirmation?.destructive}
+        loading={saving}
+        onOpenChange={(open) => {
+          if (!open) setPendingSaveConfirmation(null);
+        }}
+        onConfirm={() => void persistUser(true)}
+      />
     </>
   );
 }
@@ -325,6 +394,7 @@ function SegmentedFilter({
 
 function UserFormModal({
   mode,
+  title,
   form,
   saving,
   onChange,
@@ -332,6 +402,7 @@ function UserFormModal({
   onSubmit,
 }: {
   mode: "create" | "edit";
+  title: string | null;
   form: UserForm;
   saving: boolean;
   onChange: (form: UserForm) => void;
@@ -341,7 +412,7 @@ function UserFormModal({
   const update = (key: keyof UserForm, value: string) => onChange({ ...form, [key]: value });
 
   return (
-    <Modal title={mode === "create" ? "Add user" : "Edit user"} onClose={onClose}>
+    <Modal title={title ?? (mode === "create" ? "Add User" : "Edit User")} onClose={onClose}>
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid md:grid-cols-2 gap-3">
           <Field label="Full name" value={form.fullName} onChange={(value) => update("fullName", value)} required />

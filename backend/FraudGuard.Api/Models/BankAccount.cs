@@ -6,7 +6,7 @@ public class BankAccount
 {
     public int Id { get; set; }
 
-    public int UserId { get; set; }
+    public int? UserId { get; set; }
 
     public User? User { get; set; }
 
@@ -14,11 +14,19 @@ public class BankAccount
 
     public Bank? Bank { get; set; }
 
+    public int? MerchantId { get; set; }
+
     [MaxLength(34)]
     public string AccountNumber { get; set; } = string.Empty;
 
     [MaxLength(34)]
     public string IBAN { get; set; } = string.Empty;
+
+    [MaxLength(50)]
+    public string AccountName { get; set; } = string.Empty;
+
+    [MaxLength(150)]
+    public string AccountHolderName { get; set; } = string.Empty;
 
     [MaxLength(10)]
     public string Currency { get; set; } = "EUR";

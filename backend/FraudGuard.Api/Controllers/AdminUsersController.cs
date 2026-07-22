@@ -198,7 +198,26 @@ public class AdminUsersController : ControllerBase
             })
             .ToListAsync(cancellationToken);
 
-        return stats.ToDictionary(item => item.UserId);
+        var statsByUser = stats.ToDictionary(item => item.UserId);
+        var openCasesByAnalyst = await _dbContext.FraudCases
+            .AsNoTracking()
+            .Where(fraudCase => fraudCase.AssignedAnalystId.HasValue && fraudCase.Status != "Resolved")
+            .GroupBy(fraudCase => fraudCase.AssignedAnalystId!.Value)
+            .Select(group => new { UserId = group.Key, Count = group.Count() })
+            .ToListAsync(cancellationToken);
+
+        foreach (var row in openCasesByAnalyst)
+        {
+            if (!statsByUser.TryGetValue(row.UserId, out var userStats))
+            {
+                userStats = new UserPredictionStats { UserId = row.UserId };
+                statsByUser[row.UserId] = userStats;
+            }
+
+            userStats.OpenAssignedCases = row.Count;
+        }
+
+        return statsByUser;
     }
 
     private int? GetCurrentUserId()
@@ -226,6 +245,7 @@ public class AdminUsersController : ControllerBase
             AverageRiskScore = Math.Round(userStats?.AverageRiskScore ?? 0, 1),
             HighestRiskScore = userStats?.HighestRiskScore ?? 0,
             FraudPredictionsCount = userStats?.FraudPredictionsCount ?? 0,
+            OpenAssignedCases = userStats?.OpenAssignedCases ?? 0,
             Status = user.IsActive ? "Active" : "Inactive"
         };
     }
@@ -287,5 +307,7 @@ public class AdminUsersController : ControllerBase
         public int HighestRiskScore { get; set; }
 
         public int FraudPredictionsCount { get; set; }
+
+        public int OpenAssignedCases { get; set; }
     }
 }

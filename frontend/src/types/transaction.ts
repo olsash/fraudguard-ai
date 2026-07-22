@@ -1,5 +1,5 @@
 export type TransactionStatus = "pending" | "safe" | "review" | "fraud";
-export type TransactionProcessingStatus = "PendingAnalysis" | "PendingReview" | "Completed" | "Rejected" | "Failed";
+export type TransactionProcessingStatus = "PendingAnalysis" | "PendingReview" | "BlockedPendingReview" | "Completed" | "Rejected" | "Failed";
 export type FinalTransactionStatus = Exclude<TransactionStatus, "pending">;
 
 export interface Transaction {
@@ -8,6 +8,8 @@ export interface Transaction {
   userName?: string | null;
   sourceBankAccountId?: number | null;
   sourceAccount?: string | null;
+  destinationBankAccountId?: number | null;
+  destinationAccount?: string | null;
   beneficiaryId?: number | null;
   beneficiaryName?: string | null;
   merchantId?: number | null;
@@ -25,6 +27,8 @@ export interface Transaction {
   processingStatus: TransactionProcessingStatus;
   transactionType: string;
   createdAt: string;
+  completedAt?: string | null;
+  rejectedAt?: string | null;
   description?: string | null;
   latestPredictionId?: number | null;
   latestPredictionExplanation?: string[];

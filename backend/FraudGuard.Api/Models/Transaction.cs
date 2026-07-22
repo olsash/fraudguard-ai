@@ -14,6 +14,10 @@ public class Transaction
 
     public BankAccount? SourceBankAccount { get; set; }
 
+    public int? DestinationBankAccountId { get; set; }
+
+    public BankAccount? DestinationBankAccount { get; set; }
+
     public int? BeneficiaryId { get; set; }
 
     public Beneficiary? Beneficiary { get; set; }
@@ -59,6 +63,10 @@ public class Transaction
     public string TransactionType { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime? CompletedAt { get; set; }
+
+    public DateTime? RejectedAt { get; set; }
 
     [MaxLength(500)]
     public string? Description { get; set; }

@@ -1,15 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AnalystShell } from "@/components/layout/AppShell";
 import Page from "@/pages/analyst/InvestigationDetailPage";
 
 export const Route = createFileRoute("/analyst/investigations/$caseId")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    mode: search.mode === "readonly" ? "readonly" : undefined,
+  }),
   component: () => {
     const { caseId } = Route.useParams();
-    return (
-      <AnalystShell>
-        <Page caseId={Number(caseId)} />
-      </AnalystShell>
-    );
+    const { mode } = Route.useSearch();
+    return <Page caseId={Number(caseId)} readOnlyRequested={mode === "readonly"} />;
   },
 });

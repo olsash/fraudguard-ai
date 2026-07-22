@@ -3,7 +3,7 @@ import { fraudCaseService } from "@/services/fraudCaseService";
 import type { FraudCase, FraudCaseSummary } from "@/types/fraudCase";
 import { formatCurrency } from "@/utils/formatters";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, Clock3, FileSearch, Loader2, ShieldAlert, UserCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, FileSearch, Loader2, ShieldAlert, UserCheck, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function AnalystDashboardPage() {
@@ -35,11 +35,14 @@ export default function AnalystDashboardPage() {
 
   const cards = [
     { label: "Open Cases", value: summary?.openCases ?? 0, icon: FileSearch },
+    { label: "Under Review", value: summary?.underReviewCases ?? 0, icon: Clock3 },
     { label: "Assigned to Me", value: summary?.assignedToMe ?? 0, icon: UserCheck },
     { label: "High-Risk Transactions", value: summary?.highRiskTransactions ?? 0, icon: ShieldAlert },
+    { label: "Unassigned Cases", value: summary?.unassignedCases ?? 0, icon: Users },
     { label: "Cases Resolved Today", value: summary?.casesResolvedToday ?? 0, icon: CheckCircle2 },
     { label: "Average Review Time", value: `${summary?.averageReviewTimeMinutes ?? 0}m`, icon: Clock3 },
     { label: "Confirmed Fraud Cases", value: summary?.confirmedFraudCases ?? 0, icon: AlertTriangle },
+    { label: "False Positives", value: summary?.falsePositiveCases ?? 0, icon: CheckCircle2 },
   ];
 
   return (
@@ -50,7 +53,7 @@ export default function AnalystDashboardPage() {
         {!loading && error && <StatePanel title="Analyst dashboard unavailable" message={error} destructive />}
         {!loading && !error && (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {cards.map((card) => (
                 <div key={card.label} className="glass rounded-2xl p-5">
                   <div className="flex items-center justify-between">

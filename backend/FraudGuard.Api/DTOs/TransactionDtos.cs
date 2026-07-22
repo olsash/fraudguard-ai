@@ -14,6 +14,10 @@ public class TransactionResponseDto
 
     public string? SourceAccount { get; set; }
 
+    public int? DestinationBankAccountId { get; set; }
+
+    public string? DestinationAccount { get; set; }
+
     public int? BeneficiaryId { get; set; }
 
     public string? BeneficiaryName { get; set; }
@@ -47,6 +51,10 @@ public class TransactionResponseDto
     public string TransactionType { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
+
+    public DateTime? CompletedAt { get; set; }
+
+    public DateTime? RejectedAt { get; set; }
 
     public string? Description { get; set; }
 

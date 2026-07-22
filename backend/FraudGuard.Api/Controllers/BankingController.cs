@@ -64,7 +64,7 @@ public class BankingController : ControllerBase
             .Include(account => account.Bank)
             .Where(account => account.UserId == targetUserId)
             .OrderByDescending(account => account.IsActive)
-            .ThenBy(account => account.AccountType)
+            .ThenByDescending(account => account.CreatedAt)
             .Select(account => ToAccountDto(account))
             .ToListAsync(cancellationToken);
 
@@ -156,14 +156,17 @@ public class BankingController : ControllerBase
     {
         var merchants = await _dbContext.Merchants
             .AsNoTracking()
-            .Where(merchant => merchant.IsActive)
+            .Include(merchant => merchant.Bank)
+            .Where(merchant => merchant.IsActive && merchant.IsVerified)
             .OrderBy(merchant => merchant.Name)
             .Select(merchant => new MerchantDto
             {
                 Id = merchant.Id,
                 Name = merchant.Name,
+                MerchantCode = merchant.MerchantCode,
                 Category = merchant.Category,
                 Country = merchant.Country,
+                BankName = merchant.Bank == null ? string.Empty : merchant.Bank.Name,
                 RiskLevel = merchant.RiskLevel
             })
             .ToListAsync(cancellationToken);
@@ -184,14 +187,16 @@ public class BankingController : ControllerBase
         return new BankAccountDto
         {
             Id = account.Id,
-            UserId = account.UserId,
+            BankId = account.BankId,
             BankName = account.Bank?.Name ?? string.Empty,
+            AccountHolderName = account.AccountHolderName,
             AccountType = account.AccountType,
-            MaskedAccountNumber = Mask(account.AccountNumber),
-            MaskedIban = Mask(account.IBAN),
+            MaskedAccountNumber = BankAccountDomain.MaskAccountNumber(account.AccountNumber),
+            MaskedIban = BankAccountDomain.MaskIban(account.IBAN),
             Currency = account.Currency,
             CurrentBalance = account.CurrentBalance,
-            IsActive = account.IsActive
+            IsActive = account.IsActive,
+            LinkedAt = account.CreatedAt
         };
     }
 

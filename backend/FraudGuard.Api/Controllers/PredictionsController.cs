@@ -219,7 +219,7 @@ public class PredictionsController : ControllerBase
         return CsvFile(predictions, "prediction-history.csv");
     }
 
-    [Authorize(Roles = ApplicationRoles.AdminOrFraudAnalyst)]
+    [Authorize(Roles = ApplicationRoles.Admin)]
     [HttpGet("admin")]
     public async Task<ActionResult<IEnumerable<PredictionResponse>>> Admin(CancellationToken cancellationToken)
     {
@@ -232,7 +232,7 @@ public class PredictionsController : ControllerBase
         return Ok(predictions.Select(ToResponse));
     }
 
-    [Authorize(Roles = ApplicationRoles.AdminOrFraudAnalyst)]
+    [Authorize(Roles = ApplicationRoles.Admin)]
     [HttpGet("admin/export")]
     public async Task<IActionResult> ExportAdminHistory(CancellationToken cancellationToken)
     {

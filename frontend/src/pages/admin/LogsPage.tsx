@@ -1,3 +1,4 @@
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { FraudSelect } from "@/components/common/FraudSelect";
 import { Topbar } from "@/components/layout/Topbar";
 import { ApiError } from "@/services/api";
@@ -35,6 +36,8 @@ export default function LogsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [clearingLogs, setClearingLogs] = useState(false);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / (filters.pageSize ?? 50))), [filters.pageSize, totalCount]);
 
@@ -96,15 +99,17 @@ export default function LogsPage() {
   }
 
   async function clearLogs() {
-    if (!window.confirm("Clear all system logs? This cannot be undone.")) return;
-
+    setClearingLogs(true);
     try {
       const response = await adminLogService.clearLogs();
+      setClearDialogOpen(false);
       toast.success(response.message);
       setFilters((current) => ({ ...current, page: 1 }));
       await loadLogs(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Unable to clear logs.");
+    } finally {
+      setClearingLogs(false);
     }
   }
 
@@ -122,7 +127,7 @@ export default function LogsPage() {
           refreshing={refreshing}
           onChange={updateFilters}
           onRefresh={() => void loadLogs(true)}
-          onClear={() => void clearLogs()}
+          onClear={() => setClearDialogOpen(true)}
           onAutoRefreshChange={setAutoRefresh}
         />
 
@@ -179,6 +184,16 @@ export default function LogsPage() {
           )}
         </div>
       </main>
+      <ConfirmDialog
+        open={clearDialogOpen}
+        title="Clear System Logs"
+        description="This will permanently remove all system log entries from the current environment."
+        confirmLabel="Clear Logs"
+        destructive
+        loading={clearingLogs}
+        onOpenChange={setClearDialogOpen}
+        onConfirm={clearLogs}
+      />
     </>
   );
 }

@@ -95,7 +95,9 @@ public class TransactionsController : ControllerBase
                 .AsNoTracking()
                 .Include(item => item.User)
                 .Include(item => item.SourceBankAccount)
+                .Include(item => item.DestinationBankAccount)
                 .Include(item => item.Beneficiary)
+                .Include(item => item.MerchantRecord)
                 .Include(item => item.Predictions)
                 .FirstOrDefaultAsync(item => item.UserId == userId.Value && item.IdempotencyKey == normalizedKey, cancellationToken);
 
@@ -121,6 +123,16 @@ public class TransactionsController : ControllerBase
         if (!request.SourceBankAccountId.HasValue)
         {
             return BadRequest(new { message = "Select a source account." });
+        }
+
+        if (transactionType == "PAYMENT" && request.BeneficiaryId.HasValue)
+        {
+            return BadRequest(new { message = "Payment transactions must not include a beneficiary." });
+        }
+
+        if (transactionType == "TRANSFER" && request.MerchantId.HasValue)
+        {
+            return BadRequest(new { message = "Transfer transactions must not include a merchant." });
         }
 
         var executionStrategy = _dbContext.Database.CreateExecutionStrategy();
@@ -184,8 +196,9 @@ public class TransactionsController : ControllerBase
             }
 
             merchant = await _dbContext.Merchants
+                .Include(item => item.Bank)
                 .Include(item => item.SettlementBankAccount)
-                .FirstOrDefaultAsync(item => item.Id == request.MerchantId.Value && item.IsActive, cancellationToken);
+                .FirstOrDefaultAsync(item => item.Id == request.MerchantId.Value && item.IsActive && item.IsVerified, cancellationToken);
 
             if (merchant is null)
             {
@@ -193,6 +206,10 @@ public class TransactionsController : ControllerBase
             }
 
             destinationAccount = merchant.SettlementBankAccount;
+            if (destinationAccount is null || !destinationAccount.IsActive)
+            {
+                return BadRequest(new { message = "Selected merchant cannot receive payments." });
+            }
         }
 
         if (transactionType == "TRANSFER")
@@ -234,6 +251,7 @@ public class TransactionsController : ControllerBase
         {
             UserId = userId,
             SourceBankAccountId = sourceAccount.Id,
+            DestinationBankAccountId = destinationAccount?.Id,
             BeneficiaryId = beneficiary?.Id,
             MerchantId = merchant?.Id,
             Merchant = merchant?.Name ?? beneficiary?.FullName ?? request.Merchant?.Trim() ?? string.Empty,
@@ -286,9 +304,9 @@ public class TransactionsController : ControllerBase
             return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
         }
 
-        var processingStatus = MapProcessingStatus(predictionResult);
+        var processingStatus = FraudRiskPolicy.ProcessingStatusForRisk(predictionResult.RiskScore);
         transaction.RiskScore = predictionResult.RiskScore;
-        transaction.Status = MapTransactionStatus(processingStatus);
+        transaction.Status = FraudRiskPolicy.TransactionStatusForProcessingStatus(processingStatus);
         transaction.ProcessingStatus = processingStatus;
 
         _dbContext.Transactions.Add(transaction);
@@ -326,11 +344,15 @@ public class TransactionsController : ControllerBase
                 destinationAccount.UpdatedAt = DateTime.UtcNow;
             }
 
+            transaction.CompletedAt = DateTime.UtcNow;
             await _systemLogService.LogAsync("Success", "transaction", $"Transaction TX-{transaction.Id} completed after low-risk ML analysis.", transaction.UserId, null, cancellationToken);
         }
-        else if (processingStatus == "PendingReview")
+        else if (processingStatus is "PendingReview" or "BlockedPendingReview")
         {
-            alert = CreateAlert(transaction, prediction, "Transaction Requires Analyst Review");
+            var alertTitle = processingStatus == "BlockedPendingReview"
+                ? "High Risk Transaction Temporarily Blocked for Analyst Review"
+                : "Transaction Requires Analyst Review";
+            alert = CreateAlert(transaction, prediction, alertTitle);
             _dbContext.FraudAlerts.Add(alert);
             await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -340,18 +362,15 @@ public class TransactionsController : ControllerBase
                 PredictionId = prediction.Id,
                 FraudAlertId = alert.Id,
                 Status = "Open",
-                Priority = PriorityForRisk(prediction.RiskScore),
+                Priority = FraudRiskPolicy.PriorityForRisk(prediction.RiskScore),
                 ModelRiskScore = prediction.RiskScore,
-                ModelDecision = prediction.IsFraud ? "Fraud" : "Review",
+                ModelDecision = FraudRiskPolicy.ModelDecisionForRisk(prediction.RiskScore, prediction.IsFraud),
                 CreatedAt = DateTime.UtcNow
             });
-            await _systemLogService.LogAsync("Warning", "transaction", $"Transaction TX-{transaction.Id} is pending analyst review.", transaction.UserId, null, cancellationToken);
-        }
-        else
-        {
-            alert = CreateAlert(transaction, prediction, "High Risk Transaction Rejected");
-            _dbContext.FraudAlerts.Add(alert);
-            await _systemLogService.LogAsync("Warning", "transaction", $"Transaction TX-{transaction.Id} rejected by ML analysis before balance updates.", transaction.UserId, null, cancellationToken);
+            var auditMessage = processingStatus == "BlockedPendingReview"
+                ? $"Transaction TX-{transaction.Id} is temporarily blocked pending analyst review."
+                : $"Transaction TX-{transaction.Id} is pending analyst review.";
+            await _systemLogService.LogAsync("Warning", "transaction", auditMessage, transaction.UserId, null, cancellationToken);
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -360,7 +379,9 @@ public class TransactionsController : ControllerBase
             .AsNoTracking()
             .Include(item => item.User)
             .Include(item => item.SourceBankAccount)
+            .Include(item => item.DestinationBankAccount)
             .Include(item => item.Beneficiary)
+            .Include(item => item.MerchantRecord)
             .Include(item => item.Predictions)
             .FirstAsync(item => item.Id == transaction.Id, cancellationToken);
 
@@ -437,7 +458,9 @@ public class TransactionsController : ControllerBase
             .AsNoTracking()
             .Include(transaction => transaction.User)
             .Include(transaction => transaction.SourceBankAccount)
+            .Include(transaction => transaction.DestinationBankAccount)
             .Include(transaction => transaction.Beneficiary)
+            .Include(transaction => transaction.MerchantRecord)
             .Include(transaction => transaction.Predictions)
             .AsQueryable();
 
@@ -500,6 +523,8 @@ public class TransactionsController : ControllerBase
             UserName = transaction.User?.FullName,
             SourceBankAccountId = transaction.SourceBankAccountId,
             SourceAccount = transaction.SourceBankAccount is null ? null : Mask(transaction.SourceBankAccount.AccountNumber),
+            DestinationBankAccountId = transaction.DestinationBankAccountId,
+            DestinationAccount = transaction.DestinationBankAccount is null ? null : Mask(transaction.DestinationBankAccount.AccountNumber),
             BeneficiaryId = transaction.BeneficiaryId,
             BeneficiaryName = transaction.Beneficiary?.FullName,
             MerchantId = transaction.MerchantId,
@@ -517,6 +542,8 @@ public class TransactionsController : ControllerBase
             ProcessingStatus = transaction.ProcessingStatus,
             TransactionType = transaction.TransactionType,
             CreatedAt = transaction.CreatedAt,
+            CompletedAt = transaction.CompletedAt,
+            RejectedAt = transaction.RejectedAt,
             Description = transaction.Description,
             LatestPredictionId = latestPrediction?.Id,
             LatestPredictionExplanation = latestPrediction is null ? [] : ReadReasons(latestPrediction.Explanation),
@@ -590,32 +617,6 @@ public class TransactionsController : ControllerBase
         return hasDestinationAccount ? oldBalance : null;
     }
 
-    private static string MapProcessingStatus(FraudPredictionResult result)
-    {
-        if (result.IsFraud || result.RiskScore >= 70)
-        {
-            return "Rejected";
-        }
-
-        return result.RiskScore >= 40 ? "PendingReview" : "Completed";
-    }
-
-    private static string MapTransactionStatus(string processingStatus)
-    {
-        return processingStatus switch
-        {
-            "Completed" => "safe",
-            "PendingReview" => "review",
-            "Rejected" => "fraud",
-            _ => "pending"
-        };
-    }
-
-    private static string PriorityForRisk(int riskScore)
-    {
-        return riskScore >= 85 ? "Critical" : riskScore >= 70 ? "High" : riskScore >= 40 ? "Medium" : "Low";
-    }
-
     private static FraudAlert CreateAlert(Transaction transaction, Prediction prediction, string title)
     {
         return new FraudAlert
@@ -624,7 +625,7 @@ public class TransactionsController : ControllerBase
             TransactionId = transaction.Id,
             PredictionId = prediction.Id,
             Title = title,
-            Severity = prediction.RiskScore >= 85 ? "critical" : "high",
+            Severity = FraudRiskPolicy.AlertSeverityForRisk(prediction.RiskScore),
             Status = "open",
             RiskScore = prediction.RiskScore,
             CreatedAt = DateTime.UtcNow

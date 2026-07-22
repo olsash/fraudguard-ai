@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 namespace FraudGuard.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = ApplicationRoles.AdminOrFraudAnalyst)]
+[Authorize(Roles = ApplicationRoles.Admin)]
 [Route("api/admin")]
 public class AdminController : ControllerBase
 {

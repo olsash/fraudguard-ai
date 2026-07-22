@@ -45,7 +45,13 @@ public class FraudCase
 
     public DateTime? ReviewedAt { get; set; }
 
+    public DateTime? ReviewStartedAt { get; set; }
+
     public DateTime? ResolvedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
+
+    public byte[]? RowVersion { get; set; }
+
+    public ICollection<FraudCaseNote> Notes { get; set; } = [];
 }

@@ -27,6 +27,8 @@ public class AdminUserDto
 
     public int FraudPredictionsCount { get; set; }
 
+    public int OpenAssignedCases { get; set; }
+
     public string Status { get; set; } = "Active";
 }
 

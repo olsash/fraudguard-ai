@@ -20,39 +20,43 @@ export const fraudCaseService = {
   },
 
   getCases(filters?: FraudCaseFilters): Promise<FraudCaseListResponse> {
-    return apiGet<FraudCaseListResponse>(`/fraud-cases${toQuery(filters)}`);
+    return apiGet<FraudCaseListResponse>(`/analyst/review-queue${toQuery(filters)}`);
+  },
+
+  getAnalystAlerts(filters?: FraudCaseFilters): Promise<FraudCaseListResponse> {
+    return apiGet<FraudCaseListResponse>(`/analyst/alerts${toQuery(filters)}`);
+  },
+
+  getAnalystPredictions(filters?: FraudCaseFilters & { modelResult?: string; riskLevel?: string }): Promise<FraudCaseListResponse> {
+    return apiGet<FraudCaseListResponse>(`/analyst/predictions${toQuery(filters)}`);
   },
 
   getCase(id: number): Promise<FraudCase> {
-    return apiGet<FraudCase>(`/fraud-cases/${id}`);
+    return apiGet<FraudCase>(`/analyst/cases/${id}`);
   },
 
   claim(id: number): Promise<FraudCase> {
-    return apiPost<FraudCase>(`/fraud-cases/${id}/claim`, {});
-  },
-
-  markUnderReview(id: number): Promise<FraudCase> {
-    return apiPost<FraudCase>(`/fraud-cases/${id}/under-review`, {});
+    return apiPost<FraudCase>(`/analyst/cases/${id}/claim`, {});
   },
 
   addComment(id: number, comment: string): Promise<FraudCase> {
-    return apiPost<FraudCase>(`/fraud-cases/${id}/comment`, { comment });
+    return apiPost<FraudCase>(`/analyst/cases/${id}/notes`, { comment });
   },
 
   approve(id: number, comment?: string): Promise<FraudCase> {
-    return apiPost<FraudCase>(`/fraud-cases/${id}/approve`, { comment });
+    return apiPost<FraudCase>(`/analyst/cases/${id}/approve`, { comment });
+  },
+
+  falsePositive(id: number, comment?: string): Promise<FraudCase> {
+    return apiPost<FraudCase>(`/analyst/cases/${id}/false-positive`, { comment });
   },
 
   confirmFraud(id: number, comment?: string): Promise<FraudCase> {
-    return apiPost<FraudCase>(`/fraud-cases/${id}/confirm-fraud`, { comment });
+    return apiPost<FraudCase>(`/analyst/cases/${id}/confirm-fraud`, { comment });
   },
 
   reject(id: number, comment?: string): Promise<FraudCase> {
-    return apiPost<FraudCase>(`/fraud-cases/${id}/resolve`, { finalDecision: "Rejected", comment });
-  },
-
-  escalate(id: number): Promise<FraudCase> {
-    return apiPost<FraudCase>(`/fraud-cases/${id}/escalate`, {});
+    return apiPost<FraudCase>(`/analyst/cases/${id}/resolve`, { finalDecision: "Rejected", comment });
   },
 
   assign(id: number, analystId: number): Promise<FraudCase> {

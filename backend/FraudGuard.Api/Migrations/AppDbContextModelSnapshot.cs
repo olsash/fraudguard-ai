@@ -126,6 +126,20 @@ namespace FraudGuard.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AccountHolderName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)")
+                        .HasDefaultValue("Simulated Account Holder");
+
+                    b.Property<string>("AccountName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("Simulated Account");
+
                     b.Property<string>("AccountNumber")
                         .IsRequired()
                         .HasMaxLength(34)
@@ -158,6 +172,9 @@ namespace FraudGuard.Api.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("MerchantId")
+                        .HasColumnType("int");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -167,7 +184,7 @@ namespace FraudGuard.Api.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("UserId")
+                    b.Property<int?>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -180,95 +197,39 @@ namespace FraudGuard.Api.Migrations
                     b.HasIndex("IBAN")
                         .IsUnique();
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("MerchantId");
+
+                    b.HasIndex("UserId", "BankId", "AccountType")
+                        .IsUnique()
+                        .HasFilter("[UserId] IS NOT NULL AND [IsActive] = 1");
 
                     b.ToTable("BankAccounts");
+                });
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            AccountNumber = "FGD-1000004821",
-                            AccountType = "Checking",
-                            BankId = 1,
-                            CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Currency = "EUR",
-                            CurrentBalance = 12850.45m,
-                            IBAN = "XK051212000000004821",
-                            IsActive = true,
-                            RowVersion = new byte[0],
-                            UserId = 1
-                        },
-                        new
-                        {
-                            Id = 2,
-                            AccountNumber = "FGD-1000007394",
-                            AccountType = "Savings",
-                            BankId = 2,
-                            CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Currency = "EUR",
-                            CurrentBalance = 5400.00m,
-                            IBAN = "XK051212000000007394",
-                            IsActive = true,
-                            RowVersion = new byte[0],
-                            UserId = 1
-                        },
-                        new
-                        {
-                            Id = 3,
-                            AccountNumber = "FGD-2000001188",
-                            AccountType = "Operations",
-                            BankId = 3,
-                            CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Currency = "EUR",
-                            CurrentBalance = 25000.00m,
-                            IBAN = "XK051212000000001188",
-                            IsActive = true,
-                            RowVersion = new byte[0],
-                            UserId = 2
-                        },
-                        new
-                        {
-                            Id = 4,
-                            AccountNumber = "FGD-1000006650",
-                            AccountType = "Travel",
-                            BankId = 4,
-                            CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Currency = "USD",
-                            CurrentBalance = 2400.25m,
-                            IBAN = "XK051212000000006650",
-                            IsActive = false,
-                            RowVersion = new byte[0],
-                            UserId = 1
-                        },
-                        new
-                        {
-                            Id = 5,
-                            AccountNumber = "FGD-MERCH-4102",
-                            AccountType = "Merchant Settlement",
-                            BankId = 5,
-                            CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Currency = "EUR",
-                            CurrentBalance = 82000.00m,
-                            IBAN = "XK051212000000014102",
-                            IsActive = true,
-                            RowVersion = new byte[0],
-                            UserId = 2
-                        },
-                        new
-                        {
-                            Id = 6,
-                            AccountNumber = "FGD-MERCH-9820",
-                            AccountType = "Merchant Settlement",
-                            BankId = 6,
-                            CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Currency = "EUR",
-                            CurrentBalance = 64000.00m,
-                            IBAN = "XK051212000000019820",
-                            IsActive = true,
-                            RowVersion = new byte[0],
-                            UserId = 2
-                        });
+            modelBuilder.Entity("FraudGuard.Api.Models.BankAccountVerificationAttempt", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountLookupHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<DateTime>("AttemptedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "AccountLookupHash", "AttemptedAt");
+
+                    b.ToTable("BankAccountVerificationAttempts");
                 });
 
             modelBuilder.Entity("FraudGuard.Api.Models.Beneficiary", b =>
@@ -323,7 +284,6 @@ namespace FraudGuard.Api.Migrations
                             Id = 1,
                             BankId = 3,
                             CreatedAt = new DateTime(2026, 1, 3, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DestinationBankAccountId = 3,
                             FullName = "Demo Family Transfer",
                             IsTrusted = true,
                             MaskedAccountReference = "•••• 1188",
@@ -338,6 +298,212 @@ namespace FraudGuard.Api.Migrations
                             IsTrusted = false,
                             MaskedAccountReference = "•••• 7742",
                             UserId = 1
+                        });
+                });
+
+            modelBuilder.Entity("FraudGuard.Api.Models.DemoBankAccount", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountHolderName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("AccountNumber")
+                        .IsRequired()
+                        .HasMaxLength(34)
+                        .HasColumnType("nvarchar(34)");
+
+                    b.Property<string>("AccountType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<int>("BankId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<decimal>("CurrentBalance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("DevelopmentUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Iban")
+                        .IsRequired()
+                        .HasMaxLength(34)
+                        .HasColumnType("nvarchar(34)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsLinked")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LinkedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("LinkedUserId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("VerificationCodeHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountNumber")
+                        .IsUnique();
+
+                    b.HasIndex("BankId");
+
+                    b.HasIndex("DevelopmentUserId");
+
+                    b.HasIndex("Iban")
+                        .IsUnique();
+
+                    b.HasIndex("LinkedUserId");
+
+                    b.HasIndex("DevelopmentUserId", "BankId")
+                        .IsUnique()
+                        .HasFilter("[DevelopmentUserId] IS NOT NULL");
+
+                    b.ToTable("DemoBankAccounts");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            AccountHolderName = "Fiona Ajeti",
+                            AccountNumber = "1000123456",
+                            AccountType = "Current",
+                            BankId = 1,
+                            CreatedAt = new DateTime(2026, 1, 4, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Currency = "EUR",
+                            CurrentBalance = 5000m,
+                            Iban = "XK051234567890123456",
+                            IsActive = true,
+                            IsLinked = false,
+                            RowVersion = new byte[0],
+                            VerificationCodeHash = "F724A30965E1FBA1EA7CA65F0B0D600572D0D61081053F7C0483DBC66F569C32"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            AccountHolderName = "Arben Krasniqi",
+                            AccountNumber = "2000123456",
+                            AccountType = "Savings",
+                            BankId = 2,
+                            CreatedAt = new DateTime(2026, 1, 4, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Currency = "EUR",
+                            CurrentBalance = 10000m,
+                            Iban = "XK052234567890123456",
+                            IsActive = true,
+                            IsLinked = false,
+                            RowVersion = new byte[0],
+                            VerificationCodeHash = "518810C012FE56C8C0A4BEE3E081CE803696900FB1FA4935AD975E82D0729359"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            AccountHolderName = "Lira Gashi",
+                            AccountNumber = "3000123456",
+                            AccountType = "Current",
+                            BankId = 3,
+                            CreatedAt = new DateTime(2026, 1, 4, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Currency = "EUR",
+                            CurrentBalance = 7200m,
+                            Iban = "XK053234567890123456",
+                            IsActive = true,
+                            IsLinked = false,
+                            RowVersion = new byte[0],
+                            VerificationCodeHash = "B79E8098800EAD554EB209EAC3A33A424CDF3D74C97C856E12F1D14788FC070E"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            AccountHolderName = "Dardan Berisha",
+                            AccountNumber = "4000123456",
+                            AccountType = "Savings",
+                            BankId = 4,
+                            CreatedAt = new DateTime(2026, 1, 4, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Currency = "EUR",
+                            CurrentBalance = 12500m,
+                            Iban = "XK054234567890123456",
+                            IsActive = true,
+                            IsLinked = false,
+                            RowVersion = new byte[0],
+                            VerificationCodeHash = "35EE79ED144A5EA1651070092B24490BD6B1E860770014AB785EDE76BEE3FD6F"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            AccountHolderName = "Elira Morina",
+                            AccountNumber = "5000123456",
+                            AccountType = "Current",
+                            BankId = 5,
+                            CreatedAt = new DateTime(2026, 1, 4, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Currency = "EUR",
+                            CurrentBalance = 6400m,
+                            Iban = "XK055234567890123456",
+                            IsActive = true,
+                            IsLinked = false,
+                            RowVersion = new byte[0],
+                            VerificationCodeHash = "7C12876906BF253B6FE18C413F6D7EC3B0005280ADB98C549B92BB6AFFFF2CAB"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            AccountHolderName = "Besnik Hoxha",
+                            AccountNumber = "6000123456",
+                            AccountType = "Savings",
+                            BankId = 6,
+                            CreatedAt = new DateTime(2026, 1, 4, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Currency = "EUR",
+                            CurrentBalance = 15000m,
+                            Iban = "XK056234567890123456",
+                            IsActive = true,
+                            IsLinked = false,
+                            RowVersion = new byte[0],
+                            VerificationCodeHash = "68012CE7110B4F58E50F7605C9AE08C04759B8EF9CE45A30DAF4C7B438B673DE"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            AccountHolderName = "Fiona Ajeti",
+                            AccountNumber = "3100102157",
+                            AccountType = "Current",
+                            BankId = 3,
+                            CreatedAt = new DateTime(2026, 1, 4, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Currency = "EUR",
+                            CurrentBalance = 8300m,
+                            Iban = "XK053100102157000001",
+                            IsActive = true,
+                            IsLinked = false,
+                            RowVersion = new byte[0],
+                            VerificationCodeHash = "F724A30965E1FBA1EA7CA65F0B0D600572D0D61081053F7C0483DBC66F569C32"
                         });
                 });
 
@@ -441,8 +607,16 @@ namespace FraudGuard.Api.Migrations
                     b.Property<DateTime?>("ResolvedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("ReviewStartedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime?>("ReviewedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -475,6 +649,42 @@ namespace FraudGuard.Api.Migrations
                     b.ToTable("FraudCases");
                 });
 
+            modelBuilder.Entity("FraudGuard.Api.Models.FraudCaseNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AnalystId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("FraudCaseId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AnalystId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("FraudCaseId");
+
+                    b.ToTable("FraudCaseNotes");
+                });
+
             modelBuilder.Entity("FraudGuard.Api.Models.Merchant", b =>
                 {
                     b.Property<int>("Id")
@@ -482,6 +692,9 @@ namespace FraudGuard.Api.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BankId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Category")
                         .IsRequired()
@@ -499,15 +712,33 @@ namespace FraudGuard.Api.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsVerified")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MerchantCategoryCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("MerchantCode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("RiskLevel")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<int?>("SettlementBankAccountId")
                         .HasColumnType("int");
@@ -517,57 +748,20 @@ namespace FraudGuard.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BankId");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("MerchantCode")
+                        .IsUnique();
+
                     b.HasIndex("Name");
 
-                    b.HasIndex("SettlementBankAccountId");
+                    b.HasIndex("SettlementBankAccountId")
+                        .IsUnique()
+                        .HasFilter("[SettlementBankAccountId] IS NOT NULL");
 
                     b.ToTable("Merchants");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Category = "Retail",
-                            Country = "Kosovo",
-                            CreatedAt = new DateTime(2026, 1, 3, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsActive = true,
-                            Name = "Demo Market Prishtina",
-                            RiskLevel = "Low",
-                            SettlementBankAccountId = 5
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Category = "Travel",
-                            Country = "Kosovo",
-                            CreatedAt = new DateTime(2026, 1, 3, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsActive = true,
-                            Name = "Demo Travel Agency",
-                            RiskLevel = "Medium",
-                            SettlementBankAccountId = 6
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Category = "E-Commerce",
-                            Country = "Kosovo",
-                            CreatedAt = new DateTime(2026, 1, 3, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsActive = true,
-                            Name = "Demo Electronics Store",
-                            RiskLevel = "Low",
-                            SettlementBankAccountId = 5
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Category = "Crypto",
-                            Country = "Kosovo",
-                            CreatedAt = new DateTime(2026, 1, 3, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsActive = true,
-                            Name = "Demo Crypto Exchange",
-                            RiskLevel = "High",
-                            SettlementBankAccountId = 6
-                        });
                 });
 
             modelBuilder.Entity("FraudGuard.Api.Models.Prediction", b =>
@@ -717,6 +911,9 @@ namespace FraudGuard.Api.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Country")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -733,6 +930,9 @@ namespace FraudGuard.Api.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("DestinationBankAccountId")
+                        .HasColumnType("int");
 
                     b.Property<string>("IdempotencyKey")
                         .HasMaxLength(100)
@@ -763,6 +963,9 @@ namespace FraudGuard.Api.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<DateTime?>("RejectedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int?>("RiskScore")
                         .HasColumnType("int");
 
@@ -787,6 +990,8 @@ namespace FraudGuard.Api.Migrations
                     b.HasIndex("BeneficiaryId");
 
                     b.HasIndex("CreatedAt");
+
+                    b.HasIndex("DestinationBankAccountId");
 
                     b.HasIndex("MerchantId");
 
@@ -916,8 +1121,8 @@ namespace FraudGuard.Api.Migrations
                         {
                             Id = 1,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "user@credit.com",
-                            FullName = "Credit User",
+                            Email = "user@fraudguard.com",
+                            FullName = "FraudGuard User",
                             IsActive = true,
                             PasswordHash = "$2a$11$753ccYgfz2QJHlSCTMG2a.Swts8DhWf9WAQJQtEz3HN3AUsIHMIXO",
                             Role = "User"
@@ -926,8 +1131,8 @@ namespace FraudGuard.Api.Migrations
                         {
                             Id = 2,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "admin@credit.com",
-                            FullName = "Credit Admin",
+                            Email = "admin@fraudguard.com",
+                            FullName = "FraudGuard Admin",
                             IsActive = true,
                             PasswordHash = "$2a$11$hMS2w0HZwNwlHWet4HN1Ce.tzShAq1G7pJ30aYBQawVUxjn3a.IJC",
                             Role = "Admin"
@@ -942,11 +1147,15 @@ namespace FraudGuard.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("FraudGuard.Api.Models.Merchant")
+                        .WithMany()
+                        .HasForeignKey("MerchantId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("FraudGuard.Api.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("Bank");
 
@@ -977,6 +1186,31 @@ namespace FraudGuard.Api.Migrations
                     b.Navigation("DestinationBankAccount");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FraudGuard.Api.Models.DemoBankAccount", b =>
+                {
+                    b.HasOne("FraudGuard.Api.Models.Bank", "Bank")
+                        .WithMany()
+                        .HasForeignKey("BankId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FraudGuard.Api.Models.User", "DevelopmentUser")
+                        .WithMany()
+                        .HasForeignKey("DevelopmentUserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("FraudGuard.Api.Models.User", "LinkedUser")
+                        .WithMany()
+                        .HasForeignKey("LinkedUserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Bank");
+
+                    b.Navigation("DevelopmentUser");
+
+                    b.Navigation("LinkedUser");
                 });
 
             modelBuilder.Entity("FraudGuard.Api.Models.FraudAlert", b =>
@@ -1036,12 +1270,39 @@ namespace FraudGuard.Api.Migrations
                     b.Navigation("Transaction");
                 });
 
+            modelBuilder.Entity("FraudGuard.Api.Models.FraudCaseNote", b =>
+                {
+                    b.HasOne("FraudGuard.Api.Models.User", "Analyst")
+                        .WithMany()
+                        .HasForeignKey("AnalystId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("FraudGuard.Api.Models.FraudCase", "FraudCase")
+                        .WithMany("Notes")
+                        .HasForeignKey("FraudCaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Analyst");
+
+                    b.Navigation("FraudCase");
+                });
+
             modelBuilder.Entity("FraudGuard.Api.Models.Merchant", b =>
                 {
+                    b.HasOne("FraudGuard.Api.Models.Bank", "Bank")
+                        .WithMany()
+                        .HasForeignKey("BankId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
                     b.HasOne("FraudGuard.Api.Models.BankAccount", "SettlementBankAccount")
                         .WithMany()
                         .HasForeignKey("SettlementBankAccountId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Bank");
 
                     b.Navigation("SettlementBankAccount");
                 });
@@ -1071,6 +1332,11 @@ namespace FraudGuard.Api.Migrations
                         .HasForeignKey("BeneficiaryId")
                         .OnDelete(DeleteBehavior.NoAction);
 
+                    b.HasOne("FraudGuard.Api.Models.BankAccount", "DestinationBankAccount")
+                        .WithMany()
+                        .HasForeignKey("DestinationBankAccountId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("FraudGuard.Api.Models.Merchant", "MerchantRecord")
                         .WithMany()
                         .HasForeignKey("MerchantId")
@@ -1089,6 +1355,8 @@ namespace FraudGuard.Api.Migrations
 
                     b.Navigation("Beneficiary");
 
+                    b.Navigation("DestinationBankAccount");
+
                     b.Navigation("MerchantRecord");
 
                     b.Navigation("SourceBankAccount");
@@ -1099,6 +1367,11 @@ namespace FraudGuard.Api.Migrations
             modelBuilder.Entity("FraudGuard.Api.Models.Bank", b =>
                 {
                     b.Navigation("BankAccounts");
+                });
+
+            modelBuilder.Entity("FraudGuard.Api.Models.FraudCase", b =>
+                {
+                    b.Navigation("Notes");
                 });
 
             modelBuilder.Entity("FraudGuard.Api.Models.Transaction", b =>

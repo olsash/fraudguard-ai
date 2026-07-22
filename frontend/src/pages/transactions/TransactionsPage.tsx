@@ -124,8 +124,13 @@ export default function TxPage() {
     const merchantId = Number(form.merchantId);
     const beneficiaryId = Number(form.beneficiaryId);
 
+    if (selectedAccount && amount > selectedAccount.currentBalance && ["PAYMENT", "TRANSFER", "CASH_OUT", "DEBIT"].includes(transactionType)) {
+      setError(`The amount exceeds your available balance of ${formatCurrency(selectedAccount.currentBalance, selectedAccount.currency)}.`);
+      return;
+    }
+
     if (transactionType === "PAYMENT" && (!Number.isInteger(merchantId) || merchantId <= 0)) {
-      setError("Select a merchant for payment transactions.");
+      setError("Select a merchant.");
       return;
     }
 
@@ -154,9 +159,9 @@ export default function TxPage() {
         ? "Transaction analyzed and completed."
         : created.processingStatus === "PendingReview"
           ? "Transaction analyzed and sent to analyst review."
-          : created.processingStatus === "Rejected"
-            ? "Transaction analyzed and rejected before balance updates."
-            : "Transaction submitted for analysis.");
+          : created.processingStatus === "BlockedPendingReview"
+            ? "Transaction temporarily blocked for security review."
+          : "Transaction submitted for analysis.");
       setShowCreate(false);
       setForm(initialForm);
       await loadTransactions();
@@ -226,7 +231,7 @@ export default function TxPage() {
                       <Td>{transaction.country}</Td>
                       <Td className="font-mono font-semibold">{formatCurrency(transaction.amount, transaction.currency)}</Td>
                       <Td><RiskBar value={transaction.riskScore} /></Td>
-                      <Td><StatusBadge s={transaction.status} /></Td>
+                      <Td><StatusBadge s={transaction.processingStatus} /></Td>
                       <Td className="text-xs text-muted-foreground">{formatDateTime(transaction.createdAt)}</Td>
                       <Td>
                         <div className="flex items-center gap-1">
@@ -295,11 +300,29 @@ export function Th({ children }: { children?: React.ReactNode }) { return <th cl
 export function Td({ children, className = "" }: any) { return <td className={`px-4 py-3 ${className}`}>{children}</td>; }
 
 export function StatusBadge({ s }: { s: string }) {
+  const labelMap: Record<string, string> = {
+    safe: "Completed",
+    review: "Pending Security Review",
+    fraud: "Rejected",
+    pending: "Pending",
+    BlockedPendingReview: "Temporarily Blocked",
+    PendingReview: "Pending Security Review",
+    PendingAnalysis: "Pending Analysis",
+    Completed: "Completed",
+    Rejected: "Rejected",
+    Failed: "Failed",
+  };
   const map: Record<string, string> = {
     safe: "bg-success/15 text-success",
     review: "bg-warning/15 text-warning",
     fraud: "bg-destructive/15 text-destructive",
     pending: "bg-primary/15 text-primary",
+    BlockedPendingReview: "bg-destructive/15 text-destructive",
+    PendingReview: "bg-warning/15 text-warning",
+    PendingAnalysis: "bg-primary/15 text-primary",
+    Completed: "bg-success/15 text-success",
+    Rejected: "bg-destructive/15 text-destructive",
+    Failed: "bg-destructive/15 text-destructive",
     active: "bg-success/15 text-success",
     inactive: "bg-destructive/15 text-destructive",
     suspended: "bg-destructive/15 text-destructive",
@@ -307,7 +330,7 @@ export function StatusBadge({ s }: { s: string }) {
     investigating: "bg-warning/15 text-warning",
     resolved: "bg-success/15 text-success",
   };
-  return <span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-md ${map[s] ?? "bg-secondary text-muted-foreground"}`}>{s}</span>;
+  return <span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-md ${map[s] ?? "bg-secondary text-muted-foreground"}`}>{labelMap[s] ?? s}</span>;
 }
 
 export function RiskBar({ value }: { value: number | null }) {
@@ -333,7 +356,7 @@ function TxModal({ tx, predicting, onPredict, onClose }: { tx: Transaction; pred
           <p className="text-xs text-muted-foreground">{tx.transactionType}</p>
           <p className="font-display text-lg font-semibold">{tx.merchant}</p>
         </div>
-        <StatusBadge s={tx.status} />
+        <StatusBadge s={tx.processingStatus} />
       </div>
       <div className="grid grid-cols-2 gap-3 mt-6 text-sm">
         {[
@@ -350,7 +373,7 @@ function TxModal({ tx, predicting, onPredict, onClose }: { tx: Transaction; pred
           <Sparkles className="h-3.5 w-3.5 text-primary" /> Analysis Result
         </div>
         <div className="mb-3 grid grid-cols-2 gap-2 text-sm">
-          <Metric label="Status" value={<StatusBadge s={tx.status} />} />
+          <Metric label="Status" value={<StatusBadge s={tx.processingStatus} />} />
           <Metric label="Confidence" value={tx.latestPredictionConfidence == null ? "Pending" : `${Math.round(tx.latestPredictionConfidence * 100)}%`} />
         </div>
         {tx.latestPredictionExplanation && tx.latestPredictionExplanation.length > 0 ? (
@@ -419,7 +442,7 @@ function CreateTransactionModal({
               value={form.merchantId}
               options={merchants.map((merchant) => ({
                 value: String(merchant.id),
-                label: `${merchant.name} - ${merchant.category}, ${merchant.country}`,
+                label: `${merchant.name} - ${merchant.category}, ${merchant.bankName || merchant.country}`,
               }))}
               placeholder="Search merchants"
               onChange={(value) => update("merchantId", value)}
@@ -442,7 +465,7 @@ function CreateTransactionModal({
         </div>
         {(selectedMerchant || selectedBeneficiary) && (
           <div className="glass rounded-lg p-3 text-sm text-muted-foreground">
-            {selectedMerchant && <span>{selectedMerchant.category} merchant in {selectedMerchant.country}. Risk level: {selectedMerchant.riskLevel}.</span>}
+            {selectedMerchant && <span>{selectedMerchant.category} merchant settling through {selectedMerchant.bankName || "a simulated bank"}. Risk level: {selectedMerchant.riskLevel}.</span>}
             {selectedBeneficiary && <span>Transfer to {selectedBeneficiary.bankName} account {selectedBeneficiary.maskedAccountReference}.</span>}
           </div>
         )}

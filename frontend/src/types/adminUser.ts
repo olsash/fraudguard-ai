@@ -15,6 +15,7 @@ export interface AdminUser {
   averageRiskScore: number;
   highestRiskScore: number;
   fraudPredictionsCount: number;
+  openAssignedCases: number;
   status: AdminUserStatus;
 }
 

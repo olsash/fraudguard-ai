@@ -41,7 +41,14 @@ public class AlertsController : ControllerBase
             .Include(alert => alert.User)
             .AsQueryable();
 
-        if (!ApplicationRoles.IsPrivilegedReviewRole(User))
+        if (User.IsInRole(ApplicationRoles.FraudAnalyst))
+        {
+            query = query.Where(alert => _dbContext.FraudCases.Any(fraudCase =>
+                fraudCase.FraudAlertId == alert.Id
+                && (fraudCase.AssignedAnalystId == userId.Value
+                    || fraudCase.AssignedAnalystId == null)));
+        }
+        else if (!User.IsInRole(ApplicationRoles.Admin))
         {
             query = query.Where(alert => alert.UserId == userId.Value);
         }
@@ -65,7 +72,7 @@ public class AlertsController : ControllerBase
         return Ok(ToDto(alert));
     }
 
-    [Authorize(Roles = ApplicationRoles.AdminOrFraudAnalyst)]
+    [Authorize(Roles = ApplicationRoles.Admin)]
     [HttpPut("{id:int}/status")]
     public async Task<ActionResult<FraudAlertDto>> UpdateStatus(
         int id,
@@ -138,7 +145,14 @@ public class AlertsController : ControllerBase
             query = query.AsNoTracking();
         }
 
-        if (!ApplicationRoles.IsPrivilegedReviewRole(User))
+        if (User.IsInRole(ApplicationRoles.FraudAnalyst))
+        {
+            query = query.Where(alert => _dbContext.FraudCases.Any(fraudCase =>
+                fraudCase.FraudAlertId == alert.Id
+                && (fraudCase.AssignedAnalystId == userId.Value
+                    || fraudCase.AssignedAnalystId == null)));
+        }
+        else if (!User.IsInRole(ApplicationRoles.Admin))
         {
             query = query.Where(alert => alert.UserId == userId.Value);
         }
