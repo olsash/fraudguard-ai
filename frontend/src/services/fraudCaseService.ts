@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPut } from "@/services/api";
-import type { FraudCase, FraudCaseFilters, FraudCaseListResponse, FraudCaseSummary } from "@/types/fraudCase";
+import type { AnalystTransactionFilters, AnalystTransactionListResponse, FraudCase, FraudCaseFilters, FraudCaseListResponse, FraudCaseSummary } from "@/types/fraudCase";
 
 function toQuery(filters?: FraudCaseFilters) {
   const params = new URLSearchParams();
@@ -29,6 +29,10 @@ export const fraudCaseService = {
 
   getAnalystPredictions(filters?: FraudCaseFilters & { modelResult?: string; riskLevel?: string }): Promise<FraudCaseListResponse> {
     return apiGet<FraudCaseListResponse>(`/analyst/predictions${toQuery(filters)}`);
+  },
+
+  getAnalystTransactions(filters?: AnalystTransactionFilters): Promise<AnalystTransactionListResponse> {
+    return apiGet<AnalystTransactionListResponse>(`/analyst/transactions${toQuery(filters)}`);
   },
 
   getCase(id: number): Promise<FraudCase> {

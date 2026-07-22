@@ -460,6 +460,48 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
     }
 
     [Fact]
+    public async Task FraudAnalyst_CanAccessScopedAnalystTransactions()
+    {
+        await CreateReviewCaseAsync(assignedAnalystId: 101);
+        var analystClient = _factory.CreateClient();
+        analystClient.DefaultRequestHeaders.Add("X-Test-User-Id", "101");
+        analystClient.DefaultRequestHeaders.Add("X-Test-Role", ApplicationRoles.FraudAnalyst);
+
+        var response = await analystClient.GetAsync("/api/analyst/transactions?scope=mine");
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<AnalystTransactionListResponseBody>();
+        Assert.NotNull(body);
+        Assert.Single(body.Items);
+        Assert.Equal(1, body.Summary.TotalTransactions);
+        Assert.Equal("TX-", body.Items[0].TransactionReference[..3]);
+    }
+
+    [Fact]
+    public async Task User_CannotAccessAnalystTransactions()
+    {
+        var response = await _client.GetAsync("/api/analyst/transactions");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminUsers_DeleteUserWithHistoryReturnsConflict()
+    {
+        var userId = await CreateUserAsync(ApplicationRoles.User);
+        await CreateStoredTransactionForUserAsync(userId);
+        var adminClient = _factory.CreateClient();
+        adminClient.DefaultRequestHeaders.Add("X-Test-User-Id", "100");
+        adminClient.DefaultRequestHeaders.Add("X-Test-Role", ApplicationRoles.Admin);
+
+        var response = await adminClient.DeleteAsync($"/api/admin/users/{userId}");
+        var body = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("This user has financial or investigation history and cannot be permanently deleted. Deactivate the account instead.", body?.Message);
+    }
+
+    [Fact]
     public async Task Banks_ReturnsActiveDemoBankList()
     {
         var response = await _client.GetAsync("/api/banks");
@@ -1466,6 +1508,101 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         return transaction.Id;
     }
 
+    private async Task<int> CreateStoredTransactionForUserAsync(int userId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var transaction = new Transaction
+        {
+            UserId = userId,
+            Merchant = $"History Merchant {Guid.NewGuid():N}",
+            Category = "Retail",
+            Country = "Kosovo",
+            Amount = 25m,
+            Currency = "EUR",
+            Status = "safe",
+            ProcessingStatus = "Completed",
+            TransactionType = "PAYMENT",
+            Description = "Protected history test",
+            CreatedAt = DateTime.UtcNow
+        };
+        dbContext.Transactions.Add(transaction);
+        await dbContext.SaveChangesAsync();
+        return transaction.Id;
+    }
+
+    private async Task<int> CreateReviewCaseAsync(int? assignedAnalystId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var transaction = new Transaction
+        {
+            UserId = 99,
+            Merchant = "Review Merchant",
+            Category = "Money Transfer",
+            Country = "Kosovo",
+            Amount = 500m,
+            Currency = "EUR",
+            RiskScore = 62,
+            Status = "review",
+            ProcessingStatus = "PendingReview",
+            TransactionType = "TRANSFER",
+            Description = "Analyst transaction scope test",
+            CreatedAt = DateTime.UtcNow
+        };
+        dbContext.Transactions.Add(transaction);
+        await dbContext.SaveChangesAsync();
+
+        var prediction = new Prediction
+        {
+            UserId = transaction.UserId,
+            TransactionId = transaction.Id,
+            TransactionType = transaction.TransactionType,
+            Amount = transaction.Amount,
+            RiskScore = 62,
+            RiskLevel = "Medium",
+            IsFraud = true,
+            Confidence = 0.7,
+            Explanation = "[]",
+            SuggestedAction = "Manual review",
+            CreatedAt = DateTime.UtcNow
+        };
+        dbContext.Predictions.Add(prediction);
+        await dbContext.SaveChangesAsync();
+
+        var alert = new FraudAlert
+        {
+            UserId = transaction.UserId,
+            TransactionId = transaction.Id,
+            PredictionId = prediction.Id,
+            Title = "Review required",
+            Severity = "medium",
+            Status = "open",
+            RiskScore = 62,
+            CreatedAt = DateTime.UtcNow
+        };
+        dbContext.FraudAlerts.Add(alert);
+        await dbContext.SaveChangesAsync();
+
+        var fraudCase = new FraudCase
+        {
+            TransactionId = transaction.Id,
+            PredictionId = prediction.Id,
+            FraudAlertId = alert.Id,
+            AssignedAnalystId = assignedAnalystId,
+            Status = assignedAnalystId.HasValue ? "UnderReview" : "Open",
+            Priority = "Medium",
+            ModelRiskScore = 62,
+            ModelDecision = "Fraud",
+            AssignedAt = assignedAnalystId.HasValue ? DateTime.UtcNow : null,
+            ReviewStartedAt = assignedAnalystId.HasValue ? DateTime.UtcNow : null,
+            CreatedAt = DateTime.UtcNow
+        };
+        dbContext.FraudCases.Add(fraudCase);
+        await dbContext.SaveChangesAsync();
+        return fraudCase.Id;
+    }
+
     private async Task<int> CreateUserAsync(string role, string? fullName = null)
     {
         return await CreateUserAsync(_factory, role, fullName);
@@ -1807,6 +1944,23 @@ public class PredictionEndpointTests : IClassFixture<PredictionApiFactory>
         public FraudCaseResponseBody[] Items { get; set; } = [];
 
         public int TotalItems { get; set; }
+    }
+
+    private sealed class AnalystTransactionListResponseBody
+    {
+        public AnalystTransactionSummaryBody Summary { get; set; } = new();
+
+        public AnalystTransactionResponseBody[] Items { get; set; } = [];
+    }
+
+    private sealed class AnalystTransactionSummaryBody
+    {
+        public int TotalTransactions { get; set; }
+    }
+
+    private sealed class AnalystTransactionResponseBody
+    {
+        public string TransactionReference { get; set; } = string.Empty;
     }
 
     private sealed class FraudCaseResponseBody

@@ -19,6 +19,24 @@ export interface AdminUser {
   status: AdminUserStatus;
 }
 
+export interface AdminUserSummary {
+  totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  admins: number;
+  fraudAnalysts: number;
+  normalUsers: number;
+}
+
+export interface AdminUserListResponse {
+  items: AdminUser[];
+  summary: AdminUserSummary;
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
 export interface AdminUserDetails extends AdminUser {
   recentPredictions: RecentPrediction[];
 }

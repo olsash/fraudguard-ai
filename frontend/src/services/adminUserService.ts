@@ -1,5 +1,5 @@
-import { ApiError, apiGet, apiPost, apiPut } from "@/services/api";
-import type { AdminUser, AdminUserDetails, CreateAdminUserInput, UpdateAdminUserInput } from "@/types/adminUser";
+import { ApiError, apiDelete, apiGet, apiPatch, apiPost, apiPut } from "@/services/api";
+import type { AdminUser, AdminUserDetails, AdminUserListResponse, CreateAdminUserInput, UpdateAdminUserInput } from "@/types/adminUser";
 
 function toAdminUserError(error: unknown) {
   if (error instanceof ApiError) {
@@ -8,52 +8,31 @@ function toAdminUserError(error: unknown) {
     }
 
     if (error.status === 403) {
-      return new Error("Admin access required.");
+      return new Error("Your account does not have permission to manage users.");
     }
 
-    if (error.status === 400 || error.status === 409 || error.status === 404) {
+    if (error.status === 404) {
+      return new Error("The user-management endpoint could not be found.");
+    }
+
+    if (error.status === 400 || error.status === 409) {
       return new Error(error.message);
     }
 
     if (error.status >= 500) {
-      return new Error("User management is unavailable right now. Check that the backend API is running.");
+      return new Error("User management could not be loaded due to a server error.");
     }
 
     return new Error(error.message);
   }
 
-  return new Error("Unable to contact the user management API. Check your connection and try again.");
-}
-
-async function apiDelete(path: string): Promise<void> {
-  const { apiConfig } = await import("@/config/apiConfig");
-  const { authService } = await import("@/services/authService");
-  const token = authService.getToken();
-
-  const response = await fetch(`${apiConfig.baseUrl}${path}`, {
-    method: "DELETE",
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
-
-  if (!response.ok) {
-    let message = `API request failed: ${response.status}`;
-
-    try {
-      const body = (await response.json()) as { message?: string; errors?: Record<string, string[]> };
-      const validationMessages = body.errors ? Object.values(body.errors).flat() : [];
-      message = body.message ?? validationMessages[0] ?? message;
-    } catch {
-      // Empty error bodies use the status fallback.
-    }
-
-    throw new ApiError(response.status, message);
-  }
+  return new Error("The backend API could not be reached.");
 }
 
 export const adminUserService = {
-  async getUsers(): Promise<AdminUser[]> {
+  async getUsers(): Promise<AdminUserListResponse> {
     try {
-      return await apiGet<AdminUser[]>("/admin/users");
+      return await apiGet<AdminUserListResponse>("/admin/users");
     } catch (error) {
       throw toAdminUserError(error);
     }
@@ -85,7 +64,23 @@ export const adminUserService = {
 
   async deleteUser(id: number): Promise<void> {
     try {
-      await apiDelete(`/admin/users/${id}`);
+      await apiDelete<void>(`/admin/users/${id}`);
+    } catch (error) {
+      throw toAdminUserError(error);
+    }
+  },
+
+  async deactivateUser(id: number): Promise<AdminUser> {
+    try {
+      return await apiPatch<AdminUser>(`/admin/users/${id}/deactivate`);
+    } catch (error) {
+      throw toAdminUserError(error);
+    }
+  },
+
+  async activateUser(id: number): Promise<AdminUser> {
+    try {
+      return await apiPatch<AdminUser>(`/admin/users/${id}/activate`);
     } catch (error) {
       throw toAdminUserError(error);
     }

@@ -104,3 +104,59 @@ export interface FraudCaseFilters {
   page?: number;
   pageSize?: number;
 }
+
+export interface AnalystTransactionSummary {
+  totalTransactions: number;
+  pendingReview: number;
+  underReview: number;
+  confirmedFraud: number;
+  falsePositives: number;
+  totalAmount: number;
+  averageRisk: number;
+}
+
+export interface AnalystTransaction {
+  transactionId: number;
+  transactionReference: string;
+  fraudCaseId: number;
+  caseReference: string;
+  customerId: number;
+  customerName: string;
+  transactionType: string;
+  merchantName?: string | null;
+  beneficiaryName?: string | null;
+  amount: number;
+  currency: string;
+  modelRiskScore: number;
+  modelRiskLevel: string;
+  modelDecision: string;
+  processingStatus: string;
+  caseStatus: string;
+  analystDecision?: string | null;
+  assignedAnalystId?: number | null;
+  assignedAnalystName?: string | null;
+  createdAt: string;
+  completedAt?: string | null;
+  rejectedAt?: string | null;
+  canClaim: boolean;
+  canReview: boolean;
+}
+
+export interface AnalystTransactionListResponse {
+  items: AnalystTransaction[];
+  summary: AnalystTransactionSummary;
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface AnalystTransactionFilters extends FraudCaseFilters {
+  scope?: string;
+  processingStatus?: string;
+  caseStatus?: string;
+  analystDecision?: string;
+  riskLevel?: string;
+  minAmount?: string;
+  maxAmount?: string;
+}

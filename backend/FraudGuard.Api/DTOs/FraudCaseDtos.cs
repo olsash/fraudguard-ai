@@ -38,6 +38,89 @@ public class FraudCaseListResponseDto
     public int TotalPages { get; set; }
 }
 
+public class AnalystTransactionListResponseDto
+{
+    public AnalystTransactionSummaryDto Summary { get; set; } = new();
+
+    public AnalystTransactionDto[] Items { get; set; } = [];
+
+    public int Page { get; set; }
+
+    public int PageSize { get; set; }
+
+    public int TotalItems { get; set; }
+
+    public int TotalPages { get; set; }
+}
+
+public class AnalystTransactionSummaryDto
+{
+    public int TotalTransactions { get; set; }
+
+    public int PendingReview { get; set; }
+
+    public int UnderReview { get; set; }
+
+    public int ConfirmedFraud { get; set; }
+
+    public int FalsePositives { get; set; }
+
+    public decimal TotalAmount { get; set; }
+
+    public double AverageRisk { get; set; }
+}
+
+public class AnalystTransactionDto
+{
+    public int TransactionId { get; set; }
+
+    public string TransactionReference { get; set; } = string.Empty;
+
+    public int FraudCaseId { get; set; }
+
+    public string CaseReference { get; set; } = string.Empty;
+
+    public int CustomerId { get; set; }
+
+    public string CustomerName { get; set; } = string.Empty;
+
+    public string TransactionType { get; set; } = string.Empty;
+
+    public string? MerchantName { get; set; }
+
+    public string? BeneficiaryName { get; set; }
+
+    public decimal Amount { get; set; }
+
+    public string Currency { get; set; } = "EUR";
+
+    public int ModelRiskScore { get; set; }
+
+    public string ModelRiskLevel { get; set; } = string.Empty;
+
+    public string ModelDecision { get; set; } = string.Empty;
+
+    public string ProcessingStatus { get; set; } = string.Empty;
+
+    public string CaseStatus { get; set; } = string.Empty;
+
+    public string? AnalystDecision { get; set; }
+
+    public int? AssignedAnalystId { get; set; }
+
+    public string? AssignedAnalystName { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+
+    public DateTime? CompletedAt { get; set; }
+
+    public DateTime? RejectedAt { get; set; }
+
+    public bool CanClaim { get; set; }
+
+    public bool CanReview { get; set; }
+}
+
 public class FraudCaseDto
 {
     public int Id { get; set; }

@@ -26,16 +26,35 @@ public class AdminUsersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<AdminUserDto>>> GetUsers(CancellationToken cancellationToken)
+    public async Task<ActionResult<AdminUserListResponseDto>> GetUsers(
+        [FromQuery] string? search,
+        [FromQuery] string? role,
+        [FromQuery] string? status,
+        [FromQuery] string? sort,
+        [FromQuery] string? direction,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var users = await _dbContext.Users
-            .AsNoTracking()
-            .OrderBy(user => user.FullName)
-            .ToListAsync(cancellationToken);
-
         var stats = await LoadUserStats(cancellationToken);
+        var query = ApplyUserFilters(_dbContext.Users.AsNoTracking(), search, role, status);
+        var summary = await BuildUserSummaryAsync(query, cancellationToken);
+        query = ApplyUserSorting(query, sort, direction);
 
-        return Ok(users.Select(user => ToDto(user, stats)));
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        var total = await query.CountAsync(cancellationToken);
+        var users = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+
+        return Ok(new AdminUserListResponseDto
+        {
+            Items = users.Select(user => ToDto(user, stats)).ToArray(),
+            Summary = summary,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = total,
+            TotalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize))
+        });
     }
 
     [HttpGet("{id:int}")]
@@ -137,6 +156,13 @@ public class AdminUsersController : ControllerBase
             return BadRequest(new { message = "Status must be Active or Inactive." });
         }
 
+        if (user.Role == ApplicationRoles.FraudAnalyst
+            && (role != ApplicationRoles.FraudAnalyst || status == "Inactive")
+            && await HasOpenAssignedCasesAsync(id, cancellationToken))
+        {
+            return Conflict(new { message = "This analyst has open assigned cases. Reassign them before changing the role or deactivation." });
+        }
+
         var email = NormalizeEmail(request.Email);
         var emailExists = await _dbContext.Users
             .AnyAsync(item => item.Id != id && item.Email == email, cancellationToken);
@@ -161,6 +187,53 @@ public class AdminUsersController : ControllerBase
         return Ok(ToDto(user, stats));
     }
 
+    [HttpPatch("{id:int}/deactivate")]
+    public async Task<ActionResult<AdminUserDto>> DeactivateUser(int id, CancellationToken cancellationToken)
+    {
+        var currentUserId = GetCurrentUserId();
+        if (currentUserId == id)
+        {
+            return BadRequest(new { message = "You cannot deactivate your own account." });
+        }
+
+        var user = await _dbContext.Users.FindAsync([id], cancellationToken);
+        if (user is null)
+        {
+            return NotFound(new { message = "User not found." });
+        }
+
+        if (user.Role == ApplicationRoles.FraudAnalyst && await HasOpenAssignedCasesAsync(id, cancellationToken))
+        {
+            return Conflict(new { message = "This analyst has open assigned cases. Reassign them before deactivation." });
+        }
+
+        user.IsActive = false;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _systemLogService.LogAsync("Warning", "admin", $"Admin deactivated user {user.Email}.", user.Id, user.FullName, cancellationToken);
+
+        var stats = await LoadUserStats(cancellationToken);
+        return Ok(ToDto(user, stats));
+    }
+
+    [HttpPatch("{id:int}/activate")]
+    public async Task<ActionResult<AdminUserDto>> ActivateUser(int id, CancellationToken cancellationToken)
+    {
+        var user = await _dbContext.Users.FindAsync([id], cancellationToken);
+        if (user is null)
+        {
+            return NotFound(new { message = "User not found." });
+        }
+
+        user.IsActive = true;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _systemLogService.LogAsync("Success", "admin", $"Admin activated user {user.Email}.", user.Id, user.FullName, cancellationToken);
+
+        var stats = await LoadUserStats(cancellationToken);
+        return Ok(ToDto(user, stats));
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteUser(int id, CancellationToken cancellationToken)
     {
@@ -176,9 +249,20 @@ public class AdminUsersController : ControllerBase
             return NotFound(new { message = "User not found." });
         }
 
+        if (await HasProtectedHistoryAsync(id, cancellationToken))
+        {
+            await _systemLogService.LogAsync("Warning", "admin", $"Permanent deletion blocked for user {user.Email} because related history exists.", id, user.FullName, cancellationToken);
+            return Conflict(new
+            {
+                code = "USER_HAS_RELATED_HISTORY",
+                message = "This user has financial or investigation history and cannot be permanently deleted. Deactivate the account instead.",
+                canDeactivate = true
+            });
+        }
+
+        await _systemLogService.LogAsync("Warning", "admin", $"Admin permanently deleted user {user.Email}.", id, user.FullName, cancellationToken);
         _dbContext.Users.Remove(user);
         await _dbContext.SaveChangesAsync(cancellationToken);
-        await _systemLogService.LogAsync("Warning", "admin", $"Admin deleted user {user.Email}.", id, user.FullName, cancellationToken);
 
         return NoContent();
     }
@@ -218,6 +302,80 @@ public class AdminUsersController : ControllerBase
         }
 
         return statsByUser;
+    }
+
+    private static IQueryable<User> ApplyUserFilters(IQueryable<User> query, string? search, string? role, string? status)
+    {
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(user => user.FullName.Contains(term) || user.Email.Contains(term));
+        }
+
+        var normalizedRole = ApplicationRoles.Normalize(role ?? string.Empty);
+        if (normalizedRole is not null)
+        {
+            query = query.Where(user => user.Role == normalizedRole);
+        }
+
+        var normalizedStatus = NormalizeStatus(status);
+        if (normalizedStatus is not null)
+        {
+            var isActive = normalizedStatus == "Active";
+            query = query.Where(user => user.IsActive == isActive);
+        }
+
+        return query;
+    }
+
+    private static IQueryable<User> ApplyUserSorting(IQueryable<User> query, string? sort, string? direction)
+    {
+        var desc = string.Equals(direction, "desc", StringComparison.OrdinalIgnoreCase);
+        return sort?.Trim().ToLowerInvariant() switch
+        {
+            "email" => desc ? query.OrderByDescending(user => user.Email) : query.OrderBy(user => user.Email),
+            "role" => desc ? query.OrderByDescending(user => user.Role) : query.OrderBy(user => user.Role),
+            "created" or "createdat" => desc ? query.OrderByDescending(user => user.CreatedAt) : query.OrderBy(user => user.CreatedAt),
+            _ => desc ? query.OrderByDescending(user => user.FullName) : query.OrderBy(user => user.FullName)
+        };
+    }
+
+    private static async Task<AdminUserSummaryDto> BuildUserSummaryAsync(IQueryable<User> query, CancellationToken cancellationToken)
+    {
+        var rows = await query.Select(user => new { user.Role, user.IsActive }).ToListAsync(cancellationToken);
+        return new AdminUserSummaryDto
+        {
+            TotalUsers = rows.Count,
+            ActiveUsers = rows.Count(user => user.IsActive),
+            InactiveUsers = rows.Count(user => !user.IsActive),
+            Admins = rows.Count(user => user.Role == ApplicationRoles.Admin),
+            FraudAnalysts = rows.Count(user => user.Role == ApplicationRoles.FraudAnalyst),
+            NormalUsers = rows.Count(user => user.Role == ApplicationRoles.User)
+        };
+    }
+
+    private Task<bool> HasOpenAssignedCasesAsync(int userId, CancellationToken cancellationToken)
+    {
+        return _dbContext.FraudCases.AnyAsync(fraudCase =>
+            fraudCase.AssignedAnalystId == userId
+            && fraudCase.Status != "Resolved"
+            && !fraudCase.ResolvedAt.HasValue,
+            cancellationToken);
+    }
+
+    private async Task<bool> HasProtectedHistoryAsync(int userId, CancellationToken cancellationToken)
+    {
+        return await _dbContext.Transactions.AnyAsync(item => item.UserId == userId, cancellationToken)
+            || await _dbContext.Predictions.AnyAsync(item => item.UserId == userId, cancellationToken)
+            || await _dbContext.FraudAlerts.AnyAsync(item => item.UserId == userId, cancellationToken)
+            || await _dbContext.FraudCases.AnyAsync(item =>
+                item.AssignedAnalystId == userId
+                || (item.Transaction != null && item.Transaction.UserId == userId),
+                cancellationToken)
+            || await _dbContext.FraudCaseNotes.AnyAsync(item => item.AnalystId == userId, cancellationToken)
+            || await _dbContext.BankAccounts.AnyAsync(item => item.UserId == userId, cancellationToken)
+            || await _dbContext.Beneficiaries.AnyAsync(item => item.UserId == userId, cancellationToken)
+            || await _dbContext.SystemLogs.AnyAsync(item => item.UserId == userId, cancellationToken);
     }
 
     private int? GetCurrentUserId()

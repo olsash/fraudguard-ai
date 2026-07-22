@@ -132,6 +132,74 @@ public class FraudCasesController : ControllerBase
         return result;
     }
 
+    [HttpGet("/api/analyst/transactions")]
+    public async Task<ActionResult<AnalystTransactionListResponseDto>> AnalystTransactions(
+        [FromQuery] string? scope,
+        [FromQuery] string? search,
+        [FromQuery] string? processingStatus,
+        [FromQuery] string? caseStatus,
+        [FromQuery] string? analystDecision,
+        [FromQuery] string? transactionType,
+        [FromQuery] string? riskLevel,
+        [FromQuery] int? minRisk,
+        [FromQuery] int? maxRisk,
+        [FromQuery] decimal? minAmount,
+        [FromQuery] decimal? maxAmount,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] string? sort,
+        [FromQuery] string? direction,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
+    {
+        var analystId = GetCurrentUserId();
+        if (analystId is null)
+        {
+            return Unauthorized(new { message = "Invalid token." });
+        }
+
+        var isAdmin = User.IsInRole(ApplicationRoles.Admin);
+        var query = BaseQuery().Where(item => item.TransactionId > 0);
+        if (!isAdmin)
+        {
+            query = ApplyAnalystScope(query, scope ?? "reviewRequired", analystId.Value);
+        }
+
+        query = ApplyAnalystTransactionFilters(
+            query,
+            search,
+            processingStatus,
+            caseStatus,
+            analystDecision,
+            transactionType,
+            riskLevel,
+            minRisk,
+            maxRisk,
+            minAmount,
+            maxAmount,
+            from,
+            to);
+
+        var summary = await BuildAnalystTransactionSummaryAsync(query, cancellationToken);
+        query = ApplyAnalystTransactionSorting(query, sort, direction);
+
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+
+        return Ok(new AnalystTransactionListResponseDto
+        {
+            Summary = summary,
+            Items = items.Select(item => ToAnalystTransactionDto(item, analystId, isAdmin)).ToArray(),
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = total,
+            TotalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize))
+        });
+    }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<FraudCaseDto>> Details(int id, CancellationToken cancellationToken)
     {
@@ -214,6 +282,104 @@ public class FraudCasesController : ControllerBase
             "resolved" or "resolvedbyme" => query.Where(item => item.AssignedAnalystId == analystId && item.Status == "Resolved"),
             "reviewable" or "reviewrequired" => query.Where(item => item.ResolvedAt == null && (item.AssignedAnalystId == analystId || item.AssignedAnalystId == null)),
             _ => query.Where(item => item.AssignedAnalystId == analystId && item.Status != "Resolved")
+        };
+    }
+
+    private static IQueryable<FraudCase> ApplyAnalystTransactionFilters(
+        IQueryable<FraudCase> query,
+        string? search,
+        string? processingStatus,
+        string? caseStatus,
+        string? analystDecision,
+        string? transactionType,
+        string? riskLevel,
+        int? minRisk,
+        int? maxRisk,
+        decimal? minAmount,
+        decimal? maxAmount,
+        DateTime? from,
+        DateTime? to)
+    {
+        query = ApplyFilters(query, search, caseStatus, null, transactionType, minRisk, maxRisk, null, null, from, to);
+
+        if (!string.IsNullOrWhiteSpace(processingStatus) && !processingStatus.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            var normalized = processingStatus.Trim();
+            query = query.Where(item => item.Transaction != null && item.Transaction.ProcessingStatus == normalized);
+        }
+
+        if (!string.IsNullOrWhiteSpace(analystDecision) && !analystDecision.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            var normalized = NormalizeFinalDecision(analystDecision);
+            if (normalized is not null)
+            {
+                query = query.Where(item => item.FinalDecision == normalized);
+            }
+        }
+
+        var normalizedRisk = riskLevel?.Trim().ToLowerInvariant();
+        if (normalizedRisk == "low")
+        {
+            query = query.Where(item => item.ModelRiskScore < 40);
+        }
+        else if (normalizedRisk is "medium" or "review")
+        {
+            query = query.Where(item => item.ModelRiskScore >= 40 && item.ModelRiskScore < 70);
+        }
+        else if (normalizedRisk is "high" or "fraud")
+        {
+            query = query.Where(item => item.ModelRiskScore >= 70);
+        }
+
+        if (minAmount.HasValue)
+        {
+            query = query.Where(item => item.Transaction != null && item.Transaction.Amount >= minAmount.Value);
+        }
+
+        if (maxAmount.HasValue)
+        {
+            query = query.Where(item => item.Transaction != null && item.Transaction.Amount <= maxAmount.Value);
+        }
+
+        return query;
+    }
+
+    private static IQueryable<FraudCase> ApplyAnalystTransactionSorting(IQueryable<FraudCase> query, string? sort, string? direction)
+    {
+        var desc = !string.Equals(direction, "asc", StringComparison.OrdinalIgnoreCase);
+        return sort?.Trim().ToLowerInvariant() switch
+        {
+            "amount" => desc ? query.OrderByDescending(item => item.Transaction!.Amount) : query.OrderBy(item => item.Transaction!.Amount),
+            "risk" or "riskscore" => desc ? query.OrderByDescending(item => item.ModelRiskScore) : query.OrderBy(item => item.ModelRiskScore),
+            "status" => desc ? query.OrderByDescending(item => item.Status) : query.OrderBy(item => item.Status),
+            "date" or "created" or "createdat" => desc ? query.OrderByDescending(item => item.CreatedAt) : query.OrderBy(item => item.CreatedAt),
+            _ => query.OrderByDescending(item => item.ModelRiskScore).ThenByDescending(item => item.CreatedAt)
+        };
+    }
+
+    private static async Task<AnalystTransactionSummaryDto> BuildAnalystTransactionSummaryAsync(IQueryable<FraudCase> query, CancellationToken cancellationToken)
+    {
+        var rows = await query
+            .Where(item => item.Transaction != null)
+            .Select(item => new
+            {
+                item.Status,
+                item.FinalDecision,
+                item.ModelRiskScore,
+                item.Transaction!.Amount,
+                item.Transaction.ProcessingStatus
+            })
+            .ToListAsync(cancellationToken);
+
+        return new AnalystTransactionSummaryDto
+        {
+            TotalTransactions = rows.Count,
+            PendingReview = rows.Count(item => item.ProcessingStatus is "PendingReview" or "BlockedPendingReview"),
+            UnderReview = rows.Count(item => item.Status == "UnderReview"),
+            ConfirmedFraud = rows.Count(item => item.FinalDecision == "ConfirmedFraud"),
+            FalsePositives = rows.Count(item => item.FinalDecision == "FalsePositive"),
+            TotalAmount = rows.Sum(item => item.Amount),
+            AverageRisk = rows.Count == 0 ? 0 : Math.Round(rows.Average(item => item.ModelRiskScore), 1)
         };
     }
 
@@ -803,6 +969,45 @@ public class FraudCasesController : ControllerBase
             ReviewStartedAt = fraudCase.ReviewStartedAt,
             ResolvedAt = fraudCase.ResolvedAt,
             UpdatedAt = fraudCase.UpdatedAt
+        };
+    }
+
+    private static AnalystTransactionDto ToAnalystTransactionDto(FraudCase fraudCase, int? currentUserId, bool isAdmin)
+    {
+        var transaction = fraudCase.Transaction;
+        var canClaim = !isAdmin
+            && currentUserId.HasValue
+            && fraudCase.AssignedAnalystId is null
+            && !IsResolved(fraudCase);
+        var canReview = isAdmin
+            || (currentUserId.HasValue && fraudCase.AssignedAnalystId == currentUserId.Value && !IsResolved(fraudCase));
+
+        return new AnalystTransactionDto
+        {
+            TransactionId = fraudCase.TransactionId,
+            TransactionReference = $"TX-{fraudCase.TransactionId}",
+            FraudCaseId = fraudCase.Id,
+            CaseReference = $"FC-{fraudCase.Id}",
+            CustomerId = transaction?.UserId ?? 0,
+            CustomerName = transaction?.User?.FullName ?? "Unknown customer",
+            TransactionType = transaction?.TransactionType ?? string.Empty,
+            MerchantName = transaction?.MerchantRecord?.Name ?? (transaction?.TransactionType == "PAYMENT" ? transaction.Merchant : null),
+            BeneficiaryName = transaction?.Beneficiary?.FullName,
+            Amount = transaction?.Amount ?? 0,
+            Currency = transaction?.Currency ?? "EUR",
+            ModelRiskScore = fraudCase.ModelRiskScore,
+            ModelRiskLevel = fraudCase.ModelRiskScore >= 70 ? "High" : fraudCase.ModelRiskScore >= 40 ? "Medium" : "Low",
+            ModelDecision = fraudCase.ModelDecision,
+            ProcessingStatus = transaction?.ProcessingStatus ?? string.Empty,
+            CaseStatus = fraudCase.Status,
+            AnalystDecision = fraudCase.FinalDecision,
+            AssignedAnalystId = fraudCase.AssignedAnalystId,
+            AssignedAnalystName = fraudCase.AssignedAnalyst?.FullName,
+            CreatedAt = transaction?.CreatedAt ?? fraudCase.CreatedAt,
+            CompletedAt = transaction?.CompletedAt,
+            RejectedAt = transaction?.RejectedAt,
+            CanClaim = canClaim,
+            CanReview = canReview
         };
     }
 

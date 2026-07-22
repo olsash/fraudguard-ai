@@ -3,8 +3,8 @@ import { FraudSelect } from "@/components/common/FraudSelect";
 import { Topbar } from "@/components/layout/Topbar";
 import { adminUserService } from "@/services/adminUserService";
 import { authService } from "@/services/authService";
-import type { AdminUser, AdminUserDetails, AdminUserRole, AdminUserStatus, CreateAdminUserInput, UpdateAdminUserInput } from "@/types/adminUser";
-import { ChevronRight, Eye, Loader2, Pencil, Search, Trash2, UserPlus, X } from "lucide-react";
+import type { AdminUser, AdminUserDetails, AdminUserListResponse, AdminUserRole, AdminUserStatus, CreateAdminUserInput, UpdateAdminUserInput } from "@/types/adminUser";
+import { Ban, ChevronRight, Eye, Loader2, Pencil, RotateCcw, Search, Trash2, UserPlus, X } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { RiskBar, Td, Th } from "@/pages/transactions/TransactionsPage";
@@ -26,6 +26,14 @@ const roleLabels: Record<AdminUserRole, string> = {
   FraudAnalyst: "Fraud Analyst",
   User: "User",
 };
+const emptyUserPage: AdminUserListResponse = {
+  items: [],
+  summary: { totalUsers: 0, activeUsers: 0, inactiveUsers: 0, admins: 0, fraudAnalysts: 0, normalUsers: 0 },
+  page: 1,
+  pageSize: 20,
+  totalItems: 0,
+  totalPages: 1,
+};
 
 type UserForm = typeof blankForm;
 type PendingSaveConfirmation = {
@@ -37,6 +45,7 @@ type PendingSaveConfirmation = {
 
 export default function UsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [pageData, setPageData] = useState<AdminUserListResponse>(emptyUserPage);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -50,6 +59,7 @@ export default function UsersPage() {
   const [details, setDetails] = useState<AdminUserDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<AdminUser | null>(null);
   const [pendingSaveConfirmation, setPendingSaveConfirmation] = useState<PendingSaveConfirmation | null>(null);
 
   useEffect(() => {
@@ -65,27 +75,19 @@ export default function UsersPage() {
     });
   }, [users, q, roleFilter, statusFilter]);
 
-  const roleCounts = useMemo(() => {
-    return users.reduce<Record<AdminUserRole, number>>(
-      (counts, user) => {
-        counts[user.role] += 1;
-        return counts;
-      },
-      { Admin: 0, FraudAnalyst: 0, User: 0 },
-    );
-  }, [users]);
-
   async function loadUsers() {
     setLoading(true);
     setError(null);
 
     try {
-      setUsers(await adminUserService.getUsers());
+      const result = await adminUserService.getUsers();
+      setUsers(result.items);
+      setPageData(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to load users.";
       setError(message);
-      if (message === "Admin access required.") {
-        toast.error("Admin access required");
+      if (message.includes("permission")) {
+        toast.error("Admin permission required");
       }
     } finally {
       setLoading(false);
@@ -234,9 +236,32 @@ export default function UsersPage() {
     }
   }
 
+  async function deactivateUser() {
+    if (!deactivateTarget) return;
+
+    try {
+      const updated = await adminUserService.deactivateUser(deactivateTarget.id);
+      setUsers((current) => current.map((user) => user.id === updated.id ? updated : user));
+      toast.success("User deactivated. Historical records were preserved.");
+      setDeactivateTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to deactivate user.");
+    }
+  }
+
+  async function activateUser(user: AdminUser) {
+    try {
+      const updated = await adminUserService.activateUser(user.id);
+      setUsers((current) => current.map((item) => item.id === updated.id ? updated : item));
+      toast.success("User activated.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Unable to activate user.");
+    }
+  }
+
   return (
     <>
-      <Topbar title="Users Management" subtitle={`${rows.length} of ${users.length} users`} />
+      <Topbar title="Users Management" subtitle={`${rows.length} of ${pageData.totalItems} users`} />
       <main className="flex-1 min-w-0 overflow-x-hidden p-4 md:p-8 space-y-4">
         <div className="glass rounded-2xl p-4 flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 glass rounded-lg px-3 py-2 flex-1 min-w-[240px]">
@@ -259,14 +284,14 @@ export default function UsersPage() {
         </div>
 
         {loading && <StatePanel icon={Loader2} title="Loading users" message="Fetching registered users from FraudGuard API." spin />}
-        {!loading && error && <StatePanel title="Users unavailable" message={error} destructive />}
+        {!loading && error && <StatePanel title={error.includes("permission") ? "You do not have access to user management." : "Users unavailable"} message={error} destructive onRetry={() => void loadUsers()} />}
         {!loading && !error && (
           <>
           <div className="grid gap-3 md:grid-cols-3">
             {roleOptions.map((role) => (
               <div key={role} className="glass rounded-2xl p-4">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">{roleLabels[role]}</p>
-                <p className="mt-1 font-mono text-2xl font-semibold">{roleCounts[role]}</p>
+                <p className="mt-1 font-mono text-2xl font-semibold">{role === "Admin" ? pageData.summary.admins : role === "FraudAnalyst" ? pageData.summary.fraudAnalysts : pageData.summary.normalUsers}</p>
               </div>
             ))}
           </div>
@@ -314,7 +339,12 @@ export default function UsersPage() {
                         <div className="flex gap-1">
                           <button onClick={() => void openDetails(user)} className="h-7 w-7 grid place-items-center rounded hover:bg-secondary" title="View"><Eye className="h-3.5 w-3.5" /></button>
                           <button onClick={() => openEdit(user)} className="h-7 w-7 grid place-items-center rounded hover:bg-secondary" title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
-                          <button onClick={() => setDeleteTarget(user)} className="h-7 w-7 grid place-items-center rounded hover:bg-destructive/20 text-destructive" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
+                          {user.status === "Active" ? (
+                            <button onClick={() => setDeactivateTarget(user)} className="h-7 w-7 grid place-items-center rounded hover:bg-warning/20 text-warning" title="Deactivate"><Ban className="h-3.5 w-3.5" /></button>
+                          ) : (
+                            <button onClick={() => void activateUser(user)} className="h-7 w-7 grid place-items-center rounded hover:bg-success/20 text-success" title="Activate"><RotateCcw className="h-3.5 w-3.5" /></button>
+                          )}
+                          <button onClick={() => setDeleteTarget(user)} className="h-7 w-7 grid place-items-center rounded hover:bg-destructive/20 text-destructive" title="Permanently delete"><Trash2 className="h-3.5 w-3.5" /></button>
                           <button onClick={() => void openDetails(user)} className="h-7 w-7 grid place-items-center rounded hover:bg-secondary" title="Details"><ChevronRight className="h-3.5 w-3.5" /></button>
                         </div>
                       </Td>
@@ -349,6 +379,9 @@ export default function UsersPage() {
 
       {deleteTarget && (
         <DeleteDialog user={deleteTarget} onCancel={() => setDeleteTarget(null)} onConfirm={() => void deleteUser()} />
+      )}
+      {deactivateTarget && (
+        <DeactivateDialog user={deactivateTarget} onCancel={() => setDeactivateTarget(null)} onConfirm={() => void deactivateUser()} />
       )}
       <ConfirmDialog
         open={Boolean(pendingSaveConfirmation)}
@@ -487,13 +520,38 @@ function DetailsModal({ loading, details, onClose }: { loading: boolean; details
 
 function DeleteDialog({ user, onCancel, onConfirm }: { user: AdminUser; onCancel: () => void; onConfirm: () => void }) {
   return (
-    <Modal title="Delete user" onClose={onCancel}>
+    <Modal title="Permanently Delete User" onClose={onCancel}>
       <p className="text-sm text-muted-foreground">
-        Delete <span className="font-medium text-foreground">{user.fullName}</span>? This will also remove their prediction history.
+        This action is available only for users with no financial or investigation history and cannot be undone.
       </p>
+      <div className="mt-4 glass rounded-lg p-3 text-sm">
+        <p className="font-medium text-foreground">{user.fullName}</p>
+        <p className="text-muted-foreground">{user.email}</p>
+        <p className="text-xs text-muted-foreground">{roleLabels[user.role]}</p>
+      </div>
       <div className="mt-6 flex justify-end gap-2">
         <button onClick={onCancel} className="glass rounded-lg px-4 py-2 text-sm">Cancel</button>
-        <button onClick={onConfirm} className="rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground">Delete user</button>
+        <button onClick={onConfirm} className="rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground">Permanently Delete</button>
+      </div>
+    </Modal>
+  );
+}
+
+function DeactivateDialog({ user, onCancel, onConfirm }: { user: AdminUser; onCancel: () => void; onConfirm: () => void }) {
+  return (
+    <Modal title="Deactivate User" onClose={onCancel}>
+      <p className="text-sm text-muted-foreground">
+        This user will no longer be able to sign in. Their transaction and investigation history will be preserved.
+      </p>
+      <div className="mt-4 glass rounded-lg p-3 text-sm">
+        <p className="font-medium text-foreground">{user.fullName}</p>
+        <p className="text-muted-foreground">{user.email}</p>
+        <p className="text-xs text-muted-foreground">{roleLabels[user.role]}</p>
+        {user.openAssignedCases > 0 && <p className="mt-2 text-xs text-warning">{user.openAssignedCases} open assigned case(s)</p>}
+      </div>
+      <div className="mt-6 flex justify-end gap-2">
+        <button onClick={onCancel} className="glass rounded-lg px-4 py-2 text-sm">Cancel</button>
+        <button onClick={onConfirm} className="rounded-lg bg-warning px-4 py-2 text-sm font-medium text-warning-foreground">Deactivate User</button>
       </div>
     </Modal>
   );
@@ -573,12 +631,13 @@ function Metric({ label, value }: { label: string; value: string | number }) {
   return <div className="glass rounded-lg p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="font-medium mt-0.5">{value}</p></div>;
 }
 
-function StatePanel({ title, message, icon: Icon = Loader2, spin, destructive }: { title: string; message: string; icon?: typeof Loader2; spin?: boolean; destructive?: boolean }) {
+function StatePanel({ title, message, icon: Icon = Loader2, spin, destructive, onRetry }: { title: string; message: string; icon?: typeof Loader2; spin?: boolean; destructive?: boolean; onRetry?: () => void }) {
   return (
     <div className={`glass rounded-2xl p-10 text-center ${destructive ? "ring-1 ring-destructive/40" : ""}`}>
       <Icon className={`h-10 w-10 mx-auto ${spin ? "animate-spin" : ""} ${destructive ? "text-destructive" : "text-primary"}`} />
       <h2 className="mt-4 text-xl font-display font-semibold">{title}</h2>
       <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+      {onRetry && <button onClick={onRetry} className="mt-4 glass rounded-lg px-4 py-2 text-sm">Retry</button>}
     </div>
   );
 }

@@ -32,6 +32,36 @@ public class AdminUserDto
     public string Status { get; set; } = "Active";
 }
 
+public class AdminUserListResponseDto
+{
+    public AdminUserDto[] Items { get; set; } = [];
+
+    public AdminUserSummaryDto Summary { get; set; } = new();
+
+    public int Page { get; set; }
+
+    public int PageSize { get; set; }
+
+    public int TotalItems { get; set; }
+
+    public int TotalPages { get; set; }
+}
+
+public class AdminUserSummaryDto
+{
+    public int TotalUsers { get; set; }
+
+    public int ActiveUsers { get; set; }
+
+    public int InactiveUsers { get; set; }
+
+    public int Admins { get; set; }
+
+    public int FraudAnalysts { get; set; }
+
+    public int NormalUsers { get; set; }
+}
+
 public class AdminUserDetailsDto : AdminUserDto
 {
     public List<RecentPredictionDto> RecentPredictions { get; set; } = [];
